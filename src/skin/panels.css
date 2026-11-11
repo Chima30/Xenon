@@ -64,8 +64,8 @@
 }
 .cs-card-title {
   margin: 0;
-  font: 600 0.7rem var(--cs-font-mono);
-  letter-spacing: 0.12em;
+  font: 600 var(--fs-xs)/var(--lh-snug) var(--cs-font);
+  letter-spacing: var(--ls-label);
   text-transform: uppercase;
   color: var(--cs-lavender);
 }
@@ -122,7 +122,7 @@
 }
 .cs-tag {
   margin-left: 0;
-  font: 500 0.7rem var(--cs-font-mono);
+  font: 500 var(--fs-xs)/var(--lh-snug) var(--cs-font);
   color: var(--cs-ice-dim);
 }
 .cs-chip[aria-pressed='true'] .cs-tag,
@@ -180,7 +180,7 @@
 .cs-offset-val {
   min-width: 64px;
   text-align: center;
-  font: 600 0.95rem var(--cs-font-mono);
+  font: 600 0.95rem var(--cs-font);
 }
 
 /* Forms */
@@ -229,7 +229,7 @@
 }
 .cs-form textarea {
   padding: 10px 12px;
-  font-family: var(--cs-font-mono);
+  font-family: var(--cs-font);
   font-size: 0.8rem;
   resize: vertical;
 }
@@ -295,7 +295,7 @@
   border-radius: 10px;
 }
 .cs-line-time {
-  font: 600 0.75rem var(--cs-font-mono);
+  font: 600 var(--fs-xs)/var(--lh-snug) var(--cs-font);
   color: var(--cs-lavender);
   padding-top: 2px;
 }
@@ -337,7 +337,7 @@
   max-width: 100%;
   padding: 0.15em 0.55em;
   white-space: pre-line;
-  font: 600 var(--cap-size, 1.1rem) / 1.35 var(--cs-font-ui);
+  font: 600 var(--cap-size, 1.1rem) / 1.35 var(--cap-font, var(--cs-font));
   text-align: center;
   color: var(--cap-color, #fff);
   background: var(--cap-bg, rgb(5 7 12 / 0.75));

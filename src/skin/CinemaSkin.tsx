@@ -27,20 +27,23 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   type ReactNode,
 } from 'react';
+import { AppearanceProvider, useAppearance } from './appearance/AppearanceContext';
+import { Atmosphere } from './appearance/Atmosphere';
 import { ClipPanel, EMPTY_CLIP, type Clip } from './ClipPanel';
 import { DiagnosticsDialog, type DiagRow } from './DiagnosticsDialog';
-import { KeymapDialog } from './KeymapDialog';
-import { SettingsPanel, type ChoiceSet, type DownloadInfo, type SkipSegment } from './SettingsPanel';
+import { clamp } from './format';
+import { useWidthTier, type Tier } from './hooks';
 import {
   BookmarkIcon,
   CaptionsIcon,
   CastIcon,
-  ClipIcon,
   ChevronLeftIcon,
+  ClipIcon,
   CompassIcon,
   ExitFullscreenIcon,
   FullscreenIcon,
   HelpIcon,
+  MoreIcon,
   MuteIcon,
   PaletteIcon,
   PauseIcon,
@@ -54,18 +57,21 @@ import {
   SettingsIcon,
   VolumeIcon,
 } from './icons';
-import { clamp } from './format';
-import { AppearanceProvider, useAppearance } from './appearance/AppearanceContext';
-import { AppearancePanel } from './appearance/AppearancePanel';
-import { Atmosphere } from './appearance/Atmosphere';
+import { KeymapDialog } from './KeymapDialog';
+import { FloatingPanel } from './FloatingPanel';
+import { PrefsProvider, usePrefs } from './prefs/PrefsContext';
+import { SettingsPanel, type ChoiceSet, type DownloadInfo, type SettingsTab, type SkipSegment } from './SettingsPanel';
 import { CaptionOverlay } from './subtitles/CaptionOverlay';
+import type { AutoSync } from './subtitles/SubtitleCards';
 import { SubtitleProvider, useSubtitles } from './subtitles/SubtitleContext';
-import { SubtitlePanel, type AutoSync } from './subtitles/SubtitlePanel';
 import { TranscriptPanel } from './subtitles/TranscriptPanel';
 import { loadPrefs, savePrefs, SCRIM_MODES, type ScrimMode } from './storage';
+import '@fontsource-variable/space-grotesk';
+import './tokens.css';
 import './cinema-skin.css';
 import './panels.css';
 import './appearance/appearance.css';
+import './polish.css';
 
 export type SkinMode = 'watch' | 'explore' | 'remember';
 
@@ -80,6 +86,8 @@ interface SkinContextValue {
   setMode: (mode: SkinMode) => void;
   /** Polite screen-reader + visual status message. */
   announce: (message: string) => void;
+  /** Layout tier derived from the player's real container width. */
+  tier: Tier;
 }
 
 const SkinContext = createContext<SkinContextValue | null>(null);
@@ -101,7 +109,7 @@ export interface CinemaSkinProps {
   railSlot?: ReactNode;
   /** Panel shown under the video in Remember mode (the moment atlas). Optional. */
   atlasSlot?: ReactNode;
-  /** Extra buttons for the top-right toolbar. */
+  /** Extra buttons for the top-right toolbar. On very small players they move into the More menu. */
   topActions?: ReactNode;
   /** Ticks drawn over the seek bar. They never take pointer events. */
   markers?: TimelineMarker[];
@@ -134,8 +142,16 @@ export interface CinemaSkinProps {
   onJump?: (time: number, label: string) => void;
   /** Licensed artwork for the selected film. Used only when the viewer turns Adaptive atmosphere on. */
   artwork?: string | null;
-  /** Credit line shown in the Appearance studio, e.g. "Still frame from Sintel (CC BY 3.0)". */
+  /** Credit line shown in the Appearance settings, e.g. "Still frame from Sintel (CC BY 3.0)". */
   artworkLabel?: string;
+
+  /**
+   * Content drawn over the video but beneath captions and controls (hosts use it for footage simulation).
+   * It never receives pointer events. Not needed in normal use.
+   */
+  videoOverlay?: ReactNode;
+  /** Previews the strongest readable control styling without touching the viewer's saved preferences. */
+  forceHighContrast?: boolean;
 }
 
 const SCRIM_LABEL: Record<ScrimMode, string> = {
@@ -144,7 +160,7 @@ const SCRIM_LABEL: Record<ScrimMode, string> = {
   theater: 'Theater',
 };
 
-type PanelName = 'settings' | 'subtitles' | 'transcript' | 'clip' | 'appearance';
+type PanelName = 'settings' | 'transcript' | 'clip' | 'more';
 
 function isEditable(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
@@ -154,9 +170,11 @@ function isEditable(target: EventTarget | null): boolean {
 export function CinemaSkin(props: CinemaSkinProps) {
   return (
     <AppearanceProvider artwork={props.artwork} artworkLabel={props.artworkLabel}>
-      <SubtitleProvider mediaKey={props.mediaKey ?? 'default'}>
-        <SkinInner {...props} />
-      </SubtitleProvider>
+      <PrefsProvider forceHighContrast={props.forceHighContrast}>
+        <SubtitleProvider mediaKey={props.mediaKey ?? 'default'}>
+          <SkinInner {...props} />
+        </SubtitleProvider>
+      </PrefsProvider>
     </AppearanceProvider>
   );
 }
@@ -182,17 +200,23 @@ function SkinInner({
   onShareClip,
   initialClip,
   onJump,
+  videoOverlay,
 }: CinemaSkinProps) {
   const store = usePlayer();
   const media = useMedia() as HTMLMediaElement | null;
   const subs = useSubtitles();
   const look = useAppearance();
+  const view = usePrefs();
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const { tier } = useWidthTier(wrapRef);
+
   const [mode, setModeState] = useState<SkinMode>(defaultMode);
   const [scrim, setScrim] = useState<ScrimMode>(() => loadPrefs().scrim);
   const [helpOpen, setHelpOpen] = useState(false);
   const [diagOpen, setDiagOpen] = useState(false);
   const [status, setStatus] = useState('');
   const [panel, setPanel] = useState<PanelName | null>(null);
+  const [settingsTab, setSettingsTab] = useState<SettingsTab>('playback');
   const [panelOpener, setPanelOpener] = useState<HTMLElement | null>(null);
   const [clip, setClip] = useState<Clip>(initialClip ?? EMPTY_CLIP);
   const clipRun = useRef(false); // true while "Play clip" is running without looping
@@ -225,8 +249,15 @@ function SkinInner({
     setPanelOpener(opener ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null));
     setPanel(name);
   };
-  const togglePanel = (name: PanelName, opener: HTMLElement) => (panel === name ? setPanel(null) : openPanel(name, opener));
   const closePanel = () => setPanel(null);
+  const toggleSimple = (name: Exclude<PanelName, 'settings'>, opener: HTMLElement) =>
+    panel === name ? closePanel() : openPanel(name, opener);
+  /** Settings is one panel with five tabs; callers pick the tab to land on. */
+  const toggleSettings = (tab: SettingsTab | null, opener: HTMLElement) => {
+    if (panel === 'settings' && (tab === null || tab === settingsTab)) return closePanel();
+    if (tab) setSettingsTab(tab);
+    openPanel('settings', opener);
+  };
 
   /* ---- clip looping: checked on a short interval, tighter than the 4 Hz timeupdate ---- */
   const clipEnd = clip.end;
@@ -265,6 +296,14 @@ function SkinInner({
     announce(`Scrim: ${SCRIM_LABEL[next]}`);
   };
 
+  const resetAll = () => {
+    view.reset();
+    look.reset();
+    setScrim('default');
+    savePrefs({ scrim: 'default' });
+    announce('Appearance, accessibility and dock settings restored to defaults');
+  };
+
   const onKeyDown = (e: ReactKeyboardEvent<HTMLDivElement>) => {
     if (isEditable(e.target) || e.ctrlKey || e.metaKey || e.altKey) return;
     if (e.key === '?') {
@@ -272,7 +311,7 @@ function SkinInner({
       setHelpOpen(true);
     } else if ((e.key === 'c' || e.key === 'C') && !(e.target as HTMLElement).closest('.cs-panel, .cs-rail, .cs-atlas')) {
       e.preventDefault();
-      if (subs.tracks.length === 0) announce('No subtitles available. Open the subtitle menu to add some.');
+      if (subs.tracks.length === 0) announce('No subtitles available. Open the subtitle settings to add some.');
       else {
         subs.toggle();
         announce(subs.active ? 'Captions off' : 'Captions on');
@@ -280,12 +319,14 @@ function SkinInner({
     }
   };
 
-  const ctx = useMemo<SkinContextValue>(() => ({ mode: effectiveMode, setMode, announce }), [effectiveMode, setMode, announce]);
+  const ctx = useMemo<SkinContextValue>(() => ({ mode: effectiveMode, setMode, announce, tier }), [effectiveMode, setMode, announce, tier]);
 
   const jump = (time: number, label: string) => {
     if (onJump) onJump(time, label);
     else void store.seek(time);
   };
+
+  const reduced = view.prefs.reducedMotion;
 
   return (
     <SkinContext.Provider value={ctx}>
@@ -295,13 +336,19 @@ function SkinInner({
         data-mode={effectiveMode}
         data-atm={look.derived.active ? 'on' : 'off'}
         data-rail={look.wheelCollapsed ? 'collapsed' : 'open'}
+        data-tier={tier}
+        data-large={view.prefs.largeControls || undefined}
+        data-hc={view.highContrast || undefined}
+        data-motion={reduced ? 'reduce' : undefined}
+        data-dock-labels={view.prefs.dockLabels ? 'on' : 'off'}
+        data-dock-compact={view.prefs.dockCompact || undefined}
         data-theme="cinema"
         style={look.cssVars}
       >
         <Atmosphere />
         <div className="cs-layout" onKeyDown={onKeyDown}>
           {effectiveMode === 'explore' && railSlot ? (
-            <aside className="cs-rail" aria-label="Navigate films and scenes">
+            <section className="cs-rail" aria-label="Navigate films and scenes">
               <div className="cs-rail-inner">
                 <div className="cs-rail-bar">
                   <span className="cs-rail-title" aria-hidden="true">
@@ -313,6 +360,8 @@ function SkinInner({
                     aria-expanded={!look.wheelCollapsed}
                     aria-controls="cs-rail-body"
                     aria-label={look.wheelCollapsed ? 'Expand the wheel panel' : 'Collapse the wheel panel'}
+                    data-tip={look.wheelCollapsed ? 'Expand wheel' : 'Collapse wheel'}
+                    data-tip-align="end"
                     onClick={() => {
                       look.setWheelCollapsed(!look.wheelCollapsed);
                       announce(look.wheelCollapsed ? 'Wheel panel expanded' : 'Wheel panel collapsed');
@@ -326,66 +375,74 @@ function SkinInner({
                   {railSlot}
                 </div>
               </div>
-            </aside>
+            </section>
           ) : null}
 
-          <div className="cs-stagewrap">
-          <div className="cs-stage">
-            {children}
-            <CaptionOverlay />
-            <Controls.Root>
-              <Controls.Content className="cs-controls">
-                <TopBar
-                  title={title}
-                  subtitle={subtitle}
-                  hasModes={hasModes}
-                  mode={effectiveMode}
-                  onMode={setMode}
-                  showAtlas={Boolean(atlasSlot)}
-                  showRail={Boolean(railSlot)}
-                  scrim={scrim}
-                  onScrim={cycleScrim}
-                  onHelp={() => setHelpOpen(true)}
-                  onDiag={() => setDiagOpen(true)}
-                  onAppearance={(el) => togglePanel('appearance', el)}
-                  appearanceOpen={panel === 'appearance'}
-                  extra={topActions}
-                />
-                <CenterCluster />
-                <BottomBar
-                  markers={markers}
-                  clip={clip}
-                  onSaveMoment={onSaveMoment}
-                  panel={panel}
-                  onToggle={togglePanel}
-                />
-              </Controls.Content>
-            </Controls.Root>
-            <SkipButton segments={segments} onSkip={jump} />
-            <BufferingSpinner />
-            <p className="cs-toast" role="status" aria-live="polite">
-              {status}
-            </p>
-          </div>
+          <div ref={wrapRef} className="cs-stagewrap" data-tier={tier}>
+            <div className="cs-stage">
+              {children}
+              {videoOverlay ? (
+                <div className="cs-video-overlay" aria-hidden="true">
+                  {videoOverlay}
+                </div>
+              ) : null}
+              <CaptionOverlay />
+              <Controls.Root>
+                <Controls.Content className="cs-controls">
+                  <TopBar
+                    title={title}
+                    subtitle={subtitle}
+                    tier={tier}
+                    hasModes={hasModes}
+                    mode={effectiveMode}
+                    onMode={setMode}
+                    showAtlas={Boolean(atlasSlot)}
+                    showRail={Boolean(railSlot)}
+                    scrim={scrim}
+                    onScrim={cycleScrim}
+                    onHelp={() => setHelpOpen(true)}
+                    onDiag={() => setDiagOpen(true)}
+                    onAppearance={(el) => toggleSettings('appearance', el)}
+                    appearanceOpen={panel === 'settings' && settingsTab === 'appearance'}
+                    extra={topActions}
+                  />
+                  <CenterCluster />
+                  <BottomBar
+                    tier={tier}
+                    markers={markers}
+                    clip={clip}
+                    onSaveMoment={onSaveMoment}
+                    panel={panel}
+                    settingsTab={settingsTab}
+                    onSettings={(tab, el) => toggleSettings(tab, el)}
+                    onSimple={toggleSimple}
+                  />
+                </Controls.Content>
+              </Controls.Root>
+              <SkipButton segments={segments} onSkip={jump} />
+              <LoadingState />
+              <p className="cs-toast" role="status" aria-live="polite">
+                {status}
+              </p>
+            </div>
 
-          {/* Panels live beside the stage, not inside it: over the video on wide players, under it on phones. */}
+            {/* Panels live beside the stage, not inside it: over the video on wide players, under it on small ones. */}
             <SettingsPanel
               open={panel === 'settings'}
               onClose={closePanel}
               returnFocusTo={panelOpener}
-              onOpenSubtitles={() => openPanel('subtitles', panelOpener)}
+              tab={settingsTab}
+              onTab={setSettingsTab}
+              onOpenTranscript={() => openPanel('transcript', panelOpener)}
+              onOpenHelp={() => setHelpOpen(true)}
+              onResetAll={resetAll}
               qualities={qualities}
               servers={servers}
               segments={segments}
               download={download}
-              onSkip={jump}
-            />
-            <SubtitlePanel
-              open={panel === 'subtitles'}
-              onClose={closePanel}
-              returnFocusTo={panelOpener}
-              onOpenTranscript={() => openPanel('transcript', panelOpener)}
               autoSync={autoSync}
+              diagnosticsRows={diagnosticsRows}
+              onSkip={jump}
             />
             <TranscriptPanel
               open={panel === 'transcript'}
@@ -393,7 +450,6 @@ function SkinInner({
               returnFocusTo={panelOpener}
               onSeek={(t) => jump(t, 'Transcript line')}
             />
-            <AppearancePanel open={panel === 'appearance'} onClose={closePanel} returnFocusTo={panelOpener} />
             <ClipPanel
               open={panel === 'clip'}
               onClose={closePanel}
@@ -403,6 +459,23 @@ function SkinInner({
               onPlay={playClip}
               onAnnounce={announce}
               onShare={onShareClip}
+            />
+            <MorePanel
+              open={panel === 'more'}
+              onClose={closePanel}
+              returnFocusTo={panelOpener}
+              tier={tier}
+              onSaveMoment={onSaveMoment}
+              onClip={() => openPanel('clip', panelOpener)}
+              onSettings={(tab) => {
+                setSettingsTab(tab);
+                openPanel('settings', panelOpener);
+              }}
+              onScrim={cycleScrim}
+              scrim={scrim}
+              onDiag={() => setDiagOpen(true)}
+              onHelp={() => setHelpOpen(true)}
+              extra={topActions}
             />
           </div>
 
@@ -439,7 +512,19 @@ function SkinInner({
           <ErrorDialog.Popup className="cs-error">
             <ErrorDialog.Title className="cs-error-title" />
             <ErrorDialog.Description className="cs-error-desc" />
-            <ErrorDialog.Close className="cs-btn" />
+            <div className="cs-error-actions">
+              <button
+                type="button"
+                className="cs-btn cs-btn-label"
+                onClick={() => {
+                  store.dismissError();
+                  media?.load();
+                }}
+              >
+                <span>Try again</span>
+              </button>
+              <ErrorDialog.Close className="cs-btn cs-btn-label" />
+            </div>
           </ErrorDialog.Popup>
         </ErrorDialog.Root>
       </Container>
@@ -452,6 +537,7 @@ function SkinInner({
 interface TopBarProps {
   title?: string;
   subtitle?: string;
+  tier: Tier;
   hasModes: boolean;
   mode: SkinMode;
   onMode: (m: SkinMode) => void;
@@ -467,70 +553,60 @@ interface TopBarProps {
 }
 
 function TopBar(p: TopBarProps) {
+  const tiny = p.tier === 'tiny' || p.tier === 'micro';
   return (
     <div className="cs-top">
-      <div className="cs-titleblock">
-        {p.title ? <p className="cs-title">{p.title}</p> : null}
-        {p.subtitle ? <p className="cs-subtitle">{p.subtitle}</p> : null}
-      </div>
+      {!tiny ? (
+        <div className="cs-titleblock">
+          {p.title ? <p className="cs-title">{p.title}</p> : null}
+          {p.subtitle ? <p className="cs-subtitle">{p.subtitle}</p> : null}
+        </div>
+      ) : null}
       <div className="cs-toolbar">
         {p.hasModes ? (
           <div className="cs-seg" role="group" aria-label="View mode">
-            <button
-              type="button"
-              className="cs-seg-btn"
-              aria-pressed={p.mode === 'watch'}
-              onClick={() => p.onMode('watch')}
-            >
+            <button type="button" className="cs-seg-btn" aria-pressed={p.mode === 'watch'} onClick={() => p.onMode('watch')}>
               <PlayIcon /> <span>Watch</span>
             </button>
             {p.showRail ? (
-              <button
-                type="button"
-                className="cs-seg-btn"
-                aria-pressed={p.mode === 'explore'}
-                onClick={() => p.onMode('explore')}
-              >
+              <button type="button" className="cs-seg-btn" aria-pressed={p.mode === 'explore'} onClick={() => p.onMode('explore')}>
                 <CompassIcon /> <span>Explore</span>
               </button>
             ) : null}
             {p.showAtlas ? (
-              <button
-                type="button"
-                className="cs-seg-btn"
-                aria-pressed={p.mode === 'remember'}
-                onClick={() => p.onMode('remember')}
-              >
+              <button type="button" className="cs-seg-btn" aria-pressed={p.mode === 'remember'} onClick={() => p.onMode('remember')}>
                 <BookmarkIcon /> <span>My Atlas</span>
               </button>
             ) : null}
           </div>
         ) : null}
-        {p.extra}
-        <button type="button" className="cs-icon-btn" onClick={p.onScrim} title={`Scrim: ${SCRIM_LABEL[p.scrim]}`}>
-          <ScrimIcon />
-          <span className="cs-sr">Change scrim. Current: {SCRIM_LABEL[p.scrim]}</span>
-        </button>
-        <button
-          type="button"
-          className="cs-icon-btn"
-          data-panel-toggle
-          aria-expanded={p.appearanceOpen}
-          aria-haspopup="dialog"
-          onClick={(e) => p.onAppearance(e.currentTarget)}
-          title="Appearance studio"
-        >
-          <PaletteIcon />
-          <span className="cs-sr">Open appearance studio</span>
-        </button>
-        <button type="button" className="cs-icon-btn" onClick={p.onDiag} title="Player health">
-          <PulseIcon />
-          <span className="cs-sr">Open player health</span>
-        </button>
-        <button type="button" className="cs-icon-btn" onClick={p.onHelp} title="Keyboard shortcuts (?)">
-          <HelpIcon />
-          <span className="cs-sr">Open keyboard shortcuts</span>
-        </button>
+        {!tiny ? (
+          <>
+            {p.extra}
+            <button type="button" className="cs-icon-btn" onClick={p.onScrim} aria-label={`Change scrim. Current: ${SCRIM_LABEL[p.scrim]}`} data-tip={`Scrim: ${SCRIM_LABEL[p.scrim]}`} data-tip-pos="below">
+              <ScrimIcon />
+            </button>
+            <button
+              type="button"
+              className="cs-icon-btn"
+              data-panel-toggle
+              aria-expanded={p.appearanceOpen}
+              aria-haspopup="dialog"
+              aria-label="Appearance settings"
+              data-tip="Appearance"
+              data-tip-pos="below"
+              onClick={(e) => p.onAppearance(e.currentTarget)}
+            >
+              <PaletteIcon />
+            </button>
+            <button type="button" className="cs-icon-btn" onClick={p.onDiag} aria-label="Open player health" data-tip="Player health" data-tip-pos="below">
+              <PulseIcon />
+            </button>
+            <button type="button" className="cs-icon-btn" onClick={p.onHelp} aria-label="Open keyboard shortcuts" data-tip="Shortcuts (?)" data-tip-pos="below" data-tip-align="end">
+              <HelpIcon />
+            </button>
+          </>
+        ) : null}
       </div>
     </div>
   );
@@ -544,7 +620,7 @@ function CenterCluster() {
         seconds={-10}
         className="cs-btn cs-btn-round"
         render={(props) => (
-          <button {...props}>
+          <button {...props} data-tip="Back 10 s (J)">
             <SeekBackIcon />
             <span className="cs-seek-num">10</span>
           </button>
@@ -553,7 +629,7 @@ function CenterCluster() {
       <PlayButton
         className="cs-btn cs-btn-play"
         render={(props, state) => (
-          <button {...props}>
+          <button {...props} data-tip={state.ended || ended ? 'Replay (K)' : state.paused ? 'Play (K)' : 'Pause (K)'}>
             {state.ended || ended ? <ReplayIcon /> : state.paused ? <PlayIcon /> : <PauseIcon />}
           </button>
         )}
@@ -562,7 +638,7 @@ function CenterCluster() {
         seconds={10}
         className="cs-btn cs-btn-round"
         render={(props) => (
-          <button {...props}>
+          <button {...props} data-tip="Forward 10 s (L)">
             <SeekForwardIcon />
             <span className="cs-seek-num">10</span>
           </button>
@@ -572,14 +648,18 @@ function CenterCluster() {
   );
 }
 
-function BufferingSpinner() {
+/** Spinner for buffering and for the first load, with a visible label so it is never a mystery. */
+function LoadingState() {
   const waiting = usePlayer((s) => s.waiting);
   const paused = usePlayer((s) => s.paused);
-  if (!waiting || paused) return null;
+  const canPlay = usePlayer((s) => s.canPlay);
+  const error = usePlayer((s) => s.error);
+  const initial = !canPlay && !error;
+  if (!(initial || (waiting && !paused))) return null;
   return (
-    <div className="cs-buffering" role="status">
+    <div className="cs-buffering" role="status" data-initial={initial || undefined}>
       <span className="cs-spinner" aria-hidden="true" />
-      <span className="cs-sr">Buffering</span>
+      <span className={initial ? 'cs-loading-label' : 'cs-sr'}>{initial ? 'Loading video…' : 'Buffering'}</span>
     </div>
   );
 }
@@ -618,22 +698,25 @@ function Markers({ markers, clip }: { markers: TimelineMarker[]; clip: Clip }) {
 }
 
 interface BottomProps {
+  tier: Tier;
   markers?: TimelineMarker[];
   clip: Clip;
   onSaveMoment?: () => void;
   panel: PanelName | null;
-  onToggle: (name: PanelName, opener: HTMLElement) => void;
+  settingsTab: SettingsTab;
+  onSettings: (tab: SettingsTab | null, opener: HTMLElement) => void;
+  onSimple: (name: 'clip' | 'transcript' | 'more', opener: HTMLElement) => void;
 }
 
-function BottomBar({ markers, clip, onSaveMoment, panel, onToggle }: BottomProps) {
+function BottomBar({ tier, markers, clip, onSaveMoment, panel, settingsTab, onSettings, onSimple }: BottomProps) {
   const store = usePlayer();
   const pip = usePlayer((s) => s.pictureInPictureAvailability);
   const cast = usePlayer((s) => s.remotePlaybackAvailability);
   const volume = usePlayer((s) => s.volume);
   const muted = usePlayer((s) => s.muted);
   const subs = useSubtitles();
-
-  const toggle = (name: PanelName) => (e: React.MouseEvent<HTMLButtonElement>) => onToggle(name, e.currentTarget);
+  const tiny = tier === 'tiny' || tier === 'micro';
+  const micro = tier === 'micro';
   const hasClip = clip.start !== null || clip.end !== null;
 
   return (
@@ -656,83 +739,196 @@ function BottomBar({ markers, clip, onSaveMoment, panel, onToggle }: BottomProps
 
         <div className="cs-spacer" />
 
-        {onSaveMoment ? (
-          <button type="button" className="cs-btn cs-btn-label" onClick={onSaveMoment}>
+        {!tiny && onSaveMoment ? (
+          <button type="button" className="cs-btn cs-btn-label" onClick={onSaveMoment} data-tip="Save this moment">
             <BookmarkIcon />
             <span>Save moment</span>
           </button>
         ) : null}
 
-        <button
-          type="button"
-          className="cs-btn"
-          data-panel-toggle
-          data-on={hasClip ? '' : undefined}
-          aria-expanded={panel === 'clip'}
-          aria-haspopup="dialog"
-          aria-label="Clip selection"
-          onClick={toggle('clip')}
-        >
-          <ClipIcon />
-        </button>
+        {!tiny ? (
+          <button
+            type="button"
+            className="cs-btn"
+            data-panel-toggle
+            data-on={hasClip ? '' : undefined}
+            aria-expanded={panel === 'clip'}
+            aria-haspopup="dialog"
+            aria-label="Clip selection"
+            data-tip="Clip"
+            onClick={(e) => onSimple('clip', e.currentTarget)}
+          >
+            <ClipIcon />
+          </button>
+        ) : null}
 
         <div className="cs-volume">
           <MuteButton
             className="cs-btn"
             render={(props, state) => (
-              <button {...props}>{state.muted || volume === 0 || muted ? <MuteIcon /> : <VolumeIcon />}</button>
+              <button {...props} data-tip={state.muted || volume === 0 || muted ? 'Unmute (M)' : 'Mute (M)'}>
+                {state.muted || volume === 0 || muted ? <MuteIcon /> : <VolumeIcon />}
+              </button>
             )}
           />
-          <VolumeSlider.Root className="cs-volslider">
-            <VolumeSlider.Track className="cs-track">
-              <VolumeSlider.Fill className="cs-fill" />
-            </VolumeSlider.Track>
-            <VolumeSlider.Thumb className="cs-thumb" />
-          </VolumeSlider.Root>
+          {!tiny ? (
+            <VolumeSlider.Root className="cs-volslider">
+              <VolumeSlider.Track className="cs-track">
+                <VolumeSlider.Fill className="cs-fill" />
+              </VolumeSlider.Track>
+              <VolumeSlider.Thumb className="cs-thumb" />
+            </VolumeSlider.Root>
+          ) : null}
         </div>
 
+        {!tiny ? (
         <button
           type="button"
           className="cs-btn"
           data-panel-toggle
           data-on={subs.active ? '' : undefined}
-          aria-expanded={panel === 'subtitles' || panel === 'transcript'}
+          aria-expanded={panel === 'settings' && settingsTab === 'subtitles'}
           aria-haspopup="dialog"
           aria-label={subs.active ? `Subtitles: ${subs.active.label}` : 'Subtitles: off'}
-          onClick={toggle('subtitles')}
+          data-tip="Subtitles (C)"
+          onClick={(e) => onSettings('subtitles', e.currentTarget)}
         >
           <CaptionsIcon />
         </button>
+        ) : null}
 
-        {cast === 'available' ? (
-          <button type="button" className="cs-btn" aria-label="Cast to a device" onClick={() => void store.promptRemotePlayback()}>
+        {!tiny && cast === 'available' ? (
+          <button type="button" className="cs-btn" aria-label="Cast to a device" data-tip="Cast" onClick={() => void store.promptRemotePlayback()}>
             <CastIcon />
           </button>
         ) : null}
 
-        {pip === 'available' ? (
-          <PiPButton className="cs-btn" render={(props) => <button {...props}><PipIcon /></button>} />
+        {!tiny && pip === 'available' ? (
+          <PiPButton className="cs-btn" render={(props) => <button {...props} data-tip="Picture-in-picture (I)"><PipIcon /></button>} />
         ) : null}
 
+        {!micro ? (
         <button
           type="button"
           className="cs-btn"
           data-panel-toggle
-          aria-expanded={panel === 'settings'}
+          aria-expanded={panel === 'settings' && settingsTab !== 'subtitles' && settingsTab !== 'appearance'}
           aria-haspopup="dialog"
           aria-label="Settings"
-          onClick={toggle('settings')}
+          data-tip="Settings"
+          onClick={(e) => onSettings(settingsTab === 'subtitles' || settingsTab === 'appearance' ? 'playback' : null, e.currentTarget)}
         >
           <SettingsIcon />
         </button>
+        ) : null}
+
+        {tiny ? (
+          <button
+            type="button"
+            className="cs-btn"
+            data-panel-toggle
+            aria-expanded={panel === 'more'}
+            aria-haspopup="dialog"
+            aria-label="More controls"
+            data-tip="More"
+            onClick={(e) => onSimple('more', e.currentTarget)}
+          >
+            <MoreIcon />
+          </button>
+        ) : null}
 
         <FullscreenButton
           className="cs-btn"
           render={(props, state) => (
-            <button {...props}>{state.fullscreen ? <ExitFullscreenIcon /> : <FullscreenIcon />}</button>
+            <button {...props} data-tip={state.fullscreen ? 'Exit fullscreen (F)' : 'Fullscreen (F)'} data-tip-align="end">
+              {state.fullscreen ? <ExitFullscreenIcon /> : <FullscreenIcon />}
+            </button>
           )}
         />
       </Controls.Group>
     </div>
+  );
+}
+
+/** Secondary actions for very small players, where the dock keeps only the essentials. */
+function MorePanel({
+  open,
+  onClose,
+  returnFocusTo,
+  tier,
+  onSaveMoment,
+  onClip,
+  onSettings,
+  onScrim,
+  scrim,
+  onDiag,
+  onHelp,
+  extra,
+}: {
+  open: boolean;
+  onClose: () => void;
+  returnFocusTo?: HTMLElement | null;
+  tier: Tier;
+  onSaveMoment?: () => void;
+  onClip: () => void;
+  onSettings: (tab: SettingsTab) => void;
+  onScrim: () => void;
+  scrim: ScrimMode;
+  onDiag: () => void;
+  onHelp: () => void;
+  extra?: ReactNode;
+}) {
+  const store = usePlayer();
+  const pip = usePlayer((s) => s.pictureInPictureAvailability);
+  const cast = usePlayer((s) => s.remotePlaybackAvailability);
+  const act = (fn: () => void) => () => {
+    onClose();
+    // Let the panel close (and return focus) before the next one opens.
+    window.setTimeout(fn, 0);
+  };
+  return (
+    <FloatingPanel open={open} onClose={onClose} title="More controls" returnFocusTo={returnFocusTo}>
+      <div className="cs-more">
+        {extra ? <div className="cs-more-extra">{extra}</div> : null}
+        {onSaveMoment ? (
+          <button type="button" className="cs-row-btn" onClick={act(onSaveMoment)}>
+            <BookmarkIcon /> <span>Save this moment</span>
+          </button>
+        ) : null}
+        <button type="button" className="cs-row-btn" onClick={act(onClip)}>
+          <ClipIcon /> <span>Clip selection</span>
+        </button>
+        {pip === 'available' ? (
+          <button type="button" className="cs-row-btn" onClick={act(() => void store.requestPictureInPicture())}>
+            <PipIcon /> <span>Picture-in-picture</span>
+          </button>
+        ) : null}
+        {cast === 'available' ? (
+          <button type="button" className="cs-row-btn" onClick={act(() => void store.promptRemotePlayback())}>
+            <CastIcon /> <span>Cast to a device</span>
+          </button>
+        ) : null}
+        <button type="button" className="cs-row-btn" onClick={act(() => onSettings('subtitles'))}>
+          <CaptionsIcon /> <span>Subtitles</span>
+        </button>
+        {tier === 'micro' ? (
+          <button type="button" className="cs-row-btn" onClick={act(() => onSettings('playback'))}>
+            <SettingsIcon /> <span>Settings</span>
+          </button>
+        ) : null}
+        <button type="button" className="cs-row-btn" onClick={act(() => onSettings('appearance'))}>
+          <PaletteIcon /> <span>Appearance</span>
+        </button>
+        <button type="button" className="cs-row-btn" onClick={onScrim}>
+          <ScrimIcon /> <span>Scrim: {SCRIM_LABEL[scrim]}</span>
+        </button>
+        <button type="button" className="cs-row-btn" onClick={act(onDiag)}>
+          <PulseIcon /> <span>Player health</span>
+        </button>
+        <button type="button" className="cs-row-btn" onClick={act(onHelp)}>
+          <HelpIcon /> <span>Keyboard shortcuts</span>
+        </button>
+      </div>
+    </FloatingPanel>
   );
 }

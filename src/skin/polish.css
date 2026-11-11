@@ -1,0 +1,955 @@
+/* ==========================================================================
+   XENON component polish. Loaded last, so it refines the base rules with the token system:
+   one typeface, one spacing scale, one radius scale, consistent states.
+   ========================================================================== */
+
+/* ---------- Type roles ---------- */
+
+/* Display titles: bold and cinematic. */
+.cs-title {
+  font: var(--fw-bold) var(--fs-xl)/var(--lh-tight) var(--cs-font);
+  letter-spacing: var(--ls-display);
+}
+/* Section labels: small uppercase with tracking, accent coloured, never below 12px. */
+.cs-label,
+.cs-rail-title,
+.rail-kicker,
+.cs-menu-heading,
+.cs-result-cat,
+.cs-fieldset legend,
+.cs-keytable th {
+  font: var(--fw-semibold) var(--fs-xs)/var(--lh-snug) var(--cs-font);
+  letter-spacing: var(--ls-label);
+  text-transform: uppercase;
+  color: var(--cs-lavender);
+}
+/* Panel headings: compact semibold. */
+.cs-panel-head h2,
+.cs-dialog-header h2 {
+  font: var(--fw-semibold) var(--fs-xl)/var(--lh-tight) var(--cs-font);
+  letter-spacing: 0;
+}
+/* Setting names are strong; descriptions are quieter but still legible. */
+.cs-card-title {
+  margin: 0;
+  font: var(--fw-semibold) var(--fs-lg)/var(--lh-snug) var(--cs-font);
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--cs-ice);
+}
+.cs-card-desc,
+.cs-muted {
+  margin: 0;
+  font-size: var(--fs-sm);
+  line-height: var(--lh-body);
+  color: var(--cs-ice-dim);
+}
+.cs-subtitle,
+.wheel-meta {
+  font-size: var(--fs-sm);
+  color: var(--cs-ice-dim);
+}
+.cs-btn,
+.cs-chip,
+.cs-tab,
+.cs-seg-btn,
+.cs-choice,
+.cs-row-btn {
+  font-family: var(--cs-font);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--ls-ui);
+}
+
+/* ---------- Tooltips: solid, high contrast, readable over any footage ---------- */
+
+[data-tip] {
+  position: relative;
+}
+[data-tip]::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  z-index: 40;
+  padding: 6px 10px;
+  font: var(--fw-semibold) var(--fs-sm)/var(--lh-snug) var(--cs-font);
+  white-space: nowrap;
+  color: #fff;
+  background: #05070c;
+  border: 1px solid #3b4565;
+  border-radius: var(--r-sm);
+  box-shadow: 0 6px 18px rgb(0 0 0 / 0.55);
+  opacity: 0;
+  transform: translate(-50%, 4px);
+  pointer-events: none;
+  transition: opacity 0.12s ease, transform 0.12s ease;
+}
+[data-tip][data-tip-pos='below']::after {
+  top: calc(100% + 10px);
+  bottom: auto;
+  transform: translate(-50%, -4px);
+}
+[data-tip][data-tip-align='end']::after {
+  left: auto;
+  right: 0;
+  transform: translate(0, 4px);
+}
+[data-tip][data-tip-pos='below'][data-tip-align='end']::after {
+  transform: translate(0, -4px);
+}
+[data-tip]:focus-visible::after {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+[data-tip][data-tip-align='end']:focus-visible::after {
+  transform: translate(0, 0);
+}
+@media (hover: hover) {
+  [data-tip]:hover::after {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+  [data-tip][data-tip-align='end']:hover::after {
+    transform: translate(0, 0);
+  }
+}
+/* A tooltip must never cover an open menu or panel trigger's own label. */
+[aria-expanded='true'][data-tip]::after {
+  display: none;
+}
+
+/* ---------- Consistent controls: height, icon size, states ---------- */
+
+.cs-btn,
+.cs-icon-btn,
+.cs-seg-btn {
+  min-width: var(--h-ctl);
+  height: var(--h-ctl);
+  border-radius: var(--r-md);
+  border-width: var(--bw);
+}
+.cs-btn svg,
+.cs-icon-btn svg,
+.cs-seg-btn svg,
+.cs-row-btn svg {
+  width: var(--icon);
+  height: var(--icon);
+  flex: none;
+}
+.cs-btn-label {
+  font-size: var(--fs-md);
+}
+.cs-btn:active,
+.cs-icon-btn:active,
+.cs-chip:active,
+.cs-seg-btn:active,
+.cs-choice:active,
+.cs-row-btn:active {
+  transform: translateY(1px) scale(0.985);
+}
+.cs-chip,
+.cs-choice,
+.cs-row-btn,
+.cs-tab {
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
+}
+:is(.cs-btn, .cs-icon-btn, .cs-chip, .cs-choice, .cs-tab, .cs-row-btn, .cs-seg-btn):disabled,
+:is(.cs-btn, .cs-chip, .cs-switch)[aria-disabled='true'],
+.cs-switch:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  border-style: dashed;
+  transform: none;
+}
+
+/* Selected state: never colour alone. A check mark and weight accompany the fill. */
+.cs-chip[aria-pressed='true']::before,
+.cs-choice[aria-pressed='true'] .cs-choice-main::before {
+  content: '✓';
+  margin-right: 6px;
+  font-weight: var(--fw-bold);
+}
+.cs-chip {
+  min-height: var(--h-ctl);
+  padding: 0 var(--sp-4);
+  font-size: var(--fs-md);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-1);
+  text-decoration: none;
+}
+.cs-chip-danger:hover:not(:disabled) {
+  border-color: var(--cs-danger);
+  color: var(--cs-danger);
+}
+.cs-seg-btn[aria-pressed='true'] {
+  font-weight: var(--fw-bold);
+  box-shadow: inset 0 -3px 0 rgb(0 0 0 / 0.35);
+}
+.cs-seg-btn span {
+  font-size: var(--fs-sm);
+  letter-spacing: var(--ls-ui);
+}
+
+/* Unified focus indicator, visible on glass, over footage and in every theme. */
+.cs-root :is(button, input, textarea, select, summary, a, [role='slider'], [role='tab'], [tabindex='0']):focus-visible {
+  outline: 3px solid var(--cs-focus);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 6px rgb(5 7 12 / 0.9);
+}
+
+/* ---------- Panels: surface, entrance, scrollbar ---------- */
+
+.cs-root {
+  --cs-panel-bg: rgb(21 27 44 / 0.97);
+  --cs-card-bg: var(--cs-obsidian);
+}
+.cs-root[data-atm='on'] {
+  --cs-panel-bg: rgb(var(--cs-atm-tint) / 0.96);
+  --cs-card-bg: rgb(var(--cs-atm-tint) / 0.55);
+}
+.cs-root[data-hc] {
+  --cs-panel-bg: #000;
+  --cs-card-bg: #000;
+}
+.cs-panel {
+  background: var(--cs-panel-bg);
+  border-radius: var(--r-xl);
+  border-width: var(--bw);
+  width: min(var(--w-panel), calc(100% - 24px));
+  animation: cs-panel-in 0.18s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.cs-panel[data-wide] {
+  width: min(var(--w-panel-wide), calc(100% - 24px));
+}
+@keyframes cs-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.cs-panel-head {
+  padding: var(--sp-3) var(--sp-3) var(--sp-2) var(--sp-5);
+}
+.cs-panel-body {
+  gap: var(--sp-3);
+  padding: 0 var(--sp-4) var(--sp-4);
+  scrollbar-width: thin;
+  scrollbar-color: var(--cs-line) transparent;
+  overscroll-behavior: contain;
+}
+.cs-panel-body::-webkit-scrollbar,
+.cs-dialog-body::-webkit-scrollbar {
+  width: 10px;
+}
+.cs-panel-body::-webkit-scrollbar-track,
+.cs-dialog-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+.cs-panel-body::-webkit-scrollbar-thumb,
+.cs-dialog-body::-webkit-scrollbar-thumb {
+  background: var(--cs-line);
+  border: 3px solid transparent;
+  border-radius: var(--r-pill);
+  background-clip: padding-box;
+}
+.cs-panel-body::-webkit-scrollbar-thumb:hover,
+.cs-dialog-body::-webkit-scrollbar-thumb:hover {
+  background: var(--cs-lavender);
+  background-clip: padding-box;
+}
+
+/* ---------- Settings control centre ---------- */
+
+.cs-sethead {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  display: grid;
+  gap: var(--sp-2);
+  padding: var(--sp-1) 0 var(--sp-3);
+  background: var(--cs-panel-bg);
+}
+.cs-search input {
+  width: 100%;
+  min-height: var(--h-ctl);
+  padding: 0 var(--sp-3) 0 var(--sp-4);
+  font: var(--fw-medium) var(--fs-md)/1 var(--cs-font);
+  color: var(--cs-ice);
+  background: var(--cs-card-bg);
+  border: var(--bw) solid var(--cs-line);
+  border-radius: var(--r-md);
+}
+.cs-search input::placeholder {
+  color: var(--cs-ice-dim);
+  opacity: 1;
+}
+.cs-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px;
+  background: var(--cs-card-bg);
+  border: var(--bw) solid var(--cs-line);
+  border-radius: var(--r-md);
+}
+.cs-tab {
+  flex: 1 1 auto;
+  min-height: calc(var(--h-ctl) - 4px);
+  padding: 0 var(--sp-3);
+  font-size: var(--fs-md);
+  color: var(--cs-ice-dim);
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  border-radius: var(--r-sm);
+}
+.cs-tab[aria-selected='true'] {
+  color: var(--cs-selected-fg);
+  background: var(--cs-selected-bg);
+  font-weight: var(--fw-bold);
+  box-shadow: inset 0 -3px 0 rgb(0 0 0 / 0.3);
+}
+@media (hover: hover) {
+  .cs-tab:hover:not([aria-selected='true']) {
+    color: var(--cs-ice);
+    background: var(--cs-steel);
+  }
+}
+
+.cs-cards {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--sp-3);
+}
+.cs-cards > div {
+  display: grid;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+.cs-result {
+  display: grid;
+  gap: var(--sp-2);
+}
+.cs-result-cat {
+  margin: var(--sp-1) 0 0;
+}
+
+.cs-card {
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+  background: var(--cs-card-bg);
+  border: var(--bw) solid var(--cs-line);
+  border-radius: var(--r-lg);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.04);
+}
+.cs-card-head {
+  display: grid;
+  gap: 2px;
+}
+.cs-empty {
+  margin: 0;
+  padding: var(--sp-3) var(--sp-4);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-body);
+  color: var(--cs-ice-dim);
+  border: 1px dashed var(--cs-line);
+  border-radius: var(--r-md);
+}
+
+/* Toggle switch: label left, track right; on state shows a check in the knob. */
+.cs-switch {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--sp-3);
+  width: 100%;
+  min-height: var(--h-row);
+  padding: var(--sp-2) var(--sp-3);
+  text-align: left;
+  cursor: pointer;
+  color: var(--cs-ice);
+  background: var(--cs-glass);
+  border: var(--bw) solid var(--cs-line);
+  border-radius: var(--r-md);
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+.cs-switch-text {
+  display: grid;
+  gap: 2px;
+}
+.cs-switch-text strong {
+  font-weight: var(--fw-semibold);
+  font-size: var(--fs-md);
+}
+.cs-switch-track {
+  position: relative;
+  width: 48px;
+  height: 28px;
+  background: var(--cs-obsidian);
+  border: 2px solid var(--cs-ice-dim);
+  border-radius: var(--r-pill);
+  transition: background-color 0.18s ease, border-color 0.18s ease;
+}
+.cs-switch-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  font-size: 12px;
+  font-weight: var(--fw-bold);
+  color: var(--cs-ink-on-citron);
+  background: var(--cs-ice-dim);
+  border-radius: 50%;
+  transition: transform 0.18s cubic-bezier(0.2, 0.8, 0.2, 1), background-color 0.18s ease;
+}
+.cs-switch[aria-checked='true'] {
+  border-color: var(--cs-selected-bg);
+}
+.cs-switch[aria-checked='true'] .cs-switch-track {
+  background: var(--cs-selected-bg);
+  border-color: var(--cs-selected-bg);
+}
+.cs-switch[aria-checked='true'] .cs-switch-knob {
+  transform: translateX(20px);
+  background: var(--cs-ink-on-citron);
+  color: var(--cs-selected-bg);
+}
+.cs-switch[aria-checked='true'] .cs-switch-knob::before {
+  content: '✓';
+}
+@media (hover: hover) {
+  .cs-switch:hover:not(:disabled) {
+    border-color: var(--cs-lavender);
+  }
+}
+
+/* Selection rows (subtitle languages, presets). */
+.cs-list {
+  gap: var(--sp-2);
+}
+.cs-choice {
+  min-height: var(--h-row);
+  padding: var(--sp-2) var(--sp-3);
+  font-size: var(--fs-md);
+  border-width: var(--bw);
+  border-radius: var(--r-md);
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+.cs-choice-main {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.cs-tag {
+  margin: 0;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  color: var(--cs-ice-dim);
+}
+@media (hover: hover) {
+  .cs-choice:hover:not([aria-pressed='true']),
+  .cs-chip:hover:not([aria-pressed='true']):not(:disabled) {
+    border-color: var(--cs-lavender);
+    background: var(--cs-steel);
+  }
+}
+
+/* Forms */
+.cs-form {
+  gap: var(--sp-3);
+}
+.cs-form label,
+.cs-timefield label,
+.cs-range {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  color: var(--cs-ice-dim);
+}
+.cs-form input:not([type='range']):not([type='file']),
+.cs-form textarea,
+.cs-timefield input {
+  min-height: var(--h-ctl);
+  font: var(--fw-regular) var(--fs-md)/1.2 var(--cs-font);
+  border-width: var(--bw);
+  border-radius: var(--r-md);
+  background: var(--cs-card-bg);
+}
+.cs-form textarea {
+  font-size: var(--fs-sm);
+}
+.cs-form-msg {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+}
+.cs-form-msg[data-kind='error']::before {
+  content: 'Problem: ';
+  font-weight: var(--fw-bold);
+}
+.cs-form-msg[data-kind='ok']::before {
+  content: '✓ ';
+  font-weight: var(--fw-bold);
+}
+.cs-fieldset,
+.cs-form fieldset {
+  gap: var(--sp-2);
+}
+
+/* Sliders in settings */
+.cs-range input,
+.cs-form input[type='range'] {
+  accent-color: var(--cs-citron);
+}
+
+/* More menu rows */
+.cs-more {
+  display: grid;
+  gap: var(--sp-2);
+}
+.cs-more-extra {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  padding-bottom: var(--sp-2);
+  border-bottom: var(--bw) solid var(--cs-line);
+}
+.cs-row-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  width: 100%;
+  min-height: var(--h-row);
+  padding: 0 var(--sp-3);
+  font-size: var(--fs-md);
+  text-align: left;
+  cursor: pointer;
+  color: var(--cs-ice);
+  background: var(--cs-glass);
+  border: var(--bw) solid var(--cs-line);
+  border-radius: var(--r-md);
+}
+@media (hover: hover) {
+  .cs-row-btn:hover {
+    border-color: var(--cs-lavender);
+    background: var(--cs-steel);
+  }
+}
+
+/* Shortcut guide */
+.cs-keygroup {
+  display: grid;
+  gap: var(--sp-2);
+  margin-top: var(--sp-3);
+}
+.cs-keylist {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.cs-keyrow {
+  display: grid;
+  grid-template-columns: minmax(120px, 160px) minmax(0, 1fr);
+  gap: var(--sp-3);
+  align-items: center;
+  min-height: var(--h-ctl);
+  padding: var(--sp-1) 0;
+  border-top: var(--bw) solid var(--cs-line);
+  font-size: var(--fs-md);
+}
+.cs-keys {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.cs-keytable kbd,
+.cs-keyrow kbd,
+kbd {
+  display: inline-grid;
+  place-items: center;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0 var(--sp-2);
+  font: var(--fw-semibold) var(--fs-sm)/1 var(--cs-font);
+  color: var(--cs-ice);
+  background: var(--cs-steel);
+  border: var(--bw) solid var(--cs-line);
+  border-bottom-width: 3px;
+  border-radius: var(--r-sm);
+}
+
+/* Dialogs */
+.cs-dialog {
+  width: min(var(--w-modal), calc(100vw - 32px));
+  border-radius: var(--r-xl);
+  background: var(--cs-panel-bg);
+  border-width: var(--bw);
+}
+.cs-dialog-header {
+  padding: var(--sp-3) var(--sp-3) var(--sp-2) var(--sp-5);
+}
+.cs-dialog-body {
+  scrollbar-width: thin;
+  scrollbar-color: var(--cs-line) transparent;
+}
+.cs-diag-row {
+  border-width: var(--bw);
+  border-radius: var(--r-md);
+}
+.cs-diag-label {
+  font-weight: var(--fw-semibold);
+}
+/* Status labels carry a symbol as well as a colour. */
+.cs-diag-status {
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.04em;
+}
+.cs-diag-row[data-status='Pass'] .cs-diag-status::before {
+  content: '✓ ';
+}
+.cs-diag-row[data-status='Needs review'] .cs-diag-status::before {
+  content: '! ';
+}
+.cs-diag-row[data-status='Unavailable'] .cs-diag-status::before {
+  content: '– ';
+}
+
+/* Loading, buffering, error */
+.cs-buffering {
+  display: grid;
+  gap: var(--sp-3);
+  align-content: center;
+  justify-items: center;
+}
+.cs-buffering[data-initial] {
+  background: rgb(5 7 12 / 0.55);
+}
+.cs-loading-label {
+  padding: 6px 14px;
+  font: var(--fw-semibold) var(--fs-sm)/1 var(--cs-font);
+  color: #fff;
+  background: rgb(5 7 12 / 0.85);
+  border: 1px solid var(--cs-line);
+  border-radius: var(--r-pill);
+}
+.cs-error-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  justify-content: center;
+}
+.cs-error-title {
+  font: var(--fw-bold) var(--fs-xl)/var(--lh-tight) var(--cs-font);
+}
+.cs-error-title::before {
+  content: '! ';
+}
+
+/* Saved moments stay distinct from other markers by SHAPE: a bar, never a diamond or dot. */
+.cs-marker[data-kind='moment'] {
+  background: var(--cs-moment);
+}
+.cs-marker[data-kind='anchor'] {
+  background: var(--cs-anchor);
+}
+
+/* Timecode: fixed-width digits so it never shifts during playback. */
+.cs-time {
+  font: var(--fw-semibold) var(--fs-sm)/1 var(--cs-font);
+  min-width: 0;
+}
+
+/* ---------- Layout tiers (driven by the player's measured width, not the window) ---------- */
+
+.cs-stagewrap[data-tier='compact'] .cs-seg-btn span,
+.cs-stagewrap[data-tier='tiny'] .cs-seg-btn span,
+.cs-stagewrap[data-tier='micro'] .cs-seg-btn span,
+.cs-stagewrap[data-tier='compact'] .cs-row .cs-btn-label:not([data-keep]) span,
+.cs-stagewrap[data-tier='tiny'] .cs-row .cs-btn-label:not([data-keep]) span,
+.cs-root[data-dock-labels='off'] .cs-row .cs-btn-label:not([data-keep]) span {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.cs-stagewrap[data-tier='compact'] .cs-volslider,
+.cs-stagewrap[data-tier='tiny'] .cs-volslider {
+  display: none;
+}
+.cs-root[data-dock-compact] .cs-row {
+  gap: 2px;
+}
+.cs-stagewrap[data-tier='tiny'] .cs-top,
+.cs-stagewrap[data-tier='micro'] .cs-top {
+  padding: var(--sp-2) var(--sp-2) var(--sp-5);
+}
+.cs-stagewrap[data-tier='tiny'] .cs-bottom,
+.cs-stagewrap[data-tier='micro'] .cs-bottom {
+  padding: var(--sp-5) var(--sp-2) var(--sp-1);
+}
+.cs-stagewrap[data-tier='tiny'] .cs-row,
+.cs-stagewrap[data-tier='micro'] .cs-row {
+  gap: 2px;
+}
+.cs-stagewrap[data-tier='tiny'] .cs-btn-round,
+.cs-stagewrap[data-tier='micro'] .cs-btn-round {
+  width: 44px;
+  height: 44px;
+}
+.cs-stagewrap[data-tier='tiny'] .cs-btn-play {
+  width: 60px;
+  height: 60px;
+}
+.cs-stagewrap[data-tier='micro'] .cs-btn-play {
+  width: 52px;
+  height: 52px;
+}
+.cs-stagewrap[data-tier='tiny'] .cs-center,
+.cs-stagewrap[data-tier='micro'] .cs-center {
+  gap: var(--sp-2);
+}
+.cs-stagewrap[data-tier='micro'] .cs-time {
+  font-size: var(--fs-xs);
+}
+.cs-stagewrap[data-tier='micro'] .cs-time > span[aria-hidden] {
+  display: none;
+}
+.cs-stagewrap[data-tier='micro'] .cs-time > :last-child {
+  display: none; /* duration; the seek bar still conveys total length */
+}
+.cs-stagewrap[data-tier='tiny'] .cs-titleblock,
+.cs-stagewrap[data-tier='micro'] .cs-titleblock {
+  display: none;
+}
+/* Tiny players: the rail is a stacked panel, not a column. */
+.cs-root[data-tier='tiny'] .cs-top .cs-seg,
+.cs-root[data-tier='micro'] .cs-top .cs-seg {
+  padding: 2px;
+}
+
+/* ---------- Large controls ---------- */
+
+.cs-root[data-large] .cs-btn-play {
+  width: 88px;
+  height: 88px;
+}
+.cs-root[data-large] .cs-btn-round {
+  width: 64px;
+  height: 64px;
+}
+.cs-root[data-large] .cs-thumb {
+  width: 22px;
+  height: 22px;
+}
+.cs-root[data-large] .cs-track {
+  height: 8px;
+}
+.cs-root[data-large] .cs-card,
+.cs-root[data-large] .cs-panel-body {
+  gap: var(--sp-4);
+}
+
+/* ---------- High contrast: solid surfaces, strong borders, thick focus ---------- */
+
+.cs-root[data-hc] :is(.cs-btn, .cs-icon-btn, .cs-seg, .cs-chip, .cs-choice, .cs-tab, .cs-row-btn, .cs-switch, .cs-card, .cs-panel, .cs-dialog, .cs-menu) {
+  background: #000;
+  border-color: #fff;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.cs-root[data-hc] :is(.cs-btn[data-on], .cs-btn[aria-expanded='true'], .cs-seg-btn[aria-pressed='true'], .cs-chip[aria-pressed='true'], .cs-choice[aria-pressed='true'], .cs-tab[aria-selected='true']) {
+  background: var(--cs-citron);
+  color: var(--cs-ink-on-citron);
+  border-color: var(--cs-citron);
+}
+.cs-root[data-hc] .cs-btn-play {
+  background: var(--cs-citron);
+}
+.cs-root[data-hc] .cs-top,
+.cs-root[data-hc] .cs-bottom {
+  background: #000;
+}
+.cs-root[data-hc] .cs-track {
+  background: #7b8296;
+  box-shadow: 0 0 0 1px #fff;
+}
+.cs-root[data-hc] .cs-fill,
+.cs-root[data-hc] .cs-thumb {
+  background: var(--cs-citron);
+}
+.cs-root[data-hc] .cs-thumb {
+  border-color: #000;
+  box-shadow: 0 0 0 2px #fff;
+}
+.cs-root[data-hc] :is(button, input, textarea, select, summary, a, [role='slider'], [role='tab'], [tabindex='0']):focus-visible {
+  outline: 4px solid #fff;
+  outline-offset: 3px;
+  box-shadow: 0 0 0 8px #000;
+}
+.cs-root[data-hc] .cs-caption-text {
+  outline: 2px solid #fff;
+}
+
+/* ---------- Adaptive atmosphere reaches every surface ---------- */
+
+.cs-root[data-atm='on'] .cs-panel,
+.cs-root[data-atm='on'] .cs-dialog,
+.cs-root[data-atm='on'] .cs-menu {
+  background: var(--cs-panel-bg);
+  border-color: color-mix(in srgb, var(--cs-citron) 35%, var(--cs-line));
+}
+.cs-root[data-atm='on'] .cs-switch,
+.cs-root[data-atm='on'] .cs-choice,
+.cs-root[data-atm='on'] .cs-row-btn,
+.cs-root[data-atm='on'] .cs-chip:not([aria-pressed='true']) {
+  background: rgb(var(--cs-atm-tint) / 0.7);
+}
+.cs-root[data-atm='on'] {
+  border: 1px solid color-mix(in srgb, var(--cs-citron) 25%, transparent);
+}
+
+/* ---------- Motion ---------- */
+
+.cs-root[data-motion='reduce'] *,
+.cs-root[data-motion='reduce'] *::before,
+.cs-root[data-motion='reduce'] *::after {
+  transition-duration: 0.01ms !important;
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  scroll-behavior: auto !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .cs-panel {
+    animation: none;
+  }
+  [data-tip]::after,
+  .cs-switch-knob,
+  .cs-switch-track {
+    transition: none;
+  }
+}
+
+/* ---------- Small-container panels stay inside the viewport ---------- */
+
+@container (max-width: 520px) {
+  .cs-panel,
+  .cs-panel[data-wide] {
+    animation-name: cs-fade-in;
+    border-radius: var(--r-lg);
+  }
+  .cs-tabs {
+    gap: 2px;
+  }
+  .cs-tab {
+    padding: 0 var(--sp-2);
+    font-size: var(--fs-sm);
+  }
+  .cs-keyrow {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+}
+@keyframes cs-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* The title block sits over arbitrary footage, so it gets its own solid backing. */
+.cs-titleblock {
+  align-self: flex-start;
+  padding: var(--sp-2) var(--sp-3);
+  background: rgb(5 7 12 / 0.8);
+  border: 1px solid rgb(255 255 255 / 0.14);
+  border-radius: var(--r-md);
+  max-width: 55%;
+}
+.cs-root[data-atm='on'] .cs-titleblock {
+  background: rgb(var(--cs-atm-tint) / 0.85);
+}
+.cs-root[data-hc] .cs-titleblock {
+  background: #000;
+  border-color: #fff;
+}
+.cs-title {
+  text-shadow: none;
+}
+.cs-subtitle {
+  margin-top: 2px;
+  text-shadow: none;
+  color: var(--cs-ice-dim);
+}
+
+/* Tabs fit on one row at panel width; the panel itself is only a programmatic focus target, so no outline. */
+.cs-tab {
+  padding: 0 var(--sp-2);
+  font-size: var(--fs-sm);
+  white-space: nowrap;
+}
+.cs-panel:focus,
+.cs-panel:focus-visible {
+  outline: none;
+}
+
+/* High contrast always wins over theme surfaces (atmosphere glass, tinted panels). */
+.cs-root[data-hc] :is(.cs-btn, .cs-icon-btn, .cs-seg, .cs-chip, .cs-choice, .cs-tab, .cs-row-btn, .cs-switch, .cs-card, .cs-panel, .cs-dialog, .cs-menu, .cs-titleblock):not([data-on]):not([aria-pressed='true']):not([aria-selected='true']):not([aria-expanded='true']):not(.cs-btn-play) {
+  background: #000 !important;
+  border-color: #fff !important;
+}
+
+/* Inside the More menu, host actions (icon-only in the toolbar) become full labelled rows. */
+.cs-more-extra {
+  display: grid;
+  gap: var(--sp-2);
+}
+.cs-more-extra .cs-seg {
+  width: 100%;
+  justify-content: stretch;
+}
+.cs-more-extra .cs-seg > * {
+  flex: 1;
+}
+.cs-more-extra .cs-icon-btn,
+.cs-more-extra .cs-btn-label {
+  display: flex;
+  justify-content: flex-start;
+  gap: var(--sp-3);
+  width: 100%;
+  height: auto;
+  min-height: var(--h-row);
+  padding: 0 var(--sp-3);
+  background: var(--cs-glass);
+  font-size: var(--fs-md);
+  font-weight: var(--fw-semibold);
+}
+.cs-more-extra .cs-icon-btn .cs-sr {
+  position: static;
+  width: auto;
+  height: auto;
+  margin: 0;
+  clip-path: none;
+  white-space: normal;
+}
+.cs-more-extra .cs-btn-label span {
+  position: static !important;
+  width: auto !important;
+  height: auto !important;
+  margin: 0 !important;
+  clip-path: none !important;
+}

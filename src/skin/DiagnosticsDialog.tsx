@@ -29,7 +29,7 @@ export function DiagnosticsDialog({ open, onClose, extraRows = [] }: Props) {
   );
 }
 
-function DiagnosticsBody({ extraRows }: { extraRows: DiagRow[] }) {
+export function DiagnosticsBody({ extraRows }: { extraRows: DiagRow[] }) {
   const error = usePlayer((s) => s.error);
   const canPlay = usePlayer((s) => s.canPlay);
   const currentSrc = usePlayer((s) => s.currentSrc);

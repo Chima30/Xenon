@@ -17,9 +17,6 @@
   --cs-danger: #ff8a8a;
   --cs-ink-on-citron: #0a0e17;
 
-  --cs-font-ui: 'Inter', 'DM Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  --cs-font-display: 'Space Grotesk', 'Manrope', var(--cs-font-ui);
-  --cs-font-mono: ui-monospace, 'JetBrains Mono', 'SF Mono', Consolas, 'Liberation Mono', monospace;
 
   --cs-target: 44px;
   --cs-radius: 14px;
@@ -283,7 +280,7 @@
 .cs-time {
   display: flex;
   gap: 6px;
-  font: 500 0.85rem var(--cs-font-mono);
+  font: 500 var(--fs-sm)/var(--lh-snug) var(--cs-font);
   font-variant-numeric: tabular-nums;
   color: var(--cs-ice);
   text-shadow: 0 1px 6px rgb(0 0 0 / 0.7);
@@ -338,7 +335,7 @@
 }
 .cs-seek-num {
   position: absolute;
-  font: 700 0.6rem var(--cs-font-mono);
+  font: 700 var(--fs-xs)/var(--lh-snug) var(--cs-font);
   top: 50%;
   left: 50%;
   transform: translate(-50%, -42%);
@@ -510,8 +507,8 @@
 }
 .cs-menu-heading {
   margin: 8px 10px 4px;
-  font: 600 0.7rem var(--cs-font-mono);
-  letter-spacing: 0.12em;
+  font: 600 var(--fs-xs)/var(--lh-snug) var(--cs-font);
+  letter-spacing: var(--ls-label);
   text-transform: uppercase;
   color: var(--cs-lavender);
 }
@@ -655,8 +652,8 @@
 .cs-keytable th {
   text-align: left;
   padding: 6px 8px;
-  font: 600 0.7rem var(--cs-font-mono);
-  letter-spacing: 0.1em;
+  font: 600 var(--fs-xs)/var(--lh-snug) var(--cs-font);
+  letter-spacing: var(--ls-label);
   text-transform: uppercase;
   color: var(--cs-lavender);
 }
@@ -669,7 +666,7 @@
   display: inline-block;
   min-width: 26px;
   padding: 2px 7px;
-  font: 600 0.8rem var(--cs-font-mono);
+  font: 600 var(--fs-sm)/var(--lh-snug) var(--cs-font);
   text-align: center;
   background: var(--cs-steel);
   border: 1px solid var(--cs-line);
@@ -698,7 +695,7 @@
   font-weight: 600;
 }
 .cs-diag-status {
-  font: 600 0.75rem var(--cs-font-mono);
+  font: 600 var(--fs-xs)/var(--lh-snug) var(--cs-font);
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }

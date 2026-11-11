@@ -1,6 +1,6 @@
 import { useMedia } from '@videojs/react';
 import { Video, VideoPlayer, usePlayer } from '@videojs/react/video';
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { CATALOG, findFilm, SINTEL_MUX_PLAYBACK_ID, pickVariant, SERVER_LABELS, servers as serversOf, type Film, type Section, type Variant } from '../data/catalog';
 import {
   addMoment,
@@ -75,21 +75,28 @@ interface Anchor {
   time: number;
 }
 
+/** Demo-only hooks used by the test bench. The skin itself knows nothing about footage simulation. */
+export interface BenchProps {
+  overlay?: ReactNode;
+  forceHighContrast?: boolean;
+}
+
 interface Props {
   filmId?: string;
   startTime?: number;
   endTime?: number;
+  bench?: BenchProps;
 }
 
-export function PlayerPage({ filmId, startTime, endTime }: Props) {
+export function PlayerPage({ filmId, startTime, endTime, bench }: Props) {
   return (
     <VideoPlayer>
-      <PlayerBody initialId={filmId} initialTime={startTime} initialEnd={endTime} />
+      <PlayerBody initialId={filmId} initialTime={startTime} initialEnd={endTime} bench={bench} />
     </VideoPlayer>
   );
 }
 
-function PlayerBody({ initialId, initialTime, initialEnd }: { initialId?: string; initialTime?: number; initialEnd?: number }) {
+function PlayerBody({ initialId, initialTime, initialEnd, bench }: { initialId?: string; initialTime?: number; initialEnd?: number; bench?: BenchProps }) {
   const store = usePlayer();
   const media = useMedia() as { currentTime?: number } | null;
   const [film, setFilm] = useState<Film>(() => findFilm(initialId) ?? CATALOG[0]!);
@@ -307,7 +314,7 @@ function PlayerBody({ initialId, initialTime, initialEnd }: { initialId?: string
           <span>Return to {formatTime(anchor.time)}</span>
         </button>
       ) : null}
-      <button type="button" className="cs-icon-btn" onClick={() => void share()} title="Copy link to this moment">
+      <button type="button" className="cs-icon-btn" onClick={() => void share()} data-tip="Copy link" data-tip-pos="below">
         <ShareIcon />
         <span className="cs-sr">Copy link to this moment</span>
       </button>
@@ -320,6 +327,8 @@ function PlayerBody({ initialId, initialTime, initialEnd }: { initialId?: string
       subtitle={`${film.genre} · ${film.year}`}
       notice={notice}
       mediaKey={film.id}
+      videoOverlay={bench?.overlay}
+      forceHighContrast={bench?.forceHighContrast}
       artwork={film.frameAt(film.duration ? film.duration * 0.3 : 30, 960)}
       artworkLabel={`Still frame from ${film.title}, ${film.creator} (${film.license.name}), via ${film.source.label}`}
       markers={markers}

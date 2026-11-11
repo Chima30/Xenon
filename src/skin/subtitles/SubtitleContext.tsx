@@ -17,6 +17,7 @@ export interface SubTrack {
 export type CapSize = 'sm' | 'md' | 'lg' | 'xl';
 export type CapPosition = 'bottom' | 'raised' | 'top';
 export type CapOutline = 'none' | 'shadow' | 'outline';
+export type CapFont = 'brand' | 'system' | 'serif' | 'mono';
 
 export interface CaptionStyle {
   size: CapSize;
@@ -25,6 +26,8 @@ export interface CaptionStyle {
   bgOpacity: number;
   position: CapPosition;
   outline: CapOutline;
+  /** Subtitle typeface, independent of the interface font. */
+  font: CapFont;
 }
 
 export const CAPTION_COLORS = [
@@ -35,7 +38,7 @@ export const CAPTION_COLORS = [
   { value: '#ada0f8', name: 'Lavender' },
 ] as const;
 
-const DEFAULT_STYLE: CaptionStyle = { size: 'md', color: '#ffffff', bgOpacity: 75, position: 'bottom', outline: 'none' };
+const DEFAULT_STYLE: CaptionStyle = { size: 'md', color: '#ffffff', bgOpacity: 75, position: 'bottom', outline: 'none', font: 'brand' };
 
 const parseStyle = (v: unknown): CaptionStyle | null => {
   if (!isRecord(v)) return null;
@@ -46,6 +49,7 @@ const parseStyle = (v: unknown): CaptionStyle | null => {
     bgOpacity: typeof v.bgOpacity === 'number' ? clamp(v.bgOpacity, 0, 100) : DEFAULT_STYLE.bgOpacity,
     position: pick(v.position, ['bottom', 'raised', 'top'] as const, DEFAULT_STYLE.position),
     outline: pick(v.outline, ['none', 'shadow', 'outline'] as const, DEFAULT_STYLE.outline),
+    font: pick(v.font, ['brand', 'system', 'serif', 'mono'] as const, DEFAULT_STYLE.font),
   };
 };
 

@@ -112,8 +112,8 @@
   padding: 10px 12px 0 16px;
 }
 .cs-rail-title {
-  font: 600 0.7rem var(--cs-font-mono);
-  letter-spacing: 0.14em;
+  font: 600 var(--fs-xs)/var(--lh-snug) var(--cs-font);
+  letter-spacing: var(--ls-label);
   text-transform: uppercase;
   color: var(--cs-lavender);
 }
@@ -220,7 +220,7 @@
 .cs-switch-state {
   min-width: 52px;
   padding: 6px 12px;
-  font: 700 0.8rem var(--cs-font-mono);
+  font: 700 var(--fs-sm)/var(--lh-snug) var(--cs-font);
   text-align: center;
   color: var(--cs-ice-dim);
   background: var(--cs-obsidian);
@@ -246,8 +246,8 @@
 }
 .cs-fieldset legend {
   padding: 0 0 6px;
-  font: 600 0.7rem var(--cs-font-mono);
-  letter-spacing: 0.12em;
+  font: 600 var(--fs-xs)/var(--lh-snug) var(--cs-font);
+  letter-spacing: var(--ls-label);
   text-transform: uppercase;
   color: var(--cs-lavender);
 }
@@ -259,7 +259,7 @@
 }
 .cs-range strong {
   color: var(--cs-ice);
-  font-family: var(--cs-font-mono);
+  font-family: var(--cs-font);
 }
 .cs-range input {
   width: 100%;
@@ -283,7 +283,7 @@
   font-size: 0.8rem;
 }
 .cs-palette-item code {
-  font-family: var(--cs-font-mono);
+  font-family: var(--cs-font);
   color: var(--cs-ice-dim);
 }
 .cs-swatch-lg {

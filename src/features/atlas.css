@@ -66,7 +66,7 @@
   display: grid;
   height: 100%;
   place-items: center;
-  font: 600 1.3rem var(--cs-font-mono, monospace);
+  font: 600 1.3rem var(--cs-font);
   color: var(--cs-lavender, #ada0f8);
 }
 .atlas-time {
@@ -74,7 +74,7 @@
   left: 8px;
   bottom: 8px;
   padding: 2px 8px;
-  font: 700 0.75rem var(--cs-font-mono, monospace);
+  font: 700 var(--fs-xs)/var(--lh-snug) var(--cs-font);
   color: #0a0e17;
   background: var(--cs-lavender, #ada0f8);
   border-radius: 6px;

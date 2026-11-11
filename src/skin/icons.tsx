@@ -174,6 +174,13 @@ export const ClipIcon = (p: IconProps) => (
     <path d="M8 7.5 20 17M8 16.5 20 7" />
   </Base>
 );
+export const MoreIcon = (p: IconProps) => (
+  <Base {...p}>
+    <circle cx="5" cy="12" r="1.2" fill="currentColor" />
+    <circle cx="12" cy="12" r="1.2" fill="currentColor" />
+    <circle cx="19" cy="12" r="1.2" fill="currentColor" />
+  </Base>
+);
 export const ChevronLeftIcon = (p: IconProps) => (
   <Base {...p}>
     <path d="m15 5-7 7 7 7" />

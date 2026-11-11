@@ -57,3 +57,16 @@ Verified in a browser: open/close with Escape and focus returns to the opener; S
 ## Appearance studio and collapsible wheel
 
 Verified in a browser (Sintel, Tears of Steel, Big Buck Bunny): atmosphere off by default with no extra layers; live switching of artwork, palette and credit per film; contrast solver (bright yellow background raises the scrim to 0.75 and holds 7:1 in High contrast; a dark `#222266` accent is lightened to 4.6:1); preset save/apply and persistence across reload; custom image upload; wheel collapse by keyboard (focus stays on the toggle, collapsed wheel has no tab stops, state persisted); phone width has no overflow and collapses vertically; axe reports 0 violations on the studio. Not verified: `prefers-reduced-motion` was not run (the CSS disables the collapse, fade-in and dial transitions); transitions could not be watched because the test pane stalls them; the studio in fullscreen; screen reader output.
+
+## Redesign pass: settings control centre, profiles, tiers, test bench
+
+Verified in a browser (Chromium pane, dev server):
+- Space Grotesk loads from the bundle; tabular numerals confirmed (equal digit widths).
+- Test bench: Desktop 927 px, Tablet 766 px, Phone 388 px, Tiny 298 px measured on the real container; the same `<video>` element kept playing through every size and footage change; the footage overlay is inside the video layer with `pointer-events: none`, controls above it, no filter on the video; High Contrast Test did not change saved preferences.
+- Layout tiers: full, tiny (More menu) and micro (time, mute, More, fullscreen) all keep the essential controls; no horizontal overflow; More menu rows are 48 px and stay inside the viewport.
+- Settings: tabs navigable with arrow keys; search works and clears when the panel closes; profiles (Standard, High contrast, Large controls, Reduced motion) apply, can be customised, persist across reload, and Restore defaults works.
+- Keyboard: Escape closes panels even when focus has drifted, and focus returns to the opener; shortcut dialog traps focus and returns it; wheel arrows still do not seek or change volume.
+- axe-core 4.10.2: 0 violations on Watch, Explore, tiny size, Wash to White, High Contrast Test, phone Atlas, every Settings tab (default and High contrast), search results and both dialogs. Two real findings were fixed along the way (a nested `aside` landmark, and High contrast losing to theme surfaces).
+- Adaptive themes: Sintel, Tears of Steel and Big Buck Bunny each retint the wheel, header, dock, panels, dialogs and cards live.
+
+Not verified: real touch devices, fullscreen, screen-reader output, the OS-level reduced-motion setting (the in-app Reduce motion option was tested), the loading and error states (not forced), and animations as seen by eye (the test pane stalls transitions).

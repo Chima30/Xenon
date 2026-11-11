@@ -3,6 +3,13 @@ import type { CSSProperties } from 'react';
 import { activeText } from './parse';
 import { useSubtitles, type CaptionStyle } from './SubtitleContext';
 
+const FONTS: Record<CaptionStyle['font'], string> = {
+  brand: "var(--cs-font)",
+  system: "ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif",
+  serif: "ui-serif, Georgia, 'Times New Roman', serif",
+  mono: "ui-monospace, Consolas, 'Courier New', monospace",
+};
+
 const SIZES: Record<CaptionStyle['size'], string> = { sm: '0.85rem', md: '1.1rem', lg: '1.5rem', xl: '2rem' };
 
 export function captionCssVars(style: CaptionStyle): CSSProperties {
@@ -14,6 +21,7 @@ export function captionCssVars(style: CaptionStyle): CSSProperties {
         : 'none';
   return {
     ['--cap-size' as string]: SIZES[style.size],
+    ['--cap-font' as string]: FONTS[style.font],
     ['--cap-color' as string]: style.color,
     ['--cap-bg' as string]: `rgb(5 7 12 / ${style.bgOpacity / 100})`,
     ['--cap-shadow' as string]: outline,

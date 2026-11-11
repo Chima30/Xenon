@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { HomePage } from './pages/HomePage';
-import { PlayerPage } from './pages/PlayerPage';
+import { TestBench } from './pages/TestBench';
 import { WorkbenchPage } from './pages/WorkbenchPage';
 
 interface Route {
@@ -66,7 +66,7 @@ export function App() {
         {route.name === 'watch' ? (
           <>
             <h1 className="sr">Player</h1>
-            <PlayerPage key={routeKey} filmId={route.filmId} startTime={route.time} endTime={route.end} />
+            <TestBench key={routeKey} filmId={route.filmId} startTime={route.time} endTime={route.end} />
             <p className="muted player-note">
               Tip: press <kbd>?</kbd> inside the player for every shortcut. Films are open-licensed; see{' '}
               <a href="#/">credits on the home page</a>.

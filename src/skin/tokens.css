@@ -1,0 +1,106 @@
+/* ==========================================================================
+   XENON design tokens. One typeface (Space Grotesk), one spacing scale, one radius scale.
+   Component CSS should use these tokens rather than raw values.
+   ========================================================================== */
+
+.cs-root {
+  /* ---- Typeface: Space Grotesk only, self-hosted by @fontsource-variable; robust system fallback ---- */
+  --cs-font: 'Space Grotesk Variable', 'Space Grotesk', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif;
+  --cs-font-ui: var(--cs-font);
+  --cs-font-display: var(--cs-font);
+  --cs-font-mono: var(--cs-font); /* kept as an alias: timecodes use tabular numerals, not a second family */
+
+  /* ---- Type scale (rem). Nothing below 0.75rem (12px). ---- */
+  --fs-xs: 0.75rem; /* labels, metadata */
+  --fs-sm: 0.8125rem; /* helper text, tags */
+  --fs-md: 0.9375rem; /* body, setting names, buttons */
+  --fs-lg: 1.0625rem; /* card titles */
+  --fs-xl: 1.25rem; /* panel headings */
+  --fs-2xl: 1.75rem; /* display titles */
+
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+  --fw-bold: 700;
+
+  --lh-tight: 1.15;
+  --lh-snug: 1.3;
+  --lh-body: 1.5;
+
+  --ls-display: 0.01em; /* cinematic titles: slightly open */
+  --ls-label: 0.09em; /* small uppercase section labels */
+  --ls-ui: 0; /* buttons, tabs, tooltips: no decorative tracking */
+
+  /* ---- Spacing scale (4px base) ---- */
+  --sp-1: 0.25rem;
+  --sp-2: 0.5rem;
+  --sp-3: 0.75rem;
+  --sp-4: 1rem;
+  --sp-5: 1.25rem;
+  --sp-6: 1.5rem;
+  --sp-8: 2rem;
+
+  /* ---- Radii ---- */
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 16px;
+  --r-xl: 20px;
+  --r-pill: 9999px;
+
+  /* ---- Sizes ---- */
+  --h-ctl: 44px; /* every button, tab and chip is at least this tall */
+  --h-row: 48px; /* list and menu rows */
+  --icon: 20px;
+  --w-panel: 400px;
+  --w-panel-wide: 520px;
+  --w-modal: 640px;
+  --bw: 1px; /* border width; thickens in high contrast */
+
+  /* ---- Semantic colour tokens (values shift with theme; meanings never do) ---- */
+  --cs-selected-bg: var(--cs-citron);
+  --cs-selected-fg: var(--cs-ink-on-citron);
+  --cs-focus: var(--cs-citron);
+  --cs-moment: var(--cs-lavender); /* saved moments: always lavender, drawn as bars */
+  --cs-anchor: var(--cs-citron); /* return anchor: always the accent, drawn as a diamond */
+  --cs-danger-fg: var(--cs-danger);
+  --cs-ok-fg: var(--cs-teal);
+
+  font-family: var(--cs-font);
+  font-size: var(--fs-md);
+  line-height: var(--lh-body);
+  font-optical-sizing: auto;
+}
+
+/* Accessibility: large controls */
+.cs-root[data-large] {
+  --h-ctl: 52px;
+  --h-row: 56px;
+  --icon: 24px;
+  --fs-md: 1.0625rem;
+  --fs-sm: 0.9375rem;
+  --fs-xs: 0.8125rem;
+  --cs-target: 52px;
+}
+
+/* Accessibility: high contrast */
+.cs-root[data-hc] {
+  --bw: 2px;
+  --cs-line: #8b95b0;
+  --cs-ice: #ffffff;
+  --cs-ice-dim: #e6eaf2;
+}
+
+/* Numerals that must not jiggle: timecodes, offsets, counters, shortcuts */
+.cs-time,
+.cs-line-time,
+.cs-offset-val,
+.atlas-time,
+.wheel-meta,
+.cs-tag,
+.cs-diag-status,
+.cs-range strong,
+kbd {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}

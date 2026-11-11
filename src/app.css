@@ -7,9 +7,9 @@
   --soft: #b4c8cb;
   --line: #2c4b51;
   --accent: #d8ff57;
-  --font: 'Inter', 'DM Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  --display: 'Space Grotesk', 'Manrope', var(--font);
-  --mono: ui-monospace, 'JetBrains Mono', Consolas, monospace;
+  --font: 'Space Grotesk Variable', 'Space Grotesk', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --display: var(--font);
+  --mono: var(--font);
   color-scheme: dark;
 }
 
@@ -75,7 +75,7 @@ a {
   gap: 10px;
   color: var(--fg);
   font: 600 0.8rem var(--mono);
-  letter-spacing: 0.14em;
+  letter-spacing: var(--ls-label);
   text-decoration: none;
 }
 .brand-mark {
@@ -191,8 +191,8 @@ kbd {
 }
 .kicker {
   margin: 0 0 6px;
-  font: 600 0.72rem var(--mono);
-  letter-spacing: 0.16em;
+  font: 600 var(--fs-xs)/var(--lh-snug) var(--cs-font);
+  letter-spacing: var(--ls-label);
   text-transform: uppercase;
   color: var(--accent);
 }

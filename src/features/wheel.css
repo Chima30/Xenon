@@ -147,7 +147,7 @@
 .wheel-thumb-fallback {
   display: grid;
   place-items: center;
-  font: 600 1.4rem var(--cs-font-mono, monospace);
+  font: 600 1.4rem var(--cs-font);
   color: var(--cs-lavender, #ada0f8);
   background:
     repeating-linear-gradient(135deg, transparent 0 10px, rgb(173 160 248 / 0.08) 10px 11px),
@@ -167,7 +167,7 @@
   text-shadow: 0 1px 4px rgb(0 0 0 / 0.8);
 }
 .wheel-meta {
-  font: 500 0.72rem var(--cs-font-mono, monospace);
+  font: 500 var(--fs-xs)/var(--lh-snug) var(--cs-font);
   color: var(--cs-ice-dim, #b6bfcd);
 }
 .wheel-badge {
@@ -175,7 +175,7 @@
   top: 8px;
   right: 8px;
   padding: 2px 8px;
-  font: 700 0.65rem var(--cs-font-mono, monospace);
+  font: 700 var(--fs-xs)/var(--lh-snug) var(--cs-font);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: #0a0e17;
@@ -290,8 +290,8 @@
   color: var(--cs-ice-dim, #b6bfcd);
 }
 .rail-kicker {
-  font: 600 0.68rem var(--cs-font-mono, monospace);
-  letter-spacing: 0.12em;
+  font: 600 var(--fs-xs)/var(--lh-snug) var(--cs-font);
+  letter-spacing: var(--ls-label);
   text-transform: uppercase;
   color: var(--cs-lavender, #ada0f8);
 }

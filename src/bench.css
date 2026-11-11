@@ -1,0 +1,120 @@
+/* ---------- Test bench (demo site only; not part of the skin) ---------- */
+
+.bench-wrap {
+  display: grid;
+  gap: 14px;
+}
+.bench {
+  display: grid;
+  gap: 12px;
+  padding: 14px 16px;
+  background: rgb(6 25 29 / 0.7);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+}
+.bench-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+}
+.bench-label {
+  min-width: 92px;
+  font: 600 0.75rem/1.2 var(--font);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.seg {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px;
+  background: var(--depth);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.seg-btn {
+  min-height: 40px;
+  padding: 0 14px;
+  font: 600 0.9375rem/1 var(--font);
+  color: var(--soft);
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  border-radius: 9px;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.seg-btn[aria-checked='true'] {
+  color: #0a0e17;
+  background: var(--accent);
+  box-shadow: inset 0 -3px 0 rgb(0 0 0 / 0.25);
+}
+.seg-btn[aria-checked='true']::before {
+  content: '✓ ';
+}
+.seg-btn:hover:not([aria-checked='true']) {
+  color: var(--fg);
+  background: rgb(244 246 242 / 0.08);
+}
+.bench-readout {
+  font-size: 0.8125rem;
+  color: var(--soft);
+  font-variant-numeric: tabular-nums;
+}
+.bench-reset {
+  min-height: 40px;
+  padding: 0 14px;
+  font: 600 0.9375rem/1 var(--font);
+  color: var(--fg);
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.bench-reset:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  border-style: dashed;
+}
+.bench-note {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--soft);
+}
+.bench-note strong {
+  color: var(--fg);
+}
+/* The frame is the player's real container: its width changes, nothing is scaled. */
+.bench-frame {
+  margin-inline: auto;
+  max-width: 100%;
+  transition: width 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.bench-frame[data-size='desktop'] {
+  margin-inline: 0;
+}
+/* Footage simulation: lives inside the skin's video layer, below captions and controls. */
+.bench-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.bench-overlay[data-footage='white'] {
+  background: rgb(255 255 255 / 0.88);
+}
+.bench-overlay[data-footage='dark'] {
+  background: rgb(0 0 0 / 0.72);
+}
+.seg-btn:focus-visible,
+.bench-reset:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .bench-frame,
+  .seg-btn {
+    transition: none;
+  }
+}

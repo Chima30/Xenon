@@ -45,11 +45,19 @@ export function FloatingPanel({ open, onClose, title, children, wide, returnFocu
       if (t instanceof Element && t.closest('[data-panel-toggle]')) return;
       closeRef.current();
     };
+    // Escape must close the panel even when focus has drifted elsewhere (for example after clicking the video).
+    // A modal dialog on top handles its own Escape, so leave that alone.
+    const onDocKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || e.defaultPrevented || document.querySelector('dialog[open]')) return;
+      closeRef.current();
+    };
     el.addEventListener('keydown', onKey);
+    document.addEventListener('keydown', onDocKey);
     document.addEventListener('pointerdown', onPointerDown, true);
     const opener = returnRef.current;
     return () => {
       el.removeEventListener('keydown', onKey);
+      document.removeEventListener('keydown', onDocKey);
       document.removeEventListener('pointerdown', onPointerDown, true);
       if (opener && opener.isConnected) opener.focus({ preventScroll: true });
     };
