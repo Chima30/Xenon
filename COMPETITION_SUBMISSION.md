@@ -8,11 +8,11 @@ The look is a dark instrument: obsidian surfaces, one citron accent for what is 
 
 ## Fields (fill in only when true)
 
-- Live URL: _not deployed yet_
-- Mux public playback ID: _not configured_
+- Live URL: https://xenon-ruddy.vercel.app/
+- Mux public playback ID: `Yfu01a6CaOBqd01OovU02DLPF2kqH4GNseuJ4q7NEfmhCs` (Sintel, played through the Video.js `MuxVideo` component; keep the asset active through judging)
 - Real-site integration URL: _not deployed yet_
 
 ## Honest notes
 
-- Source written but not yet built or tested; see `README.md` "Known gaps".
+- See `README.md` "Known gaps" and `ACCESSIBILITY_CHECKLIST.md` for what has and has not been tested.
 - Demo films are CC BY 3.0 Blender Foundation movies; credits are on the home page.

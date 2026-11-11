@@ -22,13 +22,13 @@ git push -u origin main
 ## 3. Vercel
 
 1. New Project, import the GitHub repo. Framework preset **Vite** (also set in `vercel.json`).
-2. Environment variable (optional): `VITE_MUX_PLAYBACK_ID` = your playback ID.
+2. No environment variables are required: the public Mux playback ID for Sintel is built in. Optionally set `VITE_SINTEL_MUX_PLAYBACK_ID` to use a different asset.
 3. Deploy. Hash routing needs no rewrites.
 
 ## 4. After deploy, check on the live URL
 
 - Home loads; the player plays Sintel; Explore wheel, Atlas, Settings and Subtitles open.
-- With the Mux ID set, a "Mux asset" film appears in the wheel and plays (this path has not been run yet).
+- Sintel plays from Mux by default; Settings → Server shows Mux, Wikimedia Commons and Internet Archive.
 - Test fullscreen, a phone, and keyboard-only use in a normal browser window.
 - Then fill in the URL and Mux ID in `COMPETITION_SUBMISSION.md`.
 

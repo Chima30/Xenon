@@ -95,13 +95,18 @@ Netflix artwork from the design references is not used anywhere.
 
 ### Mux
 
-Set `VITE_MUX_PLAYBACK_ID` (see `.env.example`) to add a Mux entry played through the official `MuxVideo` component. No ID is bundled; the Mux bonus is only earned once you create a real asset and keep it live. Never put Mux API secrets in client code.
+Sintel's primary source is a Mux asset, played with the official `MuxVideo` component from `@videojs/react` (not Mux Player), so the Video.js v10 skin, hotkeys, wheel and panels all apply to it. The **public** playback ID is in `src/data/catalog.ts` (`SINTEL_MUX_PLAYBACK_ID`) and can be overridden with `VITE_SINTEL_MUX_PLAYBACK_ID`. Playback IDs are not secrets; no Mux API credentials or signing keys are used or needed in the client.
+
+- Settings → Server lists Mux first, then Wikimedia Commons and the Internet Archive, so there are always real fallbacks. Switching server keeps your position.
+- Settings → Quality shows the stream's real HLS renditions (Auto and each rendition Mux made), via Video.js' quality feature.
+- Mux's auto-generated English captions load as a subtitle track, appear in the Subtitles menu and Transcript, and are drawn by the skin like any other track. Their cues stream in as the video loads, so the transcript fills as you watch.
+- The other two films stay on their open-file sources.
 
 ## Deploy (Vercel)
 
 1. Push to GitHub.
 2. Import the repo in Vercel; framework preset **Vite**; build `npm run build`; output `dist`.
-3. Add `VITE_MUX_PLAYBACK_ID` as an environment variable if you have one.
+3. No environment variables are needed; the public Mux playback ID is built in (optionally override it with `VITE_SINTEL_MUX_PLAYBACK_ID`).
 
 Hash routing means no rewrite rules are needed.
 

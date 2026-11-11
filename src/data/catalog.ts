@@ -12,7 +12,8 @@ export interface Chapter {
 }
 
 export interface Variant {
-  /** Which host serves this file. Two or more servers on a film enable the server picker. */
+  /** Which host serves this file. Two or more servers on a film enable the server picker.
+   *  "mux" means `src` is a Mux public playback ID played through the official MuxVideo component. */
   server: string;
   /** Resolution label for separate quality files; omit for a single-quality source. */
   quality?: string;
@@ -26,8 +27,7 @@ export interface Film {
   year: number;
   genre: string;
   description: string;
-  kind: 'file' | 'mux';
-  /** File URL, or the Mux playback ID when kind is "mux". */
+  /** Default file URL (used for credits and fallbacks). Playback goes through `variants`. */
   src: string;
   /** Seconds. Only set when verified from file metadata. */
   duration?: number;
@@ -73,6 +73,14 @@ const BBB_FILE = 'Big_Buck_Bunny_4K.webm';
 const SINTEL_FILE = 'Sintel_movie_4K.webm';
 const TOS_FILE = 'Tears_of_Steel_in_4k_-_Official_Blender_Foundation_release.webm';
 
+/**
+ * Public Mux playback ID for Sintel (Blender Foundation, CC BY 3.0). Playback IDs are not secrets: anyone who
+ * can watch the stream can read the ID. Override with VITE_SINTEL_MUX_PLAYBACK_ID to point at another asset.
+ */
+export const SINTEL_MUX_PLAYBACK_ID: string =
+  (import.meta.env.VITE_SINTEL_MUX_PLAYBACK_ID as string | undefined)?.trim() ||
+  'Yfu01a6CaOBqd01OovU02DLPF2kqH4GNseuJ4q7NEfmhCs';
+
 export const FILMS: Film[] = [
   {
     id: 'sintel',
@@ -81,7 +89,6 @@ export const FILMS: Film[] = [
     year: 2010,
     genre: 'Fantasy short',
     description: 'A young woman searches a harsh world for the dragon she once befriended.',
-    kind: 'file',
     src: commonsVideo('f/f1', SINTEL_FILE),
     duration: 888.035,
     frameAt: commonsFrame('f/f1', SINTEL_FILE),
@@ -90,6 +97,7 @@ export const FILMS: Film[] = [
     chapters: [],
     downloadable: true,
     variants: [
+      { server: 'mux', src: SINTEL_MUX_PLAYBACK_ID },
       ...commonsVariants('f/f1', SINTEL_FILE),
       { server: 'archive', src: 'https://archive.org/download/Sintel/sintel-2048-stereo_512kb.mp4' },
     ],
@@ -101,7 +109,6 @@ export const FILMS: Film[] = [
     year: 2012,
     genre: 'Sci-fi short',
     description: 'Live action meets visual effects in a near-future story set in Amsterdam.',
-    kind: 'file',
     src: commonsVideo('1/10', TOS_FILE),
     duration: 734.055,
     frameAt: commonsFrame('1/10', TOS_FILE),
@@ -121,7 +128,6 @@ export const FILMS: Film[] = [
     year: 2008,
     genre: 'Comedy animation',
     description: 'A gentle giant of a rabbit gets fed up with three bullying rodents.',
-    kind: 'file',
     src: commonsVideo('c/c0', BBB_FILE),
     duration: 634.553,
     frameAt: commonsFrame('c/c0', BBB_FILE),
@@ -136,32 +142,7 @@ export const FILMS: Film[] = [
   },
 ];
 
-/** Optional Mux entry. Its metadata is generic on purpose: we only know what the playback ID tells us. */
-export const MUX_PLAYBACK_ID: string | undefined =
-  (import.meta.env.VITE_MUX_PLAYBACK_ID as string | undefined)?.trim() || undefined;
-
-export const CATALOG: Film[] = MUX_PLAYBACK_ID
-  ? [
-      ...FILMS,
-      {
-        id: 'mux-asset',
-        title: 'Mux asset',
-        creator: 'Configured through VITE_MUX_PLAYBACK_ID',
-        year: new Date().getFullYear(),
-        genre: 'Mux stream',
-        description: 'A public Mux playback ID supplied by the site owner, played with the official MuxVideo component.',
-        kind: 'mux',
-        src: MUX_PLAYBACK_ID,
-        frameAt: (seconds, width = 500) =>
-          `https://image.mux.com/${MUX_PLAYBACK_ID}/thumbnail.jpg?width=${width}&time=${Math.max(0, Math.floor(seconds))}`,
-        license: { name: 'Owner supplied', url: 'https://www.mux.com/docs/guides/play-your-videos' },
-        source: { label: 'Mux', url: 'https://www.mux.com/docs/guides/play-your-videos' },
-        chapters: [],
-        downloadable: false,
-        variants: [{ server: 'mux', src: MUX_PLAYBACK_ID }],
-      },
-    ]
-  : FILMS;
+export const CATALOG: Film[] = FILMS;
 
 export function findFilm(id: string | null | undefined): Film | undefined {
   return CATALOG.find((f) => f.id === id);

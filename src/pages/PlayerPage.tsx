@@ -1,7 +1,7 @@
 import { useMedia } from '@videojs/react';
 import { Video, VideoPlayer, usePlayer } from '@videojs/react/video';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { CATALOG, findFilm, MUX_PLAYBACK_ID, pickVariant, SERVER_LABELS, servers as serversOf, type Film, type Section } from '../data/catalog';
+import { CATALOG, findFilm, SINTEL_MUX_PLAYBACK_ID, pickVariant, SERVER_LABELS, servers as serversOf, type Film, type Section, type Variant } from '../data/catalog';
 import {
   addMoment,
   momentsFor,
@@ -17,14 +17,15 @@ import { ChevronLeftIcon, ChevronRightIcon, ReturnIcon, ShareIcon } from '../ski
 
 const MuxVideo = lazy(() => import('@videojs/react/media/mux-video').then((m) => ({ default: m.MuxVideo })));
 
-function FilmMedia({ film, src }: { film: Film; src: string }) {
-  if (film.kind === 'mux') {
+function FilmMedia({ film, variant }: { film: Film; variant: Variant }) {
+  if (variant.server === 'mux') {
     return (
       <Suspense fallback={null}>
-        <MuxVideo source={{ playbackId: film.src }} playsInline />
+        <MuxVideo source={{ playbackId: variant.src }} playsInline preload="metadata" crossOrigin="anonymous" />
       </Suspense>
     );
   }
+  const src = variant.src;
   return (
     <Video
       src={src}
@@ -36,12 +37,12 @@ function FilmMedia({ film, src }: { film: Film; src: string }) {
 }
 
 /** Saves the resume position every few seconds while this film is the one loaded. */
-function PlaybackSaver({ film, activeSrc }: { film: Film; activeSrc: string }) {
+function PlaybackSaver({ film, activeSrc, server }: { film: Film; activeSrc: string; server: string }) {
   const time = usePlayer((s) => s.currentTime);
   const duration = usePlayer((s) => s.duration);
   const src = usePlayer((s) => s.currentSrc);
   const last = useRef(-100);
-  const loaded = film.kind === 'mux' || src.includes(fileName(activeSrc));
+  const loaded = isLoaded(src, activeSrc, server);
   useEffect(() => {
     last.current = -100;
   }, [film.id]);
@@ -56,6 +57,15 @@ function PlaybackSaver({ film, activeSrc }: { film: Film; activeSrc: string }) {
 }
 
 const fileName = (url: string) => decodeURIComponent(url.split('/').pop() ?? url);
+
+/**
+ * True once the player's current source belongs to the active variant.
+ */
+const isLoaded = (currentSrc: string, activeSrc: string, server: string) =>
+  server === 'mux'
+    ? // MuxVideo attaches the stream through a blob URL (or the stream URL itself); a file URL means it is still the old source.
+      currentSrc.startsWith('blob:') || currentSrc.includes('mux.com') || currentSrc.includes(activeSrc)
+    : currentSrc.includes(activeSrc) || currentSrc.includes(fileName(activeSrc));
 
 interface TrailEntry {
   time: number;
@@ -109,7 +119,7 @@ function PlayerBody({ initialId, initialTime, initialEnd }: { initialId?: string
   useEffect(() => {
     const t = pending.current;
     if (t === null || !canPlay || !(duration > 0)) return;
-    if (film.kind === 'file' && !src.includes(fileName(activeSrc))) return; // still the previous file's state
+    if (!isLoaded(src, activeSrc, variant.server)) return; // still the previous file's state
     pending.current = null;
     void store.seek(clamp(t, 0, Math.max(0, duration - 1)));
     if (resumePlaying.current) {
@@ -117,7 +127,7 @@ function PlayerBody({ initialId, initialTime, initialEnd }: { initialId?: string
       void store.play();
     }
     say(`Resumed at ${formatTime(t)}`);
-  }, [canPlay, duration, src, film, activeSrc, store, say]);
+  }, [canPlay, duration, src, film, activeSrc, variant.server, store, say]);
 
   const now = () => media?.currentTime ?? 0;
 
@@ -206,11 +216,14 @@ function PlayerBody({ initialId, initialTime, initialEnd }: { initialId?: string
 
   const diagnosticsRows: DiagRow[] = [
     {
-      label: 'Mux playback ID',
-      status: MUX_PLAYBACK_ID ? 'Pass' : 'Unavailable',
-      detail: MUX_PLAYBACK_ID
-        ? 'A public playback ID is configured (VITE_MUX_PLAYBACK_ID)'
-        : 'Not configured: the demo plays open films from Wikimedia Commons instead',
+      label: 'Mux playback',
+      status: variant.server === 'mux' ? 'Pass' : 'Unavailable',
+      detail:
+        variant.server === 'mux'
+          ? `Playing from Mux (playback ID ${SINTEL_MUX_PLAYBACK_ID.slice(0, 8)}…) through the Video.js MuxVideo component`
+          : film.variants.some((v) => v.server === 'mux')
+            ? 'This film has a Mux source; switch to it in Settings, Server'
+            : 'This film is not hosted on Mux',
     },
     { label: 'Audio visualizer', status: 'Unavailable', detail: 'Not implemented in this build' },
     {
@@ -254,10 +267,12 @@ function PlayerBody({ initialId, initialTime, initialEnd }: { initialId?: string
           onChange: (id: string) => switchFile(() => setServerId(id), SERVER_LABELS[id] ?? id),
         }
       : undefined;
+  // A Mux stream is not a file, so the download link points at the film's open Commons file instead.
+  const downloadVariant = variant.server === 'mux' ? pickVariant(film, 'commons', '480p') : variant;
   const download = film.downloadable
     ? {
-        href: activeSrc,
-        filename: fileName(activeSrc),
+        href: downloadVariant.src,
+        filename: fileName(downloadVariant.src),
         note: `${film.license.name} allows downloading and reuse with credit to ${film.creator}. The file opens in a new tab; use your browser's save option.`,
       }
     : undefined;
@@ -330,8 +345,8 @@ function PlayerBody({ initialId, initialTime, initialEnd }: { initialId?: string
         <MomentAtlas film={film} moments={moments} onSaveNow={saveNow} onSaveLast={saveLast} onSeek={jumpTo} />
       }
     >
-      <FilmMedia film={film} src={activeSrc} />
-      <PlaybackSaver film={film} activeSrc={activeSrc} />
+      <FilmMedia film={film} variant={variant} />
+      <PlaybackSaver film={film} activeSrc={activeSrc} server={variant.server} />
     </CinemaSkin>
   );
 }

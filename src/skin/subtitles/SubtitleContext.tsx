@@ -156,7 +156,8 @@ export function SubtitleProvider({ mediaKey, children }: { mediaKey: string; chi
     } satisfies StoredMedia);
   }, [storageKey, user, activeId, offset]);
 
-  // Read cues from native <track> elements. We draw captions ourselves, so keep them 'hidden', never 'showing'.
+  // Read cues from native <track> elements and in-stream (HLS) subtitle tracks. We draw captions ourselves, but a
+  // track must be 'showing' for streaming engines to load its cues; the browser's own rendering is hidden in CSS.
   useEffect(() => {
     const tt = media?.textTracks;
     if (!media || !tt) return;
@@ -165,7 +166,7 @@ export function SubtitleProvider({ mediaKey, children }: { mediaKey: string; chi
       for (let i = 0; i < tt.length; i++) {
         const t = tt[i];
         if (!t || (t.kind !== 'captions' && t.kind !== 'subtitles')) continue;
-        if (t.mode === 'disabled') t.mode = 'hidden';
+        if (t.mode !== 'showing') t.mode = 'showing';
         if (!t.cues || t.cues.length === 0) continue;
         found.push({
           id: `native:${i}:${t.language || t.label}`,
@@ -181,10 +182,34 @@ export function SubtitleProvider({ mediaKey, children }: { mediaKey: string; chi
     const timers = [window.setTimeout(sync, 800), window.setTimeout(sync, 2500)];
     tt.addEventListener('addtrack', sync);
     media.addEventListener('loadedmetadata', sync);
+    // Streamed captions arrive in pieces as segments load; re-read when a track's cue count grows.
+    const known = new Map<TextTrack, number>();
+    const onCue = (e: Event) => {
+      const t = e.target as TextTrack;
+      const n = t.cues?.length ?? 0;
+      if (known.get(t) !== n) {
+        known.set(t, n);
+        sync();
+      }
+    };
+    const watched: TextTrack[] = [];
+    const watchAll = () => {
+      for (let i = 0; i < tt.length; i++) {
+        const t = tt[i];
+        if (t && !watched.includes(t)) {
+          watched.push(t);
+          t.addEventListener('cuechange', onCue);
+        }
+      }
+    };
+    watchAll();
+    tt.addEventListener('addtrack', watchAll);
     return () => {
       timers.forEach(window.clearTimeout);
       tt.removeEventListener('addtrack', sync);
+      tt.removeEventListener('addtrack', watchAll);
       media.removeEventListener('loadedmetadata', sync);
+      watched.forEach((t) => t.removeEventListener('cuechange', onCue));
     };
   }, [media, mediaKey]);
 

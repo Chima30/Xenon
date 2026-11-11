@@ -98,16 +98,15 @@
   background: #000;
 }
 
+/* Captions are drawn by the skin (see CaptionOverlay) so size, colour, position and timing offset can be
+   controlled. Text tracks stay 'showing' only so streaming engines load their cues; hide the browser's rendering. */
 .cs-stage video::cue {
-  background: rgb(5 7 12 / 0.85);
-  color: #fff;
-  font-family: var(--cs-font-ui);
-  font-weight: 600;
+  color: transparent;
+  background: transparent;
+  text-shadow: none;
 }
-
-/* Caption safe zone: lift captions above the control bar. */
 .cs-stage video::-webkit-media-text-track-container {
-  transform: translateY(-72px);
+  display: none;
 }
 
 .cs-rail {
