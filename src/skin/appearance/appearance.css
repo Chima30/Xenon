@@ -1,0 +1,327 @@
+/* ==========================================================================
+   Adaptive Movie Atmosphere. Everything under [data-atm='on'] is opt-in: with the
+   atmosphere off, none of these rules match and the skin looks exactly as before.
+   ========================================================================== */
+
+/* ---------- Background layers (behind the layout, never over the video) ---------- */
+
+.cs-atmosphere {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  background: rgb(var(--cs-atm-tint, 10 14 23));
+}
+.cs-atm-art,
+.cs-atm-color,
+.cs-atm-glow,
+.cs-atm-scrim {
+  position: absolute;
+}
+.cs-atm-art {
+  inset: -8%; /* bleed past the edge so blur does not fade to transparent at the borders */
+  background-image: var(--cs-atm-image);
+  background-size: cover;
+  background-position: center;
+  filter: blur(var(--cs-atm-blur, 24px));
+  opacity: var(--cs-atm-opacity, 0.55);
+  animation: cs-atm-in 0.7s ease both;
+}
+.cs-atm-color {
+  inset: 0;
+  background: var(--cs-atm-color, #1f3b57);
+  opacity: var(--cs-atm-opacity, 0.55);
+  animation: cs-atm-in 0.7s ease both;
+}
+@keyframes cs-atm-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: var(--cs-atm-opacity, 0.55);
+  }
+}
+.cs-atm-glow {
+  inset: 0;
+  background: radial-gradient(70% 75% at 68% 45%, rgb(var(--cs-atm-glow, 80 120 200) / var(--cs-atm-glow-a, 0.2)), transparent 72%);
+}
+/* Sized by solveScrim() so body text always reaches its contrast target, whatever the artwork. */
+.cs-atm-scrim {
+  inset: 0;
+  background: rgb(var(--cs-atm-tint, 10 14 23) / var(--cs-atm-scrim, 0.6));
+}
+
+.cs-root[data-atm='on'] .cs-layout {
+  position: relative;
+  z-index: 1;
+}
+
+/* The video area becomes see-through only where the video is absent (letterbox bars, before load).
+   Video pixels are untouched: no filter, tint or opacity is applied to the video or its ancestors. */
+.cs-root[data-atm='on'] .cs-stage,
+.cs-root[data-atm='on'] .cs-stage video {
+  background: transparent;
+}
+
+/* ---------- Panel styles ---------- */
+
+.cs-root[data-atm='on'] .cs-rail,
+.cs-root[data-atm='on'] .cs-atlas {
+  background: var(--cs-surf-wheel);
+  -webkit-backdrop-filter: blur(var(--cs-blur-wheel));
+  backdrop-filter: blur(var(--cs-blur-wheel));
+}
+.cs-root[data-atm='on'] .cs-top .cs-seg,
+.cs-root[data-atm='on'] .cs-top .cs-icon-btn {
+  background: var(--cs-surf-header);
+  -webkit-backdrop-filter: blur(var(--cs-blur-header));
+  backdrop-filter: blur(var(--cs-blur-header));
+}
+.cs-root[data-atm='on'] .cs-bottom .cs-btn:not([data-on]):not([aria-expanded='true']),
+.cs-root[data-atm='on'] .cs-center .cs-btn-round {
+  background: var(--cs-surf-controls);
+  -webkit-backdrop-filter: blur(var(--cs-blur-controls));
+  backdrop-filter: blur(var(--cs-blur-controls));
+}
+/* The bars over the video borrow the poster tint instead of flat black. */
+.cs-root[data-atm='on'] .cs-top {
+  background: linear-gradient(to bottom, rgb(var(--cs-atm-tint) / 0.8), transparent);
+}
+.cs-root[data-atm='on'] .cs-bottom {
+  background: linear-gradient(to top, rgb(var(--cs-atm-tint) / 0.9), transparent);
+}
+.cs-root[data-atm='on'] .cs-btn,
+.cs-root[data-atm='on'] .cs-icon-btn,
+.cs-root[data-atm='on'] .cs-seg-btn:not([aria-pressed='true']) {
+  color: var(--cs-ice);
+}
+
+/* ---------- Collapsible wheel ---------- */
+
+.cs-rail-inner {
+  display: flex;
+  flex-direction: column;
+}
+.cs-rail-bar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px 0 16px;
+}
+.cs-rail-title {
+  font: 600 0.7rem var(--cs-font-mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--cs-lavender);
+}
+.cs-rail-toggle svg {
+  transition: rotate 0.35s ease;
+}
+.cs-rail-body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+  transition: opacity 0.25s ease, visibility 0s linear 0s;
+}
+.cs-rail-body > .rail {
+  flex: 1 1 auto;
+  height: auto;
+}
+
+.cs-root[data-mode='explore'] .cs-layout {
+  transition: grid-template-columns 0.38s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.cs-root[data-rail='collapsed'] {
+  --cs-rail-w: 64px;
+}
+.cs-root[data-rail='collapsed'] .cs-rail {
+  min-height: 0;
+}
+.cs-root[data-rail='collapsed'] .cs-rail-body {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.2s ease, visibility 0s linear 0.25s;
+}
+.cs-root[data-rail='collapsed'] .cs-rail-bar {
+  flex-direction: column;
+  padding: 10px 0 0;
+}
+.cs-root[data-rail='collapsed'] .cs-rail-title {
+  writing-mode: vertical-rl;
+  rotate: 180deg;
+  order: 2;
+  margin-top: 8px;
+}
+.cs-root[data-rail='collapsed'] .cs-rail-toggle svg {
+  rotate: 180deg;
+}
+
+@container cs (max-width: 760px) {
+  /* Under the video the rail collapses vertically. */
+  .cs-root[data-rail='collapsed'] {
+    --cs-rail-w: 100%;
+  }
+  .cs-rail-inner {
+    position: static;
+  }
+  .cs-rail-body {
+    max-height: 1400px;
+    transition: max-height 0.38s ease, opacity 0.25s ease, visibility 0s linear 0s;
+  }
+  .cs-root[data-rail='collapsed'] .cs-rail-body {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease, opacity 0.2s ease, visibility 0s linear 0.3s;
+  }
+  .cs-root[data-rail='collapsed'] .cs-rail-bar {
+    flex-direction: row;
+    padding: 10px 12px 10px 16px;
+  }
+  .cs-root[data-rail='collapsed'] .cs-rail-title {
+    writing-mode: horizontal-tb;
+    rotate: none;
+    order: 0;
+    margin: 0;
+  }
+  .cs-rail-toggle svg {
+    rotate: 90deg;
+  }
+  .cs-root[data-rail='collapsed'] .cs-rail-toggle svg {
+    rotate: -90deg;
+  }
+}
+
+/* ---------- Appearance studio ---------- */
+
+.cs-switch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: 56px;
+  padding: 8px 14px;
+  text-align: left;
+  cursor: pointer;
+  color: var(--cs-ice);
+  background: var(--cs-glass);
+  border: 1px solid var(--cs-line);
+  border-radius: 14px;
+}
+.cs-switch > span:first-child {
+  display: grid;
+  gap: 2px;
+}
+.cs-switch-state {
+  min-width: 52px;
+  padding: 6px 12px;
+  font: 700 0.8rem var(--cs-font-mono);
+  text-align: center;
+  color: var(--cs-ice-dim);
+  background: var(--cs-obsidian);
+  border: 1px solid var(--cs-line);
+  border-radius: 9999px;
+}
+.cs-switch[aria-checked='true'] {
+  border-color: var(--cs-citron);
+}
+.cs-switch[aria-checked='true'] .cs-switch-state {
+  color: var(--cs-ink-on-citron);
+  background: var(--cs-citron);
+  border-color: var(--cs-citron);
+}
+
+.cs-fieldset {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+.cs-fieldset legend {
+  padding: 0 0 6px;
+  font: 600 0.7rem var(--cs-font-mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--cs-lavender);
+}
+.cs-range {
+  display: grid;
+  gap: 2px;
+  font-size: 0.85rem;
+  color: var(--cs-ice-dim);
+}
+.cs-range strong {
+  color: var(--cs-ice);
+  font-family: var(--cs-font-mono);
+}
+.cs-range input {
+  width: 100%;
+  min-height: 44px;
+  accent-color: var(--cs-citron);
+}
+.cs-arearow {
+  display: grid;
+  gap: 6px;
+  font-size: 0.85rem;
+}
+.cs-palette {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+.cs-palette-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+}
+.cs-palette-item code {
+  font-family: var(--cs-font-mono);
+  color: var(--cs-ice-dim);
+}
+.cs-swatch-lg {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cs-atm-art,
+  .cs-atm-color {
+    animation: none;
+  }
+  .cs-root[data-mode='explore'] .cs-layout,
+  .cs-rail-body,
+  .cs-rail-toggle svg,
+  .cs-root[data-rail='collapsed'] .cs-rail-body {
+    transition: none !important;
+  }
+}
+
+@media (forced-colors: active) {
+  .cs-atmosphere {
+    display: none;
+  }
+  .cs-switch,
+  .cs-switch-state {
+    border: 1px solid CanvasText;
+    background: Canvas;
+    color: CanvasText;
+    forced-color-adjust: none;
+  }
+  .cs-switch[aria-checked='true'] .cs-switch-state {
+    background: Highlight;
+    color: HighlightText;
+  }
+}
+
+.cs-root[data-rail='collapsed'] .cs-rail-inner {
+  overflow: hidden;
+}

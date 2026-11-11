@@ -1,0 +1,427 @@
+/* Floating panels (settings, subtitles, transcript, clip), captions overlay, skip button. */
+
+.cs-panel {
+  position: absolute;
+  right: 12px;
+  bottom: 96px;
+  z-index: 20;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  width: min(400px, calc(100% - 24px));
+  max-height: calc(100% - 112px);
+  color: var(--cs-ice);
+  background: rgb(21 27 44 / 0.96);
+  border: 1px solid var(--cs-line);
+  border-radius: 18px;
+  box-shadow: 0 24px 60px rgb(0 0 0 / 0.55);
+  backdrop-filter: blur(16px);
+}
+.cs-panel[data-wide] {
+  width: min(520px, calc(100% - 24px));
+}
+.cs-panel:focus {
+  outline: none;
+}
+.cs-panel:focus-visible {
+  outline: 3px solid var(--cs-citron);
+  outline-offset: 2px;
+}
+.cs-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 10px 6px 18px;
+}
+.cs-panel-head h2 {
+  margin: 0;
+  font: 600 1rem var(--cs-font-display);
+}
+.cs-panel-body {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  padding: 4px 14px 14px;
+  overflow-y: auto;
+}
+
+.cs-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.cs-card {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  padding: 12px;
+  background: var(--cs-obsidian);
+  border: 1px solid var(--cs-line);
+  border-radius: 14px;
+}
+.cs-cards > .cs-card:only-child,
+.cs-cards > .cs-card:nth-child(odd):last-child {
+  grid-column: 1 / -1;
+}
+.cs-card-title {
+  margin: 0;
+  font: 600 0.7rem var(--cs-font-mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--cs-lavender);
+}
+.cs-card-value {
+  margin: 0;
+  font-weight: 600;
+}
+.cs-panel .cs-muted {
+  margin: 0;
+}
+
+.cs-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.cs-chip {
+  min-height: 44px;
+  padding: 0 14px;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--cs-ice);
+  background: var(--cs-glass);
+  border: 1px solid var(--cs-line);
+  border-radius: 9999px;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+.cs-chip[aria-pressed='true'] {
+  color: var(--cs-ink-on-citron);
+  background: var(--cs-citron);
+  border-color: var(--cs-citron);
+}
+.cs-chip:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+@media (hover: hover) {
+  .cs-chip:hover:not([aria-pressed='true']):not(:disabled) {
+    border-color: var(--cs-lavender);
+  }
+}
+.cs-swatch {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.cs-swatch-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1px solid rgb(255 255 255 / 0.5);
+}
+.cs-tag {
+  margin-left: 0;
+  font: 500 0.7rem var(--cs-font-mono);
+  color: var(--cs-ice-dim);
+}
+.cs-chip[aria-pressed='true'] .cs-tag,
+.cs-choice[aria-pressed='true'] .cs-tag {
+  color: var(--cs-ink-on-citron);
+}
+
+.cs-panel :is(button, input, textarea, summary, a, [tabindex]):focus-visible {
+  outline: 3px solid var(--cs-citron);
+  outline-offset: 2px;
+  box-shadow: none;
+}
+
+/* Subtitle track list */
+.cs-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.cs-list-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px;
+}
+.cs-choice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 8px;
+  width: 100%;
+  min-height: 48px;
+  padding: 0 14px;
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  color: var(--cs-ice);
+  background: var(--cs-glass);
+  border: 1px solid var(--cs-line);
+  border-radius: 12px;
+}
+.cs-choice[aria-pressed='true'] {
+  color: var(--cs-ink-on-citron);
+  background: var(--cs-citron);
+  border-color: var(--cs-citron);
+}
+.cs-offset {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.cs-offset-val {
+  min-width: 64px;
+  text-align: center;
+  font: 600 0.95rem var(--cs-font-mono);
+}
+
+/* Forms */
+.cs-details summary {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.cs-form {
+  display: grid;
+  gap: 10px;
+  padding-top: 4px;
+}
+.cs-form label,
+.cs-form legend,
+.cs-timefield label {
+  display: grid;
+  gap: 4px;
+  font-size: 0.8rem;
+  color: var(--cs-ice-dim);
+}
+.cs-form fieldset {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.cs-form legend {
+  padding: 0;
+}
+.cs-form input:not([type='range']):not([type='file']),
+.cs-form textarea,
+.cs-search input,
+.cs-timefield input {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 12px;
+  font: inherit;
+  color: var(--cs-ice);
+  background: var(--cs-glass);
+  border: 1px solid var(--cs-line);
+  border-radius: 10px;
+}
+.cs-form textarea {
+  padding: 10px 12px;
+  font-family: var(--cs-font-mono);
+  font-size: 0.8rem;
+  resize: vertical;
+}
+.cs-form input[type='range'] {
+  width: 100%;
+  min-height: 44px;
+  accent-color: var(--cs-citron);
+}
+.cs-timefield input[aria-invalid='true'] {
+  border-color: var(--cs-danger);
+}
+.cs-form-msg {
+  margin: 0;
+  font-size: 0.82rem;
+}
+.cs-form-msg[data-kind='error'] {
+  color: var(--cs-danger);
+}
+.cs-form-msg[data-kind='ok'] {
+  color: var(--cs-teal);
+}
+
+.cs-clip {
+  gap: 10px;
+}
+.cs-timefield {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 6px;
+}
+.cs-timefield .cs-form-msg {
+  grid-column: 1 / -1;
+}
+
+/* Transcript */
+.cs-search {
+  display: block;
+}
+.cs-transcript {
+  display: grid;
+  gap: 2px;
+  max-height: 46vh;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+.cs-line {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr);
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 0.9rem;
+  text-align: left;
+  cursor: pointer;
+  color: var(--cs-ice);
+  background: transparent;
+  border: 0;
+  border-radius: 10px;
+}
+.cs-line-time {
+  font: 600 0.75rem var(--cs-font-mono);
+  color: var(--cs-lavender);
+  padding-top: 2px;
+}
+.cs-line[aria-current='true'] {
+  background: var(--cs-steel);
+  box-shadow: inset 3px 0 0 var(--cs-citron);
+}
+@media (hover: hover) {
+  .cs-line:hover {
+    background: var(--cs-glass);
+  }
+}
+
+/* Captions drawn by the skin */
+.cs-captions {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 8%;
+  z-index: 5;
+  display: flex;
+  justify-content: center;
+  padding: 0 6%;
+  pointer-events: none;
+  transition: bottom 0.25s ease;
+}
+.cs-root:has(.cs-controls[data-visible]) .cs-captions[data-position='bottom'] {
+  bottom: 104px;
+}
+.cs-captions[data-position='raised'] {
+  bottom: 24%;
+}
+.cs-captions[data-position='top'] {
+  top: 12%;
+  bottom: auto;
+}
+.cs-caption-text {
+  display: inline-block;
+  max-width: 100%;
+  padding: 0.15em 0.55em;
+  white-space: pre-line;
+  font: 600 var(--cap-size, 1.1rem) / 1.35 var(--cs-font-ui);
+  text-align: center;
+  color: var(--cap-color, #fff);
+  background: var(--cap-bg, rgb(5 7 12 / 0.75));
+  text-shadow: var(--cap-shadow, none);
+  border-radius: 6px;
+}
+.cs-cap-preview {
+  display: flex;
+  justify-content: center;
+  padding: 18px 8px;
+  background: linear-gradient(135deg, #3b4a6b, #1b2238 60%, #6a5f9c);
+  border-radius: 12px;
+}
+
+/* Clip range on the seek bar and skip button */
+.cs-clip-range {
+  position: absolute;
+  top: 50%;
+  height: 10px;
+  translate: 0 -50%;
+  background: rgb(173 160 248 / 0.55);
+  border: 1px solid var(--cs-lavender);
+  border-radius: 3px;
+  pointer-events: none;
+}
+.cs-skip {
+  position: absolute;
+  right: 16px;
+  bottom: 112px;
+  z-index: 8;
+}
+
+@container (max-width: 520px) {
+  /* Phones: the panel sits under the video in normal flow so neither is cramped. */
+  .cs-panel,
+  .cs-panel[data-wide] {
+    position: static;
+    width: auto;
+    max-height: none;
+    margin-top: 8px;
+    border-radius: 0;
+    border-width: 1px 0 0;
+    box-shadow: none;
+  }
+  /* In fullscreen there is no "under the video", so it overlays again. */
+  .cs-root:fullscreen .cs-panel,
+  .cs-root:fullscreen .cs-panel[data-wide] {
+    position: absolute;
+    left: 8px;
+    right: 8px;
+    bottom: 76px;
+    max-height: calc(100% - 88px);
+    margin: 0;
+    border-radius: 18px;
+    border-width: 1px;
+  }
+  .cs-transcript {
+    max-height: 40vh;
+  }
+  .cs-cards {
+    grid-template-columns: 1fr;
+  }
+  .cs-skip {
+    bottom: 96px;
+  }
+  .cs-root:has(.cs-controls[data-visible]) .cs-captions[data-position='bottom'] {
+    bottom: 84px;
+  }
+}
+
+@media (forced-colors: active) {
+  .cs-panel,
+  .cs-card,
+  .cs-chip,
+  .cs-choice {
+    border: 1px solid CanvasText;
+    background: Canvas;
+    color: CanvasText;
+    forced-color-adjust: none;
+  }
+  .cs-chip[aria-pressed='true'],
+  .cs-choice[aria-pressed='true'],
+  .cs-line[aria-current='true'] {
+    background: Highlight;
+    color: HighlightText;
+  }
+}

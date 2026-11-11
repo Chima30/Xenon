@@ -1,0 +1,104 @@
+.atlas {
+  display: grid;
+  gap: 12px;
+  padding: 14px 16px 16px;
+}
+.atlas-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10px;
+}
+.atlas-title {
+  margin: 2px 0 0;
+  font: 600 1.05rem var(--cs-font-display, system-ui);
+}
+.atlas-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.atlas-empty {
+  margin: 0;
+  padding: 14px;
+  font-size: 0.88rem;
+  line-height: 1.55;
+  color: var(--cs-ice-dim, #b6bfcd);
+  background: var(--cs-obsidian, #0a0e17);
+  border: 1px dashed var(--cs-line, #2f3750);
+  border-radius: 12px;
+}
+.atlas-list {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(200px, 230px);
+  gap: 12px;
+  margin: 0;
+  padding: 2px 2px 8px;
+  list-style: none;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+}
+.atlas-card {
+  display: grid;
+  gap: 6px;
+  scroll-snap-align: start;
+}
+.atlas-jump {
+  position: relative;
+  display: block;
+  padding: 0;
+  overflow: hidden;
+  cursor: pointer;
+  aspect-ratio: 16 / 9;
+  background: var(--cs-steel, #202639);
+  border: 1px solid var(--cs-lavender, #ada0f8);
+  border-radius: 12px;
+}
+.atlas-jump img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.atlas-fallback {
+  display: grid;
+  height: 100%;
+  place-items: center;
+  font: 600 1.3rem var(--cs-font-mono, monospace);
+  color: var(--cs-lavender, #ada0f8);
+}
+.atlas-time {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  padding: 2px 8px;
+  font: 700 0.75rem var(--cs-font-mono, monospace);
+  color: #0a0e17;
+  background: var(--cs-lavender, #ada0f8);
+  border-radius: 6px;
+}
+.atlas-jump:focus-visible {
+  outline: 3px solid var(--cs-citron, #d8ff57);
+  outline-offset: 2px;
+}
+.atlas-meta {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px;
+}
+.atlas-input {
+  min-width: 0;
+  height: 44px;
+  padding: 0 10px;
+  color: var(--cs-ice, #f4f6f2);
+  background: var(--cs-obsidian, #0a0e17);
+  border: 1px solid var(--cs-line, #2f3750);
+  border-radius: 10px;
+  font: inherit;
+}
+.atlas-input:focus-visible {
+  outline: 3px solid var(--cs-citron, #d8ff57);
+  outline-offset: 2px;
+}

@@ -1,0 +1,874 @@
+/* ==========================================================================
+   Cinema skin for Video.js v10. Tokens first, then layout, controls, dialogs.
+   Everything is scoped under .cs-root so the skin can be dropped into any page.
+   ========================================================================== */
+
+.cs-root {
+  /* Palette: obsidian + electric citron + lavender memory accent */
+  --cs-obsidian: #0a0e17;
+  --cs-glass: #151b2c;
+  --cs-steel: #202639;
+  --cs-line: #2f3750;
+  --cs-ice: #f4f6f2;
+  --cs-ice-dim: #b6bfcd;
+  --cs-citron: #d8ff57;
+  --cs-lavender: #ada0f8;
+  --cs-teal: #8dd3cf;
+  --cs-danger: #ff8a8a;
+  --cs-ink-on-citron: #0a0e17;
+
+  --cs-font-ui: 'Inter', 'DM Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --cs-font-display: 'Space Grotesk', 'Manrope', var(--cs-font-ui);
+  --cs-font-mono: ui-monospace, 'JetBrains Mono', 'SF Mono', Consolas, 'Liberation Mono', monospace;
+
+  --cs-target: 44px;
+  --cs-radius: 14px;
+  --cs-rail-w: 360px;
+
+  position: relative;
+  display: block;
+  container: cs / inline-size;
+  color: var(--cs-ice);
+  background: var(--cs-obsidian);
+  font-family: var(--cs-font-ui);
+  border-radius: 20px;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.cs-root *,
+.cs-root *::before,
+.cs-root *::after {
+  box-sizing: border-box;
+}
+
+.cs-root button {
+  font: inherit;
+  color: inherit;
+}
+
+.cs-sr {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---------- Layout ---------- */
+
+.cs-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+}
+
+.cs-root[data-mode='explore'] .cs-layout {
+  grid-template-columns: var(--cs-rail-w) minmax(0, 1fr);
+}
+
+.cs-stagewrap {
+  container: csstage / inline-size;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.cs-stagewrap > .cs-stage {
+  flex: 1 1 auto;
+}
+
+.cs-stage {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  min-width: 0;
+  background: #000;
+  overflow: hidden;
+}
+
+.cs-stage video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #000;
+}
+
+.cs-stage video::cue {
+  background: rgb(5 7 12 / 0.85);
+  color: #fff;
+  font-family: var(--cs-font-ui);
+  font-weight: 600;
+}
+
+/* Caption safe zone: lift captions above the control bar. */
+.cs-stage video::-webkit-media-text-track-container {
+  transform: translateY(-72px);
+}
+
+.cs-rail {
+  min-width: 0;
+  background:
+    radial-gradient(120% 80% at 0% 50%, rgb(173 160 248 / 0.12), transparent 60%),
+    var(--cs-obsidian);
+  border-right: 1px solid var(--cs-line);
+  overflow: hidden;
+}
+
+.cs-root[data-mode='explore'] .cs-stage {
+  aspect-ratio: auto;
+}
+
+/* The rail never sets the row height: it fills the video's height and scrolls inside if needed. */
+.cs-rail {
+  position: relative;
+  /* Tall enough for the wheel; the video letterboxes if the row grows past 16:9. */
+  min-height: 600px;
+}
+.cs-rail > .cs-rail-inner {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.cs-atlas {
+  background: var(--cs-glass);
+  border-top: 1px solid var(--cs-line);
+  min-width: 0;
+}
+
+.cs-root:fullscreen {
+  border-radius: 0;
+  width: 100vw;
+  height: 100vh;
+}
+.cs-root:fullscreen .cs-layout {
+  height: 100%;
+  grid-template-rows: minmax(0, 1fr);
+}
+.cs-root:fullscreen[data-mode='remember'] .cs-layout {
+  grid-template-rows: minmax(0, 1fr) auto;
+}
+.cs-root:fullscreen .cs-stagewrap {
+  height: 100%;
+}
+.cs-root:fullscreen .cs-stage {
+  aspect-ratio: auto;
+}
+
+/* Narrow players: the rail becomes a panel under the video. */
+@container cs (max-width: 760px) {
+  .cs-root[data-mode='explore'] .cs-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .cs-rail {
+    order: 2;
+    border-right: 0;
+    border-top: 1px solid var(--cs-line);
+  }
+  .cs-rail {
+    min-height: 0;
+  }
+  .cs-root[data-mode='explore'] .cs-stage {
+    aspect-ratio: 16 / 9;
+  }
+  .cs-rail > .cs-rail-inner {
+    position: static;
+    overflow: visible;
+  }
+  .cs-root:fullscreen[data-mode='explore'] .cs-layout {
+    grid-template-rows: minmax(0, 1fr) auto;
+  }
+  /* Text collapses to icon-only visually, but stays in the accessibility tree as the button's name. */
+  .cs-seg-btn span,
+  .cs-btn-label:not([data-keep]) span {
+  position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
+/* ---------- Controls overlay ---------- */
+
+.cs-controls {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+
+.cs-controls > * {
+  pointer-events: auto;
+}
+
+/* Hidden when idle, but never while something inside has keyboard focus. */
+.cs-controls:not([data-visible]):not(:has(:focus-visible)):not(:has([aria-expanded='true'])) {
+  opacity: 0;
+}
+.cs-controls:not([data-visible]):not(:has(:focus-visible)):not(:has([aria-expanded='true'])) > * {
+  pointer-events: none;
+}
+
+.cs-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px 36px;
+  background: linear-gradient(to bottom, rgb(5 7 12 / 0.78), transparent);
+}
+
+.cs-titleblock {
+  min-width: 0;
+}
+.cs-title {
+  margin: 0;
+  font: 600 1.05rem/1.2 var(--cs-font-display);
+  letter-spacing: 0.01em;
+  text-shadow: 0 1px 8px rgb(0 0 0 / 0.6);
+  overflow-wrap: anywhere;
+}
+.cs-subtitle {
+  margin: 2px 0 0;
+  font-size: 0.8rem;
+  color: var(--cs-ice-dim);
+  text-shadow: 0 1px 6px rgb(0 0 0 / 0.6);
+}
+
+.cs-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.cs-center {
+  align-self: center;
+  display: flex;
+  align-items: center;
+  gap: 22px;
+}
+
+.cs-bottom {
+  display: grid;
+  gap: 4px;
+  padding: 40px 16px 12px;
+  background: linear-gradient(to top, rgb(5 7 12 / 0.9), transparent);
+}
+
+.cs-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.cs-spacer {
+  flex: 1;
+}
+.cs-time {
+  display: flex;
+  gap: 6px;
+  font: 500 0.85rem var(--cs-font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--cs-ice);
+  text-shadow: 0 1px 6px rgb(0 0 0 / 0.7);
+  white-space: nowrap;
+}
+
+/* ---------- Buttons ---------- */
+
+.cs-btn,
+.cs-icon-btn,
+.cs-seg-btn {
+  display: inline-grid;
+  grid-auto-flow: column;
+  place-items: center;
+  gap: 8px;
+  min-width: var(--cs-target);
+  height: var(--cs-target);
+  padding: 0 12px;
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+  background: rgb(21 27 44 / 0.82);
+  border: 1px solid var(--cs-line);
+  border-radius: 12px;
+  backdrop-filter: blur(12px);
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    transform 0.15s ease;
+}
+.cs-btn-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.cs-btn-label svg {
+  font-size: 1.25rem;
+}
+.cs-btn[data-on],
+.cs-btn[aria-expanded='true'] {
+  color: var(--cs-ink-on-citron);
+  background: var(--cs-citron);
+  border-color: var(--cs-citron);
+}
+
+.cs-btn-round {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  padding: 0;
+  border-radius: 50%;
+  font-size: 1.6rem;
+}
+.cs-seek-num {
+  position: absolute;
+  font: 700 0.6rem var(--cs-font-mono);
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -42%);
+}
+.cs-btn-play {
+  width: 76px;
+  height: 76px;
+  padding: 0;
+  border-radius: 50%;
+  font-size: 2.2rem;
+  color: var(--cs-ink-on-citron);
+  background: var(--cs-citron);
+  border-color: var(--cs-citron);
+  box-shadow: 0 0 0 6px rgb(216 255 87 / 0.18);
+}
+
+.cs-seg {
+  display: inline-flex;
+  padding: 3px;
+  gap: 3px;
+  background: rgb(21 27 44 / 0.82);
+  border: 1px solid var(--cs-line);
+  border-radius: 14px;
+  backdrop-filter: blur(12px);
+}
+.cs-seg-btn {
+  height: 38px;
+  min-width: var(--cs-target);
+  border-color: transparent;
+  background: transparent;
+  backdrop-filter: none;
+  font-size: 1rem;
+}
+.cs-seg-btn span {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.cs-seg-btn[aria-pressed='true'] {
+  color: var(--cs-ink-on-citron);
+  background: var(--cs-citron);
+}
+
+@media (hover: hover) {
+  .cs-btn:hover,
+  .cs-icon-btn:hover,
+  .cs-seg-btn:hover:not([aria-pressed='true']) {
+    background: var(--cs-steel);
+    border-color: var(--cs-lavender);
+  }
+  .cs-btn-play:hover {
+    background: #e6ff85;
+  }
+}
+
+/* Focus: citron ring plus a dark halo so it reads over bright and dark footage. */
+.cs-root :is(button, input, [role='slider'], [role='menuitemradio'], [tabindex]):focus-visible {
+  outline: 3px solid var(--cs-citron);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 6px rgb(5 7 12 / 0.9);
+}
+.cs-btn-play:focus-visible {
+  outline-color: #fff;
+}
+
+.cs-btn:disabled,
+.cs-btn[aria-disabled='true'] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ---------- Sliders ---------- */
+
+.cs-timeslider,
+.cs-volslider {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 28px;
+  cursor: pointer;
+  touch-action: none;
+}
+.cs-timeslider {
+  width: 100%;
+}
+.cs-volslider {
+  width: 84px;
+}
+
+.cs-track {
+  position: relative;
+  width: 100%;
+  height: 6px;
+  background: rgb(244 246 242 / 0.28);
+  border-radius: 9999px;
+  box-shadow: 0 0 0 1px rgb(5 7 12 / 0.5);
+}
+.cs-buffer,
+.cs-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: inherit;
+}
+.cs-buffer {
+  width: var(--media-slider-buffer, 0%);
+  background: rgb(244 246 242 / 0.35);
+}
+.cs-fill {
+  width: var(--media-slider-fill, 0%);
+  background: var(--cs-citron);
+}
+.cs-thumb {
+  position: absolute;
+  left: var(--media-slider-fill, 0%);
+  top: 50%;
+  width: 16px;
+  height: 16px;
+  background: var(--cs-citron);
+  border: 2px solid var(--cs-obsidian);
+  border-radius: 50%;
+  translate: -50% -50%;
+}
+
+/* Saved-moment and anchor ticks: decorative, never intercept the pointer. */
+.cs-marker {
+  position: absolute;
+  top: 50%;
+  width: 4px;
+  height: 16px;
+  border-radius: 2px;
+  translate: -50% -50%;
+  pointer-events: none;
+}
+.cs-marker[data-kind='moment'] {
+  background: var(--cs-lavender);
+  box-shadow: 0 0 0 1px var(--cs-obsidian);
+}
+.cs-marker[data-kind='anchor'] {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  rotate: 45deg;
+  background: var(--cs-citron);
+  box-shadow: 0 0 0 2px var(--cs-obsidian);
+}
+.cs-marker[data-kind='scene'] {
+  height: 8px;
+  background: rgb(244 246 242 / 0.5);
+}
+
+.cs-volume {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ---------- Menu ---------- */
+
+.cs-menu {
+  min-width: 200px;
+  max-height: min(60vh, 420px);
+  overflow: auto;
+  padding: 6px;
+  color: var(--cs-ice);
+  background: var(--cs-glass);
+  border: 1px solid var(--cs-line);
+  border-radius: var(--cs-radius);
+  box-shadow: 0 18px 40px rgb(0 0 0 / 0.5);
+  z-index: 30;
+}
+.cs-menu-heading {
+  margin: 8px 10px 4px;
+  font: 600 0.7rem var(--cs-font-mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--cs-lavender);
+}
+.cs-menu-group {
+  display: grid;
+}
+.cs-menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: var(--cs-target);
+  padding: 0 12px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+.cs-menu-item[data-highlighted],
+.cs-menu-item:hover {
+  background: var(--cs-steel);
+}
+.cs-menu-item[aria-checked='false'] .cs-menu-check {
+  visibility: hidden;
+}
+.cs-menu-check {
+  color: var(--cs-citron);
+}
+
+/* ---------- Status ---------- */
+
+.cs-toast {
+  position: absolute;
+  left: 50%;
+  bottom: 96px;
+  translate: -50% 0;
+  margin: 0;
+  max-width: min(90%, 420px);
+  padding: 8px 14px;
+  font-size: 0.85rem;
+  text-align: center;
+  background: var(--cs-glass);
+  border: 1px solid var(--cs-lavender);
+  border-radius: 9999px;
+  pointer-events: none;
+}
+.cs-toast:empty {
+  display: none;
+}
+
+.cs-buffering {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+.cs-spinner {
+  width: 44px;
+  height: 44px;
+  border: 4px solid rgb(244 246 242 / 0.25);
+  border-top-color: var(--cs-citron);
+  border-radius: 50%;
+  animation: cs-spin 0.9s linear infinite;
+}
+@keyframes cs-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.cs-error {
+  position: absolute;
+  inset: 0;
+  z-index: 25;
+  display: grid;
+  gap: 12px;
+  place-content: center;
+  justify-items: center;
+  padding: 24px;
+  text-align: center;
+  background: rgb(5 7 12 / 0.92);
+}
+.cs-error:not([data-open]) {
+  display: none;
+}
+.cs-error-title {
+  margin: 0;
+  font: 600 1.2rem var(--cs-font-display);
+}
+.cs-error-desc {
+  margin: 0;
+  color: var(--cs-ice-dim);
+  max-width: 44ch;
+}
+
+/* ---------- Dialogs (native <dialog>) ---------- */
+
+.cs-dialog {
+  width: min(640px, calc(100vw - 32px));
+  max-height: calc(100vh - 48px);
+  padding: 0;
+  color: var(--cs-ice);
+  background: var(--cs-glass);
+  border: 1px solid var(--cs-line);
+  border-radius: 18px;
+  box-shadow: 0 30px 80px rgb(0 0 0 / 0.6);
+}
+.cs-dialog::backdrop {
+  background: rgb(5 7 12 / 0.72);
+}
+.cs-dialog-inner {
+  display: grid;
+  max-height: calc(100vh - 48px);
+  grid-template-rows: auto minmax(0, 1fr);
+}
+.cs-dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px 10px 20px;
+  border-bottom: 1px solid var(--cs-line);
+}
+.cs-dialog-header h2 {
+  margin: 0;
+  font: 600 1.1rem var(--cs-font-display);
+}
+.cs-dialog-body {
+  padding: 16px 20px 20px;
+  overflow: auto;
+}
+.cs-muted {
+  color: var(--cs-ice-dim);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.cs-keytable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+.cs-keytable th {
+  text-align: left;
+  padding: 6px 8px;
+  font: 600 0.7rem var(--cs-font-mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--cs-lavender);
+}
+.cs-keytable td {
+  padding: 8px;
+  border-top: 1px solid var(--cs-line);
+  vertical-align: top;
+}
+.cs-keytable kbd {
+  display: inline-block;
+  min-width: 26px;
+  padding: 2px 7px;
+  font: 600 0.8rem var(--cs-font-mono);
+  text-align: center;
+  background: var(--cs-steel);
+  border: 1px solid var(--cs-line);
+  border-bottom-width: 2px;
+  border-radius: 6px;
+}
+
+.cs-diag-list {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+}
+.cs-diag-row {
+  display: grid;
+  grid-template-columns: 150px 110px minmax(0, 1fr);
+  gap: 10px;
+  align-items: baseline;
+  padding: 10px 12px;
+  background: var(--cs-obsidian);
+  border: 1px solid var(--cs-line);
+  border-radius: 10px;
+}
+.cs-diag-label {
+  font-weight: 600;
+}
+.cs-diag-status {
+  font: 600 0.75rem var(--cs-font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.cs-diag-row[data-status='Pass'] .cs-diag-status {
+  color: var(--cs-teal);
+}
+.cs-diag-row[data-status='Needs review'] .cs-diag-status {
+  color: var(--cs-danger);
+}
+.cs-diag-row[data-status='Unavailable'] .cs-diag-status {
+  color: var(--cs-ice-dim);
+}
+.cs-diag-detail {
+  color: var(--cs-ice-dim);
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 560px) {
+  .cs-diag-row {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+}
+
+/* ---------- Scrim modes ---------- */
+
+.cs-root[data-scrim='high-contrast'] .cs-top,
+.cs-root[data-scrim='high-contrast'] .cs-bottom {
+  background: #000;
+}
+.cs-root[data-scrim='high-contrast'] .cs-btn,
+.cs-root[data-scrim='high-contrast'] .cs-icon-btn,
+.cs-root[data-scrim='high-contrast'] .cs-seg {
+  background: #000;
+  border: 2px solid #fff;
+  backdrop-filter: none;
+}
+.cs-root[data-scrim='high-contrast'] .cs-track {
+  background: #6b6f78;
+}
+.cs-root[data-scrim='high-contrast'] .cs-btn[data-on],
+.cs-root[data-scrim='high-contrast'] .cs-btn[aria-expanded='true'],
+.cs-root[data-scrim='high-contrast'] .cs-seg-btn[aria-pressed='true'] {
+  background: var(--cs-citron);
+  border-color: var(--cs-citron);
+}
+
+/* Theater dims the surrounding panels, not the video and not the controls. */
+.cs-root[data-scrim='theater'] :is(.cs-rail, .cs-atlas) {
+  opacity: 0.4;
+  transition: opacity 0.25s ease;
+}
+.cs-root[data-scrim='theater'] :is(.cs-rail, .cs-atlas):is(:hover, :focus-within) {
+  opacity: 1;
+}
+.cs-root[data-scrim='theater'] .cs-top,
+.cs-root[data-scrim='theater'] .cs-bottom {
+  background: linear-gradient(to var(--d, bottom), rgb(0 0 0 / 0.95), transparent);
+}
+.cs-root[data-scrim='theater'] .cs-bottom {
+  --d: top;
+}
+
+/* ---------- Narrow screens ---------- */
+
+@container cs (max-width: 520px) {
+  .cs-center {
+    gap: 12px;
+  }
+  .cs-btn-round {
+    width: 48px;
+    height: 48px;
+  }
+  .cs-btn-play {
+    width: 64px;
+    height: 64px;
+  }
+  .cs-volslider {
+    display: none;
+  }
+  .cs-top {
+    padding: 10px 10px 28px;
+  }
+  /* The title also appears in the panels; on a phone the video needs the room. */
+  .cs-titleblock {
+    display: none;
+  }
+  .cs-toolbar {
+    justify-content: flex-start;
+    gap: 6px;
+  }
+  .cs-root {
+    --cs-target: 44px;
+  }
+  .cs-stage {
+    aspect-ratio: 4 / 3;
+  }
+  .cs-root[data-mode='explore'] .cs-stage {
+    aspect-ratio: 4 / 3;
+  }
+  .cs-root:fullscreen .cs-stage {
+    aspect-ratio: auto;
+  }
+  .cs-bottom {
+    padding: 28px 10px 8px;
+  }
+  .cs-row {
+    gap: 4px;
+  }
+  .cs-toast {
+    bottom: 80px;
+  }
+}
+
+/* ---------- User preferences ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .cs-root *,
+  .cs-root *::before,
+  .cs-root *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+  .cs-spinner {
+    animation: none;
+    border-top-color: var(--cs-citron);
+    border-right-color: var(--cs-citron);
+  }
+}
+
+@media (forced-colors: active) {
+  .cs-btn,
+  .cs-icon-btn,
+  .cs-seg,
+  .cs-menu,
+  .cs-dialog {
+    border: 1px solid CanvasText;
+    background: Canvas;
+    color: CanvasText;
+    forced-color-adjust: none;
+  }
+  .cs-fill,
+  .cs-thumb {
+    background: Highlight;
+  }
+  .cs-seg-btn[aria-pressed='true'],
+  .cs-btn[data-on] {
+    background: Highlight;
+    color: HighlightText;
+  }
+}
+
+/* The video area can be narrow even on a wide page (Explore leaves it ~570px), so the control row adapts to it. */
+@container csstage (max-width: 660px) {
+  .cs-row .cs-btn-label:not([data-keep]) span {
+  position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .cs-volslider {
+    display: none;
+  }
+  .cs-row {
+    gap: 4px;
+  }
+}
+@container csstage (max-width: 420px) {
+  .cs-time {
+    font-size: 0.75rem;
+  }
+}

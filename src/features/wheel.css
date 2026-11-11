@@ -1,0 +1,313 @@
+/* Navigation wheel. Positions are pure CSS (driven by data-d), so turning it costs no layout work in JS. */
+
+.wheel {
+  --card-w: 204px;
+  --card-h: 114px;
+  position: relative;
+  height: calc(var(--card-h) * 4.1);
+  min-width: 0;
+  overflow: hidden;
+  touch-action: none;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.wheel:active {
+  cursor: grabbing;
+}
+
+/* Engraved dial: tick ring that turns a little with each step, plus a fixed citron index mark. */
+.wheel-dial {
+  position: absolute;
+  left: -300px;
+  top: 50%;
+  width: 600px;
+  height: 600px;
+  margin-top: -300px;
+  border-radius: 50%;
+  background:
+    repeating-conic-gradient(from 0deg, rgb(244 246 242 / 0.34) 0 0.7deg, transparent 0.7deg 5deg),
+    radial-gradient(circle, transparent 0 62%, rgb(32 38 57 / 0.7) 62.3% 100%);
+  -webkit-mask: radial-gradient(circle, transparent 0 276px, #000 277px 292px, transparent 293px);
+  mask: radial-gradient(circle, transparent 0 276px, #000 277px 292px, transparent 293px);
+  transform: rotate(calc(var(--h, 0) * 5deg));
+  transition: transform 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
+  pointer-events: none;
+}
+.wheel[data-layout='arc']::after {
+  /* Fixed index mark at the selected position. */
+  content: '';
+  position: absolute;
+  left: 6px;
+  top: 50%;
+  width: 0;
+  height: 0;
+  margin-top: -9px;
+  border: 9px solid transparent;
+  border-left: 12px solid var(--cs-citron, #d8ff57);
+  border-right: 0;
+  filter: drop-shadow(0 0 6px rgb(216 255 87 / 0.5));
+  pointer-events: none;
+}
+
+.wheel-list {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wheel-li {
+  position: absolute;
+  left: 38px;
+  top: 50%;
+  width: var(--card-w);
+  height: var(--card-h);
+  margin-top: calc(var(--card-h) / -2);
+  transform-origin: 0 50%;
+  transition:
+    transform 0.45s cubic-bezier(0.2, 0.8, 0.2, 1),
+    opacity 0.3s ease;
+  z-index: 1;
+}
+
+/* Arc positions: center, two steps each way. Cards fan up and down and tuck left behind the dial. */
+.wheel-li[data-d='0'] {
+  transform: translate(26px, 0) scale(1);
+  z-index: 5;
+}
+.wheel-li[data-d='-1'] {
+  transform: translate(2px, calc(var(--card-h) * -0.88)) scale(0.86) rotate(-4deg);
+  z-index: 4;
+  opacity: 0.8;
+}
+.wheel-li[data-d='1'] {
+  transform: translate(2px, calc(var(--card-h) * 0.88)) scale(0.86) rotate(4deg);
+  z-index: 4;
+  opacity: 0.8;
+}
+.wheel-li[data-d='-2'] {
+  transform: translate(-30px, calc(var(--card-h) * -1.62)) scale(0.72) rotate(-8deg);
+  z-index: 3;
+  opacity: 0.5;
+}
+.wheel-li[data-d='2'] {
+  transform: translate(-30px, calc(var(--card-h) * 1.62)) scale(0.72) rotate(8deg);
+  z-index: 3;
+  opacity: 0.5;
+}
+.wheel-li[data-d='-3'],
+.wheel-li[data-d='3'] {
+  opacity: 0;
+}
+.wheel-li[data-hidden] {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.wheel-item {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  overflow: hidden;
+  cursor: pointer;
+  color: var(--cs-ice, #f4f6f2);
+  text-align: left;
+  background: var(--cs-glass, #151b2c);
+  border: 1px solid var(--cs-line, #2f3750);
+  border-radius: 14px;
+  box-shadow:
+    0 14px 30px rgb(0 0 0 / 0.45),
+    inset 0 1px 0 rgb(255 255 255 / 0.08);
+}
+.wheel-item[data-highlight] {
+  border-color: var(--cs-citron, #d8ff57);
+  box-shadow:
+    0 0 0 2px rgb(216 255 87 / 0.35),
+    0 18px 36px rgb(0 0 0 / 0.55);
+}
+.wheel-item[data-active] {
+  border-color: var(--cs-lavender, #ada0f8);
+}
+.wheel-item:focus-visible {
+  outline: 3px solid var(--cs-citron, #d8ff57);
+  outline-offset: 3px;
+}
+
+.wheel-thumb {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+}
+.wheel-thumb-fallback {
+  display: grid;
+  place-items: center;
+  font: 600 1.4rem var(--cs-font-mono, monospace);
+  color: var(--cs-lavender, #ada0f8);
+  background:
+    repeating-linear-gradient(135deg, transparent 0 10px, rgb(173 160 248 / 0.08) 10px 11px),
+    var(--cs-steel, #202639);
+}
+
+.wheel-caption {
+  position: absolute;
+  inset: auto 0 0 0;
+  display: grid;
+  gap: 1px;
+  padding: 22px 10px 8px;
+  background: linear-gradient(to top, rgb(5 7 12 / 0.95), rgb(5 7 12 / 0.7) 55%, transparent);
+}
+.wheel-label {
+  font: 600 0.9rem/1.2 var(--cs-font-display, system-ui);
+  text-shadow: 0 1px 4px rgb(0 0 0 / 0.8);
+}
+.wheel-meta {
+  font: 500 0.72rem var(--cs-font-mono, monospace);
+  color: var(--cs-ice-dim, #b6bfcd);
+}
+.wheel-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 2px 8px;
+  font: 700 0.65rem var(--cs-font-mono, monospace);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #0a0e17;
+  background: var(--cs-lavender, #ada0f8);
+  border-radius: 9999px;
+}
+.wheel-progress {
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 4px;
+  background: rgb(244 246 242 / 0.25);
+}
+.wheel-progress span {
+  display: block;
+  height: 100%;
+  background: var(--cs-citron, #d8ff57);
+}
+
+/* Narrow containers: a horizontal snap carousel with the same buttons and the same keyboard model. */
+.wheel[data-layout='carousel'] {
+  --card-w: 200px;
+  --card-h: 112px;
+  height: auto;
+  overflow: visible;
+  touch-action: pan-x;
+  cursor: auto;
+}
+.wheel[data-layout='carousel'] .wheel-list {
+  position: static;
+  display: flex;
+  gap: 12px;
+  padding: 10px 16px 14px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-padding-inline: 16px;
+}
+.wheel[data-layout='carousel'] .wheel-li {
+  position: relative;
+  left: auto;
+  top: auto;
+  flex: 0 0 var(--card-w);
+  margin: 0;
+  transform: none;
+  opacity: 1;
+  scroll-snap-align: start;
+}
+.wheel[data-layout='carousel'] .wheel-li[data-hidden] {
+  visibility: visible;
+}
+
+/* ---------- Rail chrome around the wheel ---------- */
+
+.rail {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  gap: 10px;
+  padding: 14px 0 14px;
+  height: 100%;
+}
+.rail-head {
+  display: grid;
+  gap: 8px;
+  padding: 0 16px;
+}
+.rail-tabs {
+  display: inline-grid;
+  grid-template-columns: 1fr 1fr;
+  padding: 3px;
+  gap: 3px;
+  background: var(--cs-glass, #151b2c);
+  border: 1px solid var(--cs-line, #2f3750);
+  border-radius: 14px;
+}
+.rail-tab {
+  min-height: 44px;
+  font-weight: 600;
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  border-radius: 11px;
+  color: var(--cs-ice, #f4f6f2);
+}
+.rail-tab[aria-pressed='true'] {
+  color: #0a0e17;
+  background: var(--cs-citron, #d8ff57);
+}
+.rail-tab:focus-visible {
+  outline: 3px solid var(--cs-citron, #d8ff57);
+  outline-offset: 2px;
+}
+.rail-note {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--cs-ice-dim, #b6bfcd);
+}
+.rail-detail {
+  margin: 0 16px;
+  padding: 12px 14px;
+  background: var(--cs-glass, #151b2c);
+  border: 1px solid var(--cs-line, #2f3750);
+  border-radius: 14px;
+}
+.rail-detail h2 {
+  margin: 0 0 4px;
+  font: 600 1rem var(--cs-font-display, system-ui);
+}
+.rail-detail p {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: var(--cs-ice-dim, #b6bfcd);
+}
+.rail-kicker {
+  font: 600 0.68rem var(--cs-font-mono, monospace);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--cs-lavender, #ada0f8);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wheel-dial,
+  .wheel-li {
+    transition: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .wheel-item {
+    border: 2px solid CanvasText;
+  }
+  .wheel-item[data-highlight] {
+    border-color: Highlight;
+  }
+}
