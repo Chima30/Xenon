@@ -47,7 +47,11 @@
   color: inherit;
 }
 
-.cs-sr {
+.cs-sr,
+/* Video.js' StatusAnnouncer: an unstyled live region (direct child of the player) that announces
+   "Playing", "Paused", "Muted" and so on to screen readers. The packaged skins hide it; ours must too. */
+.cs-root > [role='status'],
+[data-status-announcer-content] {
   position: absolute !important;
   width: 1px;
   height: 1px;
