@@ -548,6 +548,10 @@
   scrollbar-width: thin;
   scrollbar-color: var(--cs-line) transparent;
 }
+.rail-detail:focus-visible {
+  outline: 3px solid var(--cs-focus, var(--cs-citron));
+  outline-offset: 2px;
+}
 .rail-detail h2 {
   margin: 0;
   font: var(--fw-bold, 700) var(--fs-md) / var(--lh-tight) var(--cs-font);

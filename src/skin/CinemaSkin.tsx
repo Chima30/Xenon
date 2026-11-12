@@ -31,6 +31,8 @@ import { DiagnosticsDialog, type DiagRow } from './DiagnosticsDialog';
 import { Timeline, type ScenePreview, type ThumbnailAt, type TimelineMarker } from './dock/Timeline';
 import { TimeLens } from './dock/TimeLens';
 import { PlaybackPod } from './dock/PlaybackPod';
+import { SeekLens } from './dock/SeekLens';
+import { TailSlate } from './slate/TailSlate';
 import { formatTime } from './format';
 import { useWidthTier, type Tier } from './hooks';
 import {
@@ -464,13 +466,25 @@ function SkinInner({
   const previewScene = (index: number, opener: HTMLElement | null) => openNavigation({ face: 'scenes', index }, opener);
 
   /** Explicit film switch from the wheel: the iris marks it, the drawer gets out of the way. */
+  /* Explicit film switch (the wheel's Play, the tail slate's Play next): the iris marks it, the drawer gets out of
+     the way, and the new film starts once it can play, because the viewer pressed Play. */
+  const currentSrc = usePlayer((s) => s.currentSrc);
+  const canPlayNow = usePlayer((s) => s.canPlay);
+  const playAfterSwitch = useRef<string | null>(null);
   const playFilm = useCallback(
     (id: string) => {
+      playAfterSwitch.current = currentSrc || '';
       onPlayFilm?.(id);
       setDrawer(false);
     },
-    [onPlayFilm],
+    [onPlayFilm, currentSrc],
   );
+  useEffect(() => {
+    const from = playAfterSwitch.current;
+    if (from === null || !canPlayNow || !currentSrc || currentSrc === from) return;
+    playAfterSwitch.current = null;
+    void store.play();
+  }, [canPlayNow, currentSrc, store]);
 
   const onKeyDown = (e: ReactKeyboardEvent<HTMLDivElement>) => {
     if (isEditable(e.target) || e.ctrlKey || e.metaKey || e.altKey) return;
@@ -629,6 +643,18 @@ function SkinInner({
                 // Below full size the floating pod holds the centre of a short picture and the strip would sit on it.
                 suppressed={!view.prefs.pauseCanvas || busy || (layout === 'floating' && tier !== 'full')}
               />
+              <TailSlate
+                title={title}
+                films={films}
+                activeFilmId={activeFilmId}
+                onPlayFilm={onPlayFilm ? playFilm : undefined}
+                onOpenWheel={hasRail && films.length > 1 ? (el) => openNavigation({ face: 'movies' }, el) : undefined}
+                thumbnailAt={thumbnailAt}
+                onAnnounce={announce}
+                tier={tier}
+                suppressed={busy || (layout === 'floating' && tier !== 'full')}
+              />
+              <SeekLens />
               <CaptionOverlay />
               {hasRail && effectiveMode === 'watch' && tier !== 'micro' ? (
                 <ReelHandle

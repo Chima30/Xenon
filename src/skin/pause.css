@@ -1,7 +1,34 @@
 /* ==========================================================================
-   Pause Canvas, refined. One quiet strip low on the left; details only on request; dismissible at once.
-   The picture keeps the stage, the transport stays the clear way back, captions stay on top.
+   The Film Slate (pause) and the tail slate (end of the film).
+   A clapperboard low on the left: a chalkboard of real data under a clapstick painted with the colours of the
+   frame. The picture keeps the stage, the pod stays the clear way back, captions stay on top.
    ========================================================================== */
+
+@property --sc1 {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #1c1c1c;
+}
+@property --sc2 {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #3a3a3a;
+}
+@property --sc3 {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #6a6a6a;
+}
+@property --sc4 {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #a0a0a0;
+}
+@property --sc5 {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #e0e0e0;
+}
 
 .cs-pause {
   --pause-bottom: 132px;
@@ -14,7 +41,7 @@
   gap: var(--sp-2);
   max-width: min(46%, 520px);
   pointer-events: none;
-  animation: cs-pause-in 0.45s var(--ease-out) both;
+  animation: cs-slate-in 0.32s var(--ease-out) both;
 }
 .cs-root[data-dock='compact'] .cs-pause {
   --pause-bottom: 84px;
@@ -27,74 +54,205 @@
   left: var(--sp-3);
   max-width: calc(100% - 24px);
 }
-@keyframes cs-pause-in {
+@keyframes cs-slate-in {
   from {
     opacity: 0;
-    transform: translateY(6px);
+    transform: translateY(8px);
   }
 }
-/* A soft light only where the strip sits, not a curtain across the frame. */
+/* A soft light only where the slate sits, not a curtain across the frame. */
 .cs-pause::before {
   content: '';
   position: absolute;
   inset: -60px -120px -40px -80px;
   z-index: -1;
-  background: radial-gradient(closest-side, color-mix(in srgb, var(--cs-base) 62%, transparent), transparent);
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--cs-base) 55%, transparent), transparent);
   pointer-events: none;
 }
 
-.cs-pause-strip {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--sp-2) var(--sp-3);
-  padding: 6px 6px 6px var(--sp-4);
+/* ---------- The slate ---------- */
+
+.cs-slate {
+  display: grid;
+  width: min(100%, 440px);
   pointer-events: auto;
-  background: color-mix(in srgb, var(--cs-base) 74%, transparent);
-  border: 1px solid var(--cs-hairline);
-  border-radius: var(--r-pill);
-  box-shadow: var(--cs-bevel), 0 10px 30px rgb(0 0 0 / 0.35);
+  filter: drop-shadow(0 14px 28px rgb(0 0 0 / 0.45));
+}
+
+/* The clapstick: frame colours in diagonal bands, thin dark joints, a hinge on the left. */
+.cs-slate-stick {
+  --ink: color-mix(in oklab, var(--cs-base) 55%, black);
+  /* Chalk-white joints, as on a real clapstick: the bands read on dark and light frames alike. */
+  --chalk: color-mix(in srgb, #f4f1ea 88%, transparent);
+  position: relative;
+  z-index: 1;
+  height: 18px;
+  background: linear-gradient(
+    var(--stick-angle, 118deg),
+    var(--sc1) 0 13%,
+    var(--chalk) 13% 16%,
+    var(--sc2) 16% 33%,
+    var(--chalk) 33% 36%,
+    var(--sc3) 36% 53%,
+    var(--chalk) 53% 56%,
+    var(--sc4) 56% 73%,
+    var(--chalk) 73% 76%,
+    var(--sc5) 76% 93%,
+    var(--chalk) 93% 96%,
+    var(--sc1) 96% 100%
+  );
+  border: 1px solid color-mix(in srgb, var(--cs-ice) 22%, transparent);
+  border-bottom-color: var(--ink);
+  border-radius: 6px 6px 1px 1px;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.25),
+    inset 0 -2px 3px rgb(0 0 0 / 0.3);
+  transform-origin: 8px 100%;
+  transition:
+    --sc1 0.6s ease,
+    --sc2 0.6s ease,
+    --sc3 0.6s ease,
+    --sc4 0.6s ease,
+    --sc5 0.6s ease;
+  animation: cs-slate-clap 0.5s var(--ease-out) both;
+}
+/* Until the frame has been read, the stick wears the film's own palette. */
+.cs-slate-stick:not([data-frame]) {
+  --sc1: color-mix(in oklab, var(--cs-base) 60%, var(--cs-glow));
+  --sc2: var(--cs-secondary);
+  --sc3: var(--cs-glow);
+  --sc4: var(--cs-citron);
+  --sc5: var(--cs-film-ink, var(--cs-ice));
+}
+.cs-slate-hinge {
+  position: absolute;
+  top: 50%;
+  left: 3px;
+  width: 9px;
+  height: 9px;
+  background: radial-gradient(circle at 35% 30%, #fff, #9aa0aa 55%, #3c4048);
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 0.5);
+  translate: 0 -50%;
+}
+@keyframes cs-slate-clap {
+  0%,
+  42% {
+    rotate: -15deg;
+  }
+  76% {
+    rotate: 1.5deg;
+  }
+  100% {
+    rotate: 0deg;
+  }
+}
+
+/* The chalkboard. */
+.cs-slate-board {
+  display: grid;
+  gap: var(--sp-1);
+  padding: var(--sp-2) var(--sp-2) var(--sp-2) var(--sp-4);
+  color: var(--cs-ice);
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 0.05), transparent 40%),
+    color-mix(in srgb, color-mix(in oklab, var(--cs-base) 78%, black) 90%, transparent);
+  border: 1px solid color-mix(in srgb, var(--cs-ice) 16%, transparent);
+  border-top: 0;
+  border-radius: 0 0 var(--r-lg) var(--r-lg);
   -webkit-backdrop-filter: blur(var(--cs-panel-blur)) saturate(1.2);
   backdrop-filter: blur(var(--cs-panel-blur)) saturate(1.2);
+  animation: cs-slate-jolt 0.5s linear both;
 }
-.cs-pause-line {
+@keyframes cs-slate-jolt {
+  0%,
+  74% {
+    translate: 0 0;
+  }
+  80% {
+    translate: 0 1.5px;
+  }
+  100% {
+    translate: 0 0;
+  }
+}
+.cs-slate-head {
   display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 2px var(--sp-3);
-  margin: 0;
+  align-items: center;
+  gap: var(--sp-2);
   min-width: 0;
-  font: var(--fw-medium) var(--fs-sm) / 1.3 var(--cs-font);
 }
 .cs-pause-led {
-  align-self: center;
+  flex: none;
   width: 7px;
   height: 7px;
   background: var(--cs-citron);
   border-radius: 50%;
   box-shadow: 0 0 8px var(--cs-citron);
 }
-.cs-pause-word {
-  font: var(--fw-semibold) var(--fs-xs) / 1 var(--cs-font);
+.cs-slate-word {
+  flex: none;
+  font: var(--fw-bold) var(--fs-xs) / 1 var(--cs-font);
+  letter-spacing: var(--ls-label);
+  text-transform: uppercase;
+  color: var(--cs-citron);
+}
+.cs-slate-title {
+  min-width: 0;
+  overflow: hidden;
+  font: var(--fw-semibold) var(--fs-sm) / 1.2 var(--cs-font);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.cs-slate-head .cs-pause-close {
+  margin-left: auto;
+}
+
+/* Chalked fields: label above value, divided by chalk lines. */
+.cs-slate-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+}
+.cs-slate-fields {
+  display: flex;
+  margin: 0;
+}
+.cs-slate-fields > div {
+  display: grid;
+  gap: 3px;
+  padding: 2px var(--sp-3);
+  border-left: 1px solid color-mix(in srgb, var(--cs-ice) 20%, transparent);
+}
+.cs-slate-fields > div:first-child {
+  padding-left: 0;
+  border-left: 0;
+}
+.cs-slate-fields dt {
+  font: var(--fw-semibold) 0.6875rem / 1 var(--cs-font);
   letter-spacing: var(--ls-label);
   text-transform: uppercase;
   color: var(--cs-label);
 }
-.cs-pause-time {
+.cs-slate-fields dd {
+  margin: 0;
+  font: var(--fw-bold) var(--fs-md) / 1 var(--cs-font);
   font-variant-numeric: tabular-nums;
-  color: var(--cs-ice-dim);
+  letter-spacing: -0.01em;
 }
-.cs-pause-time strong {
-  color: var(--cs-ice);
-  font-weight: var(--fw-bold);
-}
-.cs-pause-scene {
-  font-weight: var(--fw-semibold);
-}
-.cs-pause-of {
+.cs-slate-fields small {
+  font-size: var(--fs-xs);
   font-weight: var(--fw-medium);
   color: var(--cs-ice-dim);
 }
+.cs-slate-scene {
+  margin: 0;
+  font: var(--fw-medium) var(--fs-sm) / 1.3 var(--cs-font);
+  color: var(--cs-ice-dim);
+}
+
 .cs-pause-tools {
   display: flex;
   gap: 2px;
@@ -114,7 +272,9 @@
   background: transparent;
   border: 1px solid transparent;
   border-radius: var(--r-pill);
-  transition: background-color var(--t-fast) ease, border-color var(--t-fast) ease;
+  transition:
+    background-color var(--t-fast) ease,
+    border-color var(--t-fast) ease;
 }
 .cs-pause-btn svg {
   width: 18px;
@@ -134,7 +294,89 @@
   }
 }
 
-/* On request: Scene Insight and the neighbouring scenes. */
+/* ---------- Tail slate: the end of the film, stick below, held upside down ---------- */
+
+.cs-slate[data-tail] .cs-slate-board {
+  border-top: 1px solid color-mix(in srgb, var(--cs-ice) 16%, transparent);
+  border-bottom: 0;
+  border-radius: var(--r-lg) var(--r-lg) 0 0;
+}
+.cs-slate-stick[data-tail] {
+  border-top-color: var(--ink);
+  border-bottom-color: color-mix(in srgb, var(--cs-ice) 22%, transparent);
+  border-radius: 1px 1px 6px 6px;
+  transform-origin: 8px 0;
+  animation-name: cs-slate-clap-tail;
+  /* Upside down: the bands lean the other way; the stick stays in its own row under the board. */
+  --stick-angle: 62deg;
+}
+@keyframes cs-slate-clap-tail {
+  0%,
+  42% {
+    rotate: 15deg;
+  }
+  76% {
+    rotate: -1.5deg;
+  }
+  100% {
+    rotate: 0deg;
+  }
+}
+.cs-tail-next {
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr);
+  align-items: center;
+  gap: var(--sp-3);
+  margin: var(--sp-1) 0;
+}
+.cs-tail-still {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  color: var(--cs-label);
+  background: var(--cs-steel);
+  border-radius: var(--r-md);
+  box-shadow: 0 0 0 1px var(--cs-hairline);
+}
+.cs-tail-still img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.cs-tail-text {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+.cs-tail-kicker {
+  font: var(--fw-semibold) 0.6875rem / 1 var(--cs-font);
+  letter-spacing: var(--ls-label);
+  text-transform: uppercase;
+  color: var(--cs-label);
+}
+.cs-tail-title {
+  font: var(--fw-bold) var(--fs-md) / 1.2 var(--cs-font);
+}
+.cs-tail-meta {
+  overflow: hidden;
+  font: var(--fw-medium) var(--fs-xs) / 1.3 var(--cs-font);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--cs-ice-dim);
+}
+.cs-tail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  padding-bottom: var(--sp-1);
+}
+.cs-tail-actions .cs-chip {
+  min-height: var(--h-ctl);
+}
+
+/* ---------- On request: Scene Insight and the neighbouring scenes ---------- */
+
 .cs-pause-more {
   display: grid;
   gap: var(--sp-2);
@@ -147,8 +389,7 @@
   box-shadow: var(--cs-bevel), 0 14px 36px rgb(0 0 0 / 0.4);
   -webkit-backdrop-filter: blur(var(--cs-panel-blur)) saturate(1.2);
   backdrop-filter: blur(var(--cs-panel-blur)) saturate(1.2);
-  animation: cs-pause-in 0.3s var(--ease-out) both;
-  order: -1;
+  animation: cs-slate-in 0.3s var(--ease-out) both;
 }
 .cs-pause-more > p {
   margin: 0;
@@ -233,32 +474,45 @@
   outline-offset: 2px;
 }
 
-.cs-root[data-hc] :is(.cs-pause-strip, .cs-pause-more, .cs-pause-card) {
+/* ---------- Preferences ---------- */
+
+.cs-root[data-hc] :is(.cs-slate-board, .cs-pause-more, .cs-pause-card) {
   background: #000;
   border: 2px solid #fff;
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
 }
+.cs-root[data-hc] .cs-slate-stick {
+  border: 2px solid #fff;
+}
 .cs-root[data-hc] .cs-pause::before {
   content: none;
 }
-.cs-root[data-motion='reduce'] :is(.cs-pause, .cs-pause-more) {
+.cs-root[data-motion='reduce'] :is(.cs-pause, .cs-pause-more, .cs-slate-stick, .cs-slate-board) {
   animation: none !important;
+  transition: none !important;
 }
 @media (prefers-reduced-motion: reduce) {
   .cs-pause,
-  .cs-pause-more {
+  .cs-pause-more,
+  .cs-slate-stick,
+  .cs-slate-board {
     animation: none;
+    transition: none;
   }
 }
 @media (forced-colors: active) {
   .cs-pause::before {
     content: none;
   }
-  .cs-pause-strip,
+  .cs-slate-board,
   .cs-pause-more,
   .cs-pause-card {
     background: Canvas;
+    border: 1px solid CanvasText;
+  }
+  .cs-slate-stick {
+    forced-color-adjust: none;
     border: 1px solid CanvasText;
   }
 }

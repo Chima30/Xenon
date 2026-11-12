@@ -5,13 +5,16 @@
  *   node scripts/e2e.mjs [baseUrl] [screenshotDir]
  *
  * It exercises every dock layout at every bench size, film switching and the film-reactive theme, the Pause Canvas,
- * the Time Lens, the navigation wheel (drawer, Explore column, sheet), the Precision Playback Pod, keyboard focus,
- * Escape handling and the status announcer.
+ * the Time Lens, the navigation wheel (drawer, Explore column, sheet), the Precision Playback Pod, the edge lens,
+ * the Film Slate and tail slate, keyboard focus, Escape handling, the status announcer and an axe-core WCAG audit.
  * Exit code 1 when any check fails.
  */
 import { chromium } from 'playwright-core';
 import { existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
+import { createRequire } from 'node:module';
+
+const AXE_PATH = createRequire(import.meta.url).resolve('axe-core/axe.min.js');
 
 const BASE = process.argv[2] ?? 'http://localhost:5173';
 const SHOTS = process.argv[3] ?? null;
@@ -198,7 +201,7 @@ check(
   JSON.stringify(drawer),
 );
 await page.keyboard.press('ArrowDown');
-await page.waitForTimeout(600);
+await page.waitForFunction(() => getComputedStyle(document.querySelector('.wheel')).getPropertyValue('--wheel-h').trim() === '1.0000', null, { timeout: 3000 }).catch(() => {});
 const preview = await page.evaluate(() => ({
   title: document.querySelector('.rail-detail h2')?.textContent,
   primary: document.querySelector('.rail-primary')?.textContent,
@@ -227,18 +230,18 @@ check(
 );
 await shot(page, 'theme-tears');
 
-/* ---------- 4. Playback, Pause Canvas strip, status announcer ---------- */
-await page.locator('.cs-pod-play').first().click();
-await page.waitForTimeout(3500);
+/* ---------- 4. Playback, Film Slate, status announcer ---------- */
+// The wheel's Play means play: the new film starts on its own once it can.
+await page.waitForFunction(() => !document.querySelector('video').paused && document.querySelector('video').currentTime > 0.5, null, { timeout: 30000 }).catch(() => {});
 const playing = await page.evaluate(() => ({ t: document.querySelector('video').currentTime, paused: document.querySelector('video').paused }));
-check('Play starts real playback', !playing.paused && playing.t > 0.5, JSON.stringify(playing));
+check('Play on the wheel starts the new film for real (no second press)', !playing.paused && playing.t > 0.5, JSON.stringify(playing));
 // The Pause Canvas waits for a second of real playback; streams can be slow to start.
 await page.waitForFunction(() => document.querySelector('video').currentTime > 1.5, null, { timeout: 20000 }).catch(() => {});
 await page.keyboard.press('k');
 await page.waitForTimeout(900);
 const paused = await page.evaluate(() => {
   const stage = document.querySelector('.cs-stage').getBoundingClientRect();
-  const strip = document.querySelector('.cs-pause-strip')?.getBoundingClientRect();
+  const strip = document.querySelector('.cs-slate')?.getBoundingClientRect();
   const ann = document.querySelector('.cs-announcer');
   const a = ann.getBoundingClientRect();
   const stray = [...document.querySelectorAll('body *')]
@@ -253,7 +256,7 @@ const paused = await page.evaluate(() => {
     stray,
   };
 });
-check('Pause Canvas is one small strip (under 6% of the frame), cards hidden until asked', paused.strip && paused.coverage < 6 && !paused.cards, JSON.stringify(paused));
+check('The Film Slate is small (under 6% of the frame), scene cards hidden until asked', paused.strip && paused.coverage < 6 && !paused.cards, JSON.stringify(paused));
 check('Status announcer stays a 1×1 box; no stray "Playing"/"Paused" text', paused.announcer[0] <= 1 && paused.announcer[1] <= 1 && paused.stray.length === 0, JSON.stringify(paused));
 await shot(page, 'pause-strip');
 await page.locator('.cs-pause-btn[aria-expanded]').click();
@@ -890,6 +893,211 @@ const tapTargets = await tp.evaluate(() => [...document.querySelectorAll('.cs-po
 check('Touch: tapping Forward seeks exactly +10 s; every pod target is at least 44px', Math.abs(tapT - 70) < 0.05 && tapTargets.every((s) => s.split('x').every((n) => Number(n) >= 44)), `${tapT}; ${tapTargets.join(', ')}`);
 if (SHOTS) await tp.screenshot({ path: join(SHOTS, 'pod-touch-phone.png') });
 await touchCtx.close();
+
+/* ---------- 17. The Film Slate: XENON's pause ---------- */
+await open('tears-of-steel');
+await page.waitForFunction(() => (document.querySelector('video')?.readyState ?? 0) >= 2, null, { timeout: 30000 });
+await seekTo(200);
+await page.locator('.cs-pod-play').focus();
+await page.waitForTimeout(1600);
+const slate = await page.evaluate(() => {
+  const s = document.querySelector('.cs-slate');
+  const stick = document.querySelector('.cs-slate-stick');
+  const stage = document.querySelector('.cs-stage').getBoundingClientRect();
+  const b = s?.getBoundingClientRect();
+  const fields = [...document.querySelectorAll('.cs-slate-fields > div')].map((d) => d.innerText.replace(/\s+/g, ' ').trim());
+  return {
+    slate: !!s,
+    fields,
+    frame: stick?.hasAttribute('data-frame'),
+    swatches: (stick?.getAttribute('title') ?? '').match(/#[0-9a-f]{6}/g)?.length ?? 0,
+    clap: getComputedStyle(stick).animationName,
+    coverage: b ? Math.round(((b.width * b.height) / (stage.width * stage.height)) * 1000) / 10 : null,
+    focusKept: document.activeElement?.classList.contains('cs-pod-play'),
+    label: document.querySelector('.cs-pause')?.getAttribute('aria-label'),
+  };
+});
+check(
+  'Film Slate: chalked scene, time and time left; a clapstick painted with the paused frame’s own colours; under 6% of the frame; takes no focus',
+  slate.slate && slate.fields.some((f) => /^Section 3/i.test(f)) && slate.fields.some((f) => /^Time 3:20$/i.test(f)) && slate.fields.some((f) => /^Left /i.test(f)) && slate.frame && slate.swatches >= 3 && slate.clap === 'cs-slate-clap' && slate.coverage < 6 && slate.focusKept && /Paused: Tears of Steel, 3:20/.test(slate.label ?? ''),
+  JSON.stringify(slate),
+);
+await shot(page, 'film-slate');
+
+/* ---------- 18. Edge lens: seek feedback for keys and double taps ---------- */
+const lensState = () =>
+  page.evaluate(() => {
+    const l = document.querySelector('.cs-seeklens');
+    const stage = document.querySelector('.cs-stage').getBoundingClientRect();
+    const r = l?.getBoundingClientRect();
+    return { lens: !!l, dir: l?.dataset.direction ?? null, text: l?.querySelector('.cs-seeklens-text')?.textContent ?? null, side: r ? (r.left - stage.left < stage.width / 2 ? 'left' : 'right') : null, t: Math.round(document.querySelector('video').currentTime * 1000) / 1000 };
+  });
+await page.keyboard.press('j');
+await page.waitForTimeout(100);
+await page.keyboard.press('j');
+await page.waitForTimeout(150);
+const lensBack = await lensState();
+check('J twice: the edge lens rises on the left and reads "−20 s"; the video moved exactly 20 s', lensBack.lens && lensBack.dir === 'backward' && lensBack.side === 'left' && lensBack.text === '−20 s' && Math.abs(lensBack.t - 180) < 0.05, JSON.stringify(lensBack));
+await shot(page, 'edge-lens-back');
+await page.waitForTimeout(1300);
+await page.keyboard.press('ArrowRight');
+await page.waitForTimeout(150);
+const lensFwd = await lensState();
+check('Arrow right: the lens rises on the right and reads "+10 s"', lensFwd.dir === 'forward' && lensFwd.side === 'right' && lensFwd.text === '+10 s' && Math.abs(lensFwd.t - 190) < 0.05, JSON.stringify(lensFwd));
+await page.waitForTimeout(1300);
+await seekTo(4);
+await page.locator('.cs-pod-play').focus();
+await page.keyboard.press('j');
+await page.waitForTimeout(200);
+const lensStart = await lensState();
+check('A key seek clamped at the start says "Start"', lensStart.text === 'Start' && lensStart.t === 0, JSON.stringify(lensStart));
+await page.waitForTimeout(1300);
+await wake();
+await page.locator('button[aria-label="Forward 10 seconds"]').click();
+await page.waitForTimeout(150);
+check('Pod presses confirm on the pod only: no edge lens as well', !(await lensState()).lens && (await page.locator('.cs-pod-confirm').count()) === 1);
+
+/* ---------- 19. Tail slate: the end of the film ---------- */
+const filmEnd = await page.evaluate(() => document.querySelector('video').duration);
+await seekTo(filmEnd - 1.2);
+await page.evaluate(() => document.querySelector('video').play());
+await page.waitForFunction(() => document.querySelector('video').ended, null, { timeout: 20000 });
+await page.waitForTimeout(900);
+const tail = await page.evaluate(() => {
+  const t = document.querySelector('.cs-tail');
+  const stick = t?.querySelector('.cs-slate-stick');
+  const board = t?.querySelector('.cs-slate-board')?.getBoundingClientRect();
+  const sb = stick?.getBoundingClientRect();
+  return {
+    tail: !!t,
+    next: t?.querySelector('.cs-tail-title')?.textContent,
+    play: t?.querySelector('.cs-tail-play')?.textContent.trim(),
+    stickBelow: !!(sb && board && sb.top >= board.bottom - 1),
+    replayOnPod: document.querySelector('.cs-pod-play')?.getAttribute('aria-label') === 'Replay',
+    replayDuplicated: [...(t?.querySelectorAll('button') ?? [])].some((b) => /replay/i.test(b.textContent)),
+    toast: document.querySelector('.cs-toast')?.textContent,
+  };
+});
+check(
+  'Tail slate at the end: the next film on the wheel with an explicit Play, the stick held below, Replay left to the pod, the end announced',
+  tail.tail && tail.next === 'Big Buck Bunny' && tail.play === 'Play Big Buck Bunny' && tail.stickBelow && tail.replayOnPod && !tail.replayDuplicated && /End of Tears of Steel/.test(tail.toast ?? ''),
+  JSON.stringify(tail),
+);
+await shot(page, 'tail-slate');
+await page.locator('.cs-tail-play').click();
+await page.waitForFunction(() => location.hash === '#/watch/big-buck-bunny' && (document.querySelector('video')?.currentTime ?? 0) > 0.3 && !document.querySelector('video').paused, null, { timeout: 30000 }).catch(() => {});
+const afterNext = await page.evaluate(() => ({ hash: location.hash, playing: !document.querySelector('video').paused, t: document.querySelector('video').currentTime }));
+check('Play next switches to that film and starts it (nothing started before the press)', afterNext.hash === '#/watch/big-buck-bunny' && afterNext.playing, JSON.stringify(afterNext));
+
+/* ---------- 20. Accessibility audit: axe-core, WCAG 2.2 AA, every main state ---------- */
+const axeAudit = async (p, label) => {
+  if (!(await p.evaluate(() => 'axe' in window))) await p.addScriptTag({ path: AXE_PATH });
+  const v = await p.evaluate(async () => {
+    const r = await window.axe.run(document.querySelector('.cs-root'), {
+      runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'] },
+      resultTypes: ['violations'],
+    });
+    return r.violations.map((x) => `${x.id} (${x.impact}): ${x.nodes.slice(0, 3).map((n) => n.target.join(' ')).join(', ')}`);
+  });
+  check(`axe WCAG 2.2 AA — ${label}: no violations`, v.length === 0, v.join(' | ').slice(0, 700));
+};
+await open('tears-of-steel');
+await page.waitForFunction(() => (document.querySelector('video')?.readyState ?? 0) >= 2, null, { timeout: 30000 });
+await seekTo(200);
+await page.waitForTimeout(1500);
+await wake();
+await axeAudit(page, 'Watch, paused, Film Slate');
+await page.locator('.cs-reel').click();
+await page.waitForTimeout(700);
+await axeAudit(page, 'navigation drawer');
+await page.keyboard.press('Escape');
+await page.waitForTimeout(400);
+await wake();
+await page.locator('.cs-seg-btn', { hasText: 'Explore' }).click();
+await page.waitForTimeout(900);
+await axeAudit(page, 'Explore');
+await page.locator('.cs-rail-toggle[aria-label="Collapse navigation"]').click();
+await page.waitForTimeout(700);
+await axeAudit(page, 'Explore, collapsed');
+await page.locator('.cs-rail-toggle[aria-label="Expand navigation"]').click();
+await page.locator('.cs-seg-btn', { hasText: 'My Atlas' }).click();
+await page.waitForTimeout(900);
+await axeAudit(page, 'My Atlas');
+await page.locator('.cs-seg-btn', { hasText: 'Watch' }).click();
+await page.waitForTimeout(600);
+await wake();
+await page.locator('button[aria-label="Settings"]').click();
+await page.waitForTimeout(600);
+await axeAudit(page, 'Settings panel');
+await page.keyboard.press('Escape');
+await page.waitForTimeout(300);
+await page.keyboard.press('t');
+await page.waitForTimeout(600);
+await axeAudit(page, 'Time Lens');
+await page.keyboard.press('Escape');
+await page.waitForTimeout(300);
+await page.keyboard.press('?');
+await page.waitForTimeout(500);
+await axeAudit(page, 'keyboard shortcuts dialog');
+await page.keyboard.press('Escape');
+await page.waitForTimeout(300);
+await seekTo(filmEnd - 1.2);
+await page.evaluate(() => document.querySelector('video').play());
+await page.waitForFunction(() => document.querySelector('video').ended, null, { timeout: 20000 });
+await page.waitForTimeout(900);
+await axeAudit(page, 'tail slate');
+await setSize('Phone');
+await page.mouse.move(200, 400);
+await page.locator('.cs-reel').click();
+await page.waitForTimeout(700);
+await axeAudit(page, 'phone, navigation sheet');
+await page.keyboard.press('Escape');
+await setSize('Desktop');
+
+/* ---------- 21. Double tap on a touch screen: the lens on the tapped side ---------- */
+const tapCtx = await browser.newContext({ viewport: { width: 900, height: 900 }, hasTouch: true });
+const tp2 = await tapCtx.newPage();
+await tp2.goto(`${BASE}/#/`);
+await tp2.evaluate(() => {
+  localStorage.clear();
+  sessionStorage.clear();
+});
+await tp2.goto(`${BASE}/#/watch/big-buck-bunny`);
+await tp2.waitForSelector('.cs-root');
+await tp2.waitForFunction(() => (document.querySelector('video')?.readyState ?? 0) >= 2, null, { timeout: 30000 });
+await tp2.evaluate(
+  () =>
+    new Promise((res) => {
+      const v = document.querySelector('video');
+      v.pause();
+      v.addEventListener('seeked', () => res(), { once: true });
+      v.currentTime = 120;
+    }),
+);
+await tp2.waitForTimeout(600);
+// A point on the left of the picture where the bare video is under the finger (controls and the slate
+// rightly ignore gestures).
+const spot = await tp2.evaluate(() => {
+  const r = document.querySelector('.cs-stage').getBoundingClientRect();
+  for (let f = 0.3; f <= 0.75; f += 0.05) {
+    const x = r.left + r.width * 0.14;
+    const y = r.top + r.height * f;
+    if (document.elementFromPoint(x, y)?.tagName === 'VIDEO') return { x, y };
+  }
+  return { x: r.left + r.width * 0.14, y: r.top + r.height * 0.4 };
+});
+await tp2.touchscreen.tap(spot.x, spot.y);
+await tp2.waitForTimeout(90);
+await tp2.touchscreen.tap(spot.x, spot.y);
+await tp2.waitForTimeout(250);
+const dbl = await tp2.evaluate(() => ({
+  dir: document.querySelector('.cs-seeklens')?.dataset.direction ?? null,
+  text: document.querySelector('.cs-seeklens-text')?.textContent ?? null,
+  t: Math.round(document.querySelector('video').currentTime * 1000) / 1000,
+}));
+check('Double tap on the left of the picture: the lens says "−10 s" and the video moved back exactly 10 s', dbl.dir === 'backward' && dbl.text === '−10 s' && Math.abs(dbl.t - 110) < 0.05, JSON.stringify(dbl));
+if (SHOTS) await tp2.screenshot({ path: join(SHOTS, 'edge-lens-doubletap.png') });
+await tapCtx.close();
 
 check('No uncaught page errors', errors.length === 0, errors.slice(0, 3).join(' | '));
 

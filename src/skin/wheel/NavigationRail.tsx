@@ -1,5 +1,5 @@
 import { usePlayer } from '@videojs/react/video';
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { ThumbnailAt } from '../dock/Timeline';
 import { formatTime } from '../format';
 import { CompassIcon, PlayIcon, ReturnIcon } from '../icons';
@@ -69,6 +69,9 @@ export function NavigationRail({ films, activeFilmId, onPlayFilm, scenes, thumbn
   const seq = useRef(0);
   const actionRef = useRef<HTMLButtonElement>(null);
   const railRef = useRef<HTMLDivElement>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
+  /** True when the card's text is taller than its box: it then becomes a focusable region keyboards can scroll. */
+  const [cardScrolls, setCardScrolls] = useState(false);
   const focusAction = useRef(false);
   // Selector returns a number, so the rail re-renders only when playback enters another scene.
   const playing = usePlayer((s) => sceneIndexAt(scenes, s.currentTime));
@@ -190,6 +193,18 @@ export function NavigationRail({ films, activeFilmId, onPlayFilm, scenes, thumbn
     focusAction.current = false;
     requestAnimationFrame(() => actionRef.current?.focus({ preventScroll: true }));
   });
+  // Measure the card whenever its content or the rail's size changes.
+  useLayoutEffect(() => {
+    const el = cardRef.current;
+    if (!el) return;
+    const measure = () => setCardScrolls(el.scrollHeight > el.clientHeight + 1);
+    measure();
+    if (typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [detail.title, detail.note, face]);
+
   /** Enter or Space on a frame: the next Enter is the card's action (Play or Jump), one Tab-free step away. */
   const toAction = () => requestAnimationFrame(() => actionRef.current?.focus({ preventScroll: true }));
 
@@ -258,7 +273,12 @@ export function NavigationRail({ films, activeFilmId, onPlayFilm, scenes, thumbn
         <p className="rail-wait">Waiting for the video duration before scenes can be listed.</p>
       )}
 
-      <div className="rail-detail" data-face={moment ? 'moment' : face}>
+      <div
+        ref={cardRef}
+        className="rail-detail"
+        data-face={moment ? 'moment' : face}
+        {...(cardScrolls ? { tabIndex: 0, role: 'region', 'aria-label': `${detail.kicker}: ${detail.title}` } : {})}
+      >
         <span className="rail-kicker">{detail.kicker}</span>
         <h2>{detail.title}</h2>
         {detail.facts ? <p className="rail-facts">{detail.facts}</p> : null}

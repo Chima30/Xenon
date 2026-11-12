@@ -468,3 +468,128 @@
     border: 1px solid CanvasText;
   }
 }
+
+/* ==========================================================================
+   Edge lens: seek feedback for keys and double taps (Video.js SeekIndicator)
+   A curved glow rises from the side the film moved towards; three arcs run that way; the distance is read out.
+   ========================================================================== */
+
+.cs-seeklens {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 2;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: var(--sp-2);
+  width: min(28%, 280px);
+  color: var(--cs-ice);
+  pointer-events: none;
+  transition:
+    opacity 0.2s ease,
+    transform 0.22s var(--ease-out);
+}
+.cs-seeklens[data-direction='backward'] {
+  left: 0;
+  background: radial-gradient(100% 62% at 0% 50%, color-mix(in srgb, var(--cs-glow) 34%, transparent), color-mix(in srgb, var(--cs-base) 18%, transparent) 55%, transparent 72%);
+}
+.cs-seeklens[data-direction='forward'] {
+  right: 0;
+  background: radial-gradient(100% 62% at 100% 50%, color-mix(in srgb, var(--cs-glow) 34%, transparent), color-mix(in srgb, var(--cs-base) 18%, transparent) 55%, transparent 72%);
+}
+.cs-seeklens:not([data-direction]) {
+  left: 50%;
+  translate: -50% 0;
+}
+.cs-seeklens[data-starting-style],
+.cs-seeklens[data-ending-style] {
+  opacity: 0;
+}
+.cs-seeklens[data-direction='backward'][data-starting-style] {
+  transform: translateX(-14px);
+}
+.cs-seeklens[data-direction='forward'][data-starting-style] {
+  transform: translateX(14px);
+}
+
+/* Three arcs, the outermost brightest, running in the direction of the seek. */
+.cs-seeklens-arcs {
+  display: flex;
+  gap: 2px;
+}
+.cs-seeklens[data-direction='backward'] .cs-seeklens-arcs {
+  flex-direction: row-reverse;
+}
+.cs-seeklens-arcs i {
+  width: 14px;
+  height: 34px;
+  border: 3px solid transparent;
+  border-radius: 50%;
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--cs-citron) 60%, transparent));
+  animation: lens-arc 0.6s var(--ease-out) both;
+}
+.cs-seeklens[data-direction='forward'] .cs-seeklens-arcs i {
+  border-right-color: var(--cs-citron);
+}
+.cs-seeklens[data-direction='backward'] .cs-seeklens-arcs i {
+  border-left-color: var(--cs-citron);
+}
+.cs-seeklens-arcs i:nth-child(2) {
+  animation-delay: 0.07s;
+}
+.cs-seeklens-arcs i:nth-child(3) {
+  animation-delay: 0.14s;
+}
+@keyframes lens-arc {
+  0% {
+    opacity: 0.15;
+  }
+  45% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.35;
+  }
+}
+.cs-seeklens-text {
+  padding: 5px 12px;
+  font: 700 var(--fs-sm) / 1 var(--cs-font);
+  font-variant-numeric: tabular-nums;
+  color: var(--cs-ink-on-citron);
+  background: var(--cs-citron);
+  border-radius: var(--r-pill);
+  box-shadow:
+    0 6px 16px rgb(0 0 0 / 0.4),
+    0 0 20px color-mix(in srgb, var(--cs-glow) 40%, transparent);
+}
+
+.cs-root[data-motion='reduce'] :is(.cs-seeklens, .cs-seeklens-arcs i) {
+  transition: none !important;
+  animation: none !important;
+  transform: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .cs-seeklens,
+  .cs-seeklens-arcs i {
+    transition: none !important;
+    animation: none !important;
+    transform: none !important;
+  }
+}
+.cs-root[data-hc] .cs-seeklens {
+  background: none;
+}
+.cs-root[data-hc] .cs-seeklens-text {
+  color: #fff;
+  background: #000;
+  box-shadow: 0 0 0 2px #fff;
+}
+@media (forced-colors: active) {
+  .cs-seeklens {
+    background: none;
+  }
+  .cs-seeklens-text {
+    border: 1px solid CanvasText;
+  }
+}

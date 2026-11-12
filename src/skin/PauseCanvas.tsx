@@ -1,10 +1,12 @@
 import { usePlayer } from '@videojs/react/video';
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import type { ThumbnailAt } from './dock/Timeline';
 import { formatTime } from './format';
 import type { Tier } from './hooks';
 import { BookmarkIcon, CloseIcon, ReturnIcon } from './icons';
 import { sceneIndexAt, sceneKind, type SkinScene } from './scenes';
+import { useFrameColours } from './slate/frameColours';
+import { SlateStick } from './slate/SlateStick';
 import './pause.css';
 
 interface Props {
@@ -22,12 +24,16 @@ interface Props {
 }
 
 /**
- * Pause Canvas, refined: the paused frame keeps the stage. A single quiet strip sits low on the left, under the
- * captions and away from the centre where the subject usually is, with the transport as the clear way back.
- * Scene neighbours and Scene Insight appear only when asked for, and the whole strip can be dismissed at once.
- * It is not a dialog: it takes no focus, and Space/K or a click on the picture resumes.
+ * The Film Slate: XENON's pause. Not a dimmed screen with a synopsis, but the clapperboard a film crew holds up to
+ * mark a moment. The frame keeps the stage; the slate sits low on the left with real data chalked on it (the film,
+ * the scene, the timecode, what is left), and its clapstick is painted with the colours of the very frame you
+ * paused on. It closes with a small clap as it appears.
+ *
+ * It is not a dialog: it takes no focus, and Space/K or the pod resumes. Neighbouring scenes appear only when asked
+ * for, and the slate can be put away at once.
  */
 export function PauseCanvas({ title, subtitle, scenes, thumbnailAt, onSaveMoment, returnAnchor, onPreviewScene, tier, suppressed }: Props) {
+  const sectionRef = useRef<HTMLElement>(null);
   const paused = usePlayer((s) => s.paused);
   const ended = usePlayer((s) => s.ended);
   const canPlay = usePlayer((s) => s.canPlay);
@@ -41,7 +47,7 @@ export function PauseCanvas({ title, subtitle, scenes, thumbnailAt, onSaveMoment
   const [shown, setShown] = useState(false);
   const [dismissed, setDismissed] = useState(false);
   const [more, setMore] = useState(false);
-  // A short delay, so a pause that is only part of a seek or a quick toggle never flashes the strip.
+  // A short delay, so a pause that is only part of a seek or a quick toggle never flashes the slate.
   useEffect(() => {
     if (!eligible) {
       setShown(false);
@@ -58,7 +64,9 @@ export function PauseCanvas({ title, subtitle, scenes, thumbnailAt, onSaveMoment
     }
   }, [paused]);
 
-  if (!shown || dismissed) return null;
+  const visible = shown && !dismissed;
+  const colours = useFrameColours(visible, now, sectionRef, thumbnailAt);
+  if (!visible) return null;
 
   const idx = sceneIndexAt(scenes, now);
   const scene = scenes[idx];
@@ -67,53 +75,10 @@ export function PauseCanvas({ title, subtitle, scenes, thumbnailAt, onSaveMoment
   const kind = sceneKind(scenes);
   const roomy = tier === 'full';
   const hasMore = roomy && Boolean(prev || next || scene?.description);
+  const left = duration > 0 ? Math.max(0, duration - now) : null;
 
   return (
-    <section className="cs-pause" aria-label={`Paused${title ? `: ${title}` : ''}`} data-tier={tier} data-more={more || undefined}>
-      <div className="cs-pause-strip" data-interactive>
-        <p className="cs-pause-line">
-          <span className="cs-pause-led" aria-hidden="true" />
-          <span className="cs-pause-word">Paused</span>
-          <span className="cs-pause-time">
-            <strong>{formatTime(now)}</strong>
-            {duration > 0 && roomy ? <span> / {formatTime(duration)}</span> : null}
-          </span>
-          {scene ? (
-            <span className="cs-pause-scene">
-              <span className="cs-sr">{kind} </span>
-              {scene.title}
-              {roomy ? <span className="cs-pause-of"> · {idx + 1} of {scenes.length}</span> : null}
-            </span>
-          ) : null}
-        </p>
-        <div className="cs-pause-tools">
-          {hasMore ? (
-            <button
-              type="button"
-              className="cs-pause-btn"
-              aria-expanded={more}
-              aria-controls={moreId}
-              onClick={() => setMore((m) => !m)}
-            >
-              {more ? 'Less' : `${kind}s`}
-            </button>
-          ) : null}
-          {roomy && onSaveMoment ? (
-            <button type="button" className="cs-pause-btn" onClick={onSaveMoment} aria-label="Save this moment" data-tip="Save moment">
-              <BookmarkIcon />
-            </button>
-          ) : null}
-          {returnAnchor ? (
-            <button type="button" className="cs-pause-btn" onClick={returnAnchor.onReturn} aria-label={`Back to where you were, ${formatTime(returnAnchor.time)}`}>
-              <ReturnIcon /> <span>{formatTime(returnAnchor.time)}</span>
-            </button>
-          ) : null}
-          <button type="button" className="cs-pause-btn cs-pause-close" onClick={() => setDismissed(true)} aria-label="Hide pause information">
-            <CloseIcon />
-          </button>
-        </div>
-      </div>
-
+    <section ref={sectionRef} className="cs-pause" aria-label={`Paused${title ? `: ${title}` : ''}, ${formatTime(now)}`} data-tier={tier} data-more={more || undefined}>
       {more && hasMore ? (
         <div id={moreId} className="cs-pause-more" data-interactive role="group" aria-label={`${title ?? 'This film'}: neighbouring ${kind.toLowerCase()}s`}>
           {subtitle ? <p className="cs-pause-sub">{subtitle}</p> : null}
@@ -129,6 +94,61 @@ export function PauseCanvas({ title, subtitle, scenes, thumbnailAt, onSaveMoment
           </div>
         </div>
       ) : null}
+
+      <div className="cs-slate" data-interactive>
+        <SlateStick colours={colours} />
+        <div className="cs-slate-board">
+          <div className="cs-slate-head">
+            <span className="cs-pause-led" aria-hidden="true" />
+            <span className="cs-slate-word">Paused</span>
+            {title ? <span className="cs-slate-title">{title}</span> : null}
+            <button type="button" className="cs-pause-btn cs-pause-close" onClick={() => setDismissed(true)} aria-label="Put the slate away" data-tip="Hide">
+              <CloseIcon />
+            </button>
+          </div>
+          <div className="cs-slate-row">
+            <dl className="cs-slate-fields">
+              {scene ? (
+                <div>
+                  <dt>{kind}</dt>
+                  <dd>
+                    {idx + 1}
+                    <small>/{scenes.length}</small>
+                  </dd>
+                </div>
+              ) : null}
+              <div>
+                <dt>Time</dt>
+                <dd>{formatTime(now)}</dd>
+              </div>
+              {left !== null && roomy ? (
+                <div>
+                  <dt>Left</dt>
+                  <dd>{formatTime(left)}</dd>
+                </div>
+              ) : null}
+            </dl>
+            <div className="cs-pause-tools">
+              {hasMore ? (
+                <button type="button" className="cs-pause-btn" aria-expanded={more} aria-controls={moreId} onClick={() => setMore((m) => !m)}>
+                  {more ? 'Less' : `${kind}s`}
+                </button>
+              ) : null}
+              {roomy && onSaveMoment ? (
+                <button type="button" className="cs-pause-btn" onClick={onSaveMoment} aria-label="Save this moment" data-tip="Save moment">
+                  <BookmarkIcon />
+                </button>
+              ) : null}
+              {returnAnchor ? (
+                <button type="button" className="cs-pause-btn" onClick={returnAnchor.onReturn} aria-label={`Back to where you were, ${formatTime(returnAnchor.time)}`}>
+                  <ReturnIcon /> <span>{formatTime(returnAnchor.time)}</span>
+                </button>
+              ) : null}
+            </div>
+          </div>
+          {scene?.authored ? <p className="cs-slate-scene">{scene.title}</p> : null}
+        </div>
+      </div>
     </section>
   );
 }
