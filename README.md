@@ -10,11 +10,9 @@ It still has the controls you'd expect—play, pause, seek, volume, captions, an
 
 **[Try XENON live](https://xenon-ruddy.vercel.app/#/)** · [Open the player](https://xenon-ruddy.vercel.app/#/watch/sintel) · [Skin only](https://xenon-ruddy.vercel.app/#/skin) · [Skin Studio](https://xenon-ruddy.vercel.app/#/studio)
 
-No account or setup is needed to try the demo.
 
-![XENON in playback, pause, Explore, and phone layouts](submission/xenon-visual.png)
+<img width="1246" height="737" alt="image" src="https://github.com/user-attachments/assets/b72e393e-3853-4afc-8ca6-605511be7d57" />
 
-*The submission board and individual screenshots are in [`submission/`](submission/).*
 
 ## See what makes it different
 
