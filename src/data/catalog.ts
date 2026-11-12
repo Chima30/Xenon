@@ -196,6 +196,26 @@ export function sectionsFor(film: Film, duration: number, count = 10): Section[]
 export const servers = (film: Film): string[] => [...new Set(film.variants.map((v) => v.server))];
 
 /** Picks the file for a server and quality, falling back sensibly when that combination does not exist. */
+/** The order in which a stalled copy gives way: the default first, then sharper, then lighter. */
+const QUALITY_ORDER = ['480p', '1080p', '240p'];
+
+/**
+ * The next copy of a film to try when the current one stops delivering. A host that stalls on one file often stalls
+ * on all of them (throttling, an edge outage), so the other hosts come first, in catalogue order; then the other
+ * qualities on the same host. `tried` holds the sources already given up on. Null when none is left.
+ */
+export function nextVariant(film: Film, current: Variant, tried: ReadonlySet<string>): Variant | null {
+  const rank = (v: Variant) => {
+    const q = QUALITY_ORDER.indexOf(v.quality ?? '');
+    return (v.server === current.server ? 1000 : film.variants.indexOf(v) * 10) + (q < 0 ? 9 : q);
+  };
+  return (
+    film.variants
+      .filter((v) => v.src !== current.src && !tried.has(v.src))
+      .sort((a, b) => rank(a) - rank(b))[0] ?? null
+  );
+}
+
 export function pickVariant(film: Film, server?: string, quality?: string): Variant {
   const onServer = film.variants.filter((v) => v.server === (server ?? film.variants[0]?.server));
   const list = onServer.length > 0 ? onServer : film.variants;

@@ -1,8 +1,12 @@
-# Untitled / Cinema Interface
+# XENON / Cinema interface
 
-A Video.js v10 custom skin (React, TypeScript, Vite, CSS) built around one idea: **watch a story, explore its scenes, return to your place, remember what mattered.** The project has no name yet; "Untitled / Cinema Interface" is a placeholder.
+A custom skin for the Video.js v10 player (React, TypeScript, Vite, CSS), built around one idea: **watch a story, explore its scenes, return to your place, remember what mattered.**
 
-> **Status:** `npm run typecheck` and `npm run build` pass. A manual browser pass (Chromium-based pane, dev server) confirmed: real playback of Wikimedia-hosted films, Explore wheel with keyboard browsing (arrows do not seek or change volume) and Enter-to-load, scene jump + Return Anchor, save moment + persistence across reload, resume toast, `?` dialog, Player health, settings menu, and a 375px layout with no horizontal overflow. **Not yet done:** axe, screen reader, touch drag, fullscreen, Safari/Firefox, 320px, forced-colors. See [Known gaps](#known-gaps).
+**Live:** https://xenon-ruddy.vercel.app/#/ (no login). The player page plays real open films; *Skin only* shows the skin with one video and nothing else.
+
+## Design thinking
+
+XENON treats the player as a small cinema rather than a toolbar. The picture is the one bright thing on the page: the Photon Frame's optical corners and the Lightmeter take their light and colour from the film itself, and pausing turns the frame into a Film Slate with the scene, time and time left. Everything else (the controls, the Playback Pod, the curved Movies/Scenes wheel) stays quiet, on solid tinted backings, so it reads over a white sky or a night scene alike. It sits between Default and Neutral in personality: the film-driven colour and the wheel give it a character of its own, while the chrome uses one accent, sentence case and a single typeface (Space Grotesk) so it can sit inside someone else's site. Every control is a real Video.js v10 component or drives its store, works by keyboard with a visible focus ring, is at least 44px on touch, and calms down when reduced motion is on.
 
 ## Quick start
 
@@ -57,7 +61,7 @@ Official `@videojs/react@10.3.0`: `VideoPlayer` (preset `createPlayer` with `vid
 
 ### Design system, settings control centre and responsive tiers
 
-- **One typeface.** Space Grotesk (variable, self-hosted through `@fontsource-variable/space-grotesk`, SIL OFL, no font request to a third party) is the only branded UI font, with a system-font fallback stack. `src/skin/tokens.css` defines the scale: sizes from 12px up, four weights, tracking for display titles and for small uppercase section labels, a 4px spacing scale, a radius scale, and control heights. Timecodes, offsets and counters use tabular numerals so they never shift. Subtitle typography is separate (Settings → Subtitles → Subtitle appearance: size, typeface, colour, background, position, edge).
+- **One typeface.** Space Grotesk (variable, self-hosted through `@fontsource-variable/space-grotesk`, SIL OFL, no font request to a third party) is the only branded UI font, with a system-font fallback stack. `src/skin/tokens.css` defines the scale: sizes from 12px up, four weights, slight negative tracking for display titles only (labels are sentence case with no added tracking), a 4px spacing scale, a radius scale, and control heights. Timecodes, offsets and counters use tabular numerals so they never shift. Subtitle typography is separate (Settings → Subtitles → Subtitle appearance: size, typeface, colour, background, position, edge).
 - **Settings control centre** (the gear, or the CC and palette buttons): Playback, Subtitles, Appearance, Accessibility and Advanced tabs (arrow keys, Home and End move between them), plus a search box that finds any setting by name or category. Cards appear only when the current video can really offer them (no fake qualities, audio tracks or servers); a single-quality source shows an honest note instead. Advanced holds playback diagnostics, the shortcut guide and a reset for appearance, accessibility and dock settings.
 - **Accessibility profiles:** Standard, High contrast, Large controls and Reduced motion, each adjustable afterwards (the profile then reads "Custom"). Saved in `localStorage`. The operating system's reduced-motion setting is also respected. Selected states always carry a check mark or weight as well as a colour.
 - **Layout tiers from the player's real container width** (not the window): full (680px and up), compact (440 and up, icon-only dock), tiny (340 and up, secondary actions in a More menu) and micro (under 340: the dock keeps time, mute, More and fullscreen). Play/pause, seek, time, volume or mute, and fullscreen exist at every tier. Panels sit under the video on small players so they never run off screen.
@@ -279,3 +283,8 @@ npm test
 ```
 
 Vitest + Testing Library (jsdom): the wheel's keyboard, scroll and spring motion, external targets and Movies/Scenes fold, the rail's explicit Play/Jump card, the Playback Pod against a real Video.js store (labels, exact ±10 s, clamping, one seek per Enter/Space), film palettes and contrast, moment storage, layout tiers, and the real Video.js skin (mode switching, status announcer, settings Escape and focus return).
+
+## Unslop pass and playback safety net (polish/unslop)
+
+- **Quiet chrome, one accent.** Labels are sentence case without tracking, 600 is the heaviest weight, coloured glows are gone (neutral shadows and hairlines carry depth), the Playback Pod's disc is solid, and text check marks became one line icon. The picture, Photon Frame, Lightmeter and Film Slate keep the film's colour. Direction from the [unslop](https://github.com/heydamir/unslop) skill by Damir Sokolovsky, CC BY 4.0.
+- **Stall guard.** Open hosts sometimes serve a copy that never delivers. If a film should be playing but is stuck (data claimed but nothing buffered for 3 s, or no progress for 10 s), the player moves to the next copy of the same film at the same second and says so: another host first, then the other qualities. The player page, *Skin only* and Skin Studio all use it (`src/pages/stall.ts`, `ResilientVideo.tsx`, `nextVariant` in `src/data/catalog.ts`).

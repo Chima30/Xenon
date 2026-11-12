@@ -1,7 +1,7 @@
 import { useMedia } from '@videojs/react';
 import { Video, VideoPlayer, usePlayer } from '@videojs/react/video';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { CATALOG, findFilm, SINTEL_MUX_PLAYBACK_ID, pickVariant, SERVER_LABELS, sectionsFor, servers as serversOf, type Film, type Variant } from '../data/catalog';
+import { CATALOG, findFilm, nextVariant, SINTEL_MUX_PLAYBACK_ID, pickVariant, SERVER_LABELS, sectionsFor, servers as serversOf, type Film, type Variant } from '../data/catalog';
 import {
   addMoment,
   momentsFor,
@@ -11,6 +11,7 @@ import {
   useProgress,
 } from '../data/stores';
 import { MomentAtlas } from '../features/MomentAtlas';
+import { isStalled } from './stall';
 import { CinemaSkin, clamp, formatTime, type DiagRow, type Journey, type NavFilm, type ResolvedAtmosphere, type SkinScene, type ThumbnailAt, type TimelineMarker } from '../skin';
 import { ShareIcon } from '../skin/icons';
 
@@ -190,6 +191,49 @@ function PlayerBody({ initialId, initialTime, initialEnd, bench }: { initialId?:
     change();
     say(`Switching to ${label}`);
   };
+
+  // Stall guard. Open hosts sometimes serve a copy that never delivers (a broken transcode, a stuck CDN object).
+  // If the film should be playing but is stuck (see isStalled), move to
+  // the next copy of the same film at the same second and say so. Each copy is given up on at most once per film.
+  const paused = usePlayer((s) => s.paused);
+  const tried = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    tried.current = new Set();
+  }, [film.id]);
+  const guard = useRef({ film, variant, switchFile, say });
+  guard.current = { film, variant, switchFile, say };
+  useEffect(() => {
+    if (paused) return;
+    let last = document.querySelector<HTMLVideoElement>('.cs-root video')?.currentTime ?? now();
+    let still = 0;
+    const id = window.setInterval(() => {
+      if (document.hidden) return;
+      const el = document.querySelector<HTMLVideoElement>('.cs-root video');
+      const t = el?.currentTime ?? now();
+      if (Math.abs(t - last) > 0.05) {
+        last = t;
+        still = 0;
+        return;
+      }
+      still += 1000;
+      if (!el || !isStalled(still, el)) return;
+      window.clearInterval(id);
+      const g = guard.current;
+      tried.current.add(g.variant.src);
+      const next = nextVariant(g.film, g.variant, tried.current);
+      if (!next) {
+        g.say(`${g.film.title} is not loading. Check the connection, or try again later.`);
+        return;
+      }
+      const label = next.server === g.variant.server ? (next.quality ?? next.server) : (SERVER_LABELS[next.server] ?? next.server);
+      g.switchFile(() => {
+        setServerId(next.server);
+        if (next.quality) setQualityId(next.quality);
+      }, `${label}: this copy was not loading`);
+    }, 1000);
+    return () => window.clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paused, activeSrc]);
 
   /** An intentional jump (scene, saved moment). Remembers where you were so you can come back. */
   const jumpTo = (time: number, label: string) => {

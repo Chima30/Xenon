@@ -1,6 +1,7 @@
-import { Video, VideoPlayer } from '@videojs/react/video';
+import { VideoPlayer } from '@videojs/react/video';
 import { FILMS } from '../data/catalog';
 import { CinemaSkin } from '../skin';
+import { ResilientVideo } from './ResilientVideo';
 
 /**
  * The skin on its own: one video, no catalog, no wheel, no atlas.
@@ -17,7 +18,7 @@ export function WorkbenchPage() {
       </p>
       <VideoPlayer>
         <CinemaSkin title={film.title} subtitle="Skin only, no catalog">
-          <Video src={film.src} playsInline preload="metadata" />
+          <ResilientVideo film={film} />
         </CinemaSkin>
       </VideoPlayer>
       <pre className="code">{`<VideoPlayer>

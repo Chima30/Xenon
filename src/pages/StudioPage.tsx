@@ -1,7 +1,8 @@
-import { Video, VideoPlayer } from '@videojs/react/video';
+import { VideoPlayer } from '@videojs/react/video';
 import { useMemo, useState, type CSSProperties } from 'react';
 import { FILMS } from '../data/catalog';
 import { CinemaSkin } from '../skin';
+import { ResilientVideo } from './ResilientVideo';
 import '../studio.css';
 
 /**
@@ -187,7 +188,7 @@ export function StudioPage() {
             <div style={{ ...(vars as CSSProperties), fontFamily: c.font === 'brand' ? BRAND_FONT : undefined }}>
               <VideoPlayer>
                 <CinemaSkin title={film.title} subtitle="Skin Studio preview" mediaKey="studio">
-                  <Video src={film.src} playsInline preload="metadata" />
+                  <ResilientVideo film={film} />
                 </CinemaSkin>
               </VideoPlayer>
             </div>

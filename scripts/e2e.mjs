@@ -961,7 +961,9 @@ check('Pod presses confirm on the pod only: no edge lens as well', !(await lensS
 /* ---------- 19. Tail slate: the end of the film ---------- */
 const filmEnd = await page.evaluate(() => document.querySelector('video').duration);
 await seekTo(filmEnd - 1.2);
-await page.evaluate(() => document.querySelector('video').play());
+await page.evaluate(() => document.querySelector('video').play().catch(() => {}));
+// If the stall guard swapped a stuck file for another copy, wait for the new copy to be playing.
+await page.waitForFunction(() => { const v = document.querySelector('video'); return !v.paused && v.readyState >= 3; }, null, { timeout: 25000 }).catch(() => {});
 await page.waitForFunction(() => document.querySelector('video').ended, null, { timeout: 20000 });
 await page.waitForTimeout(900);
 const tail = await page.evaluate(() => {
@@ -1043,7 +1045,9 @@ await axeAudit(page, 'keyboard shortcuts dialog');
 await page.keyboard.press('Escape');
 await page.waitForTimeout(300);
 await seekTo(filmEnd - 1.2);
-await page.evaluate(() => document.querySelector('video').play());
+await page.evaluate(() => document.querySelector('video').play().catch(() => {}));
+// If the stall guard swapped a stuck file for another copy, wait for the new copy to be playing.
+await page.waitForFunction(() => { const v = document.querySelector('video'); return !v.paused && v.readyState >= 3; }, null, { timeout: 25000 }).catch(() => {});
 await page.waitForFunction(() => document.querySelector('video').ended, null, { timeout: 20000 });
 await page.waitForTimeout(900);
 await axeAudit(page, 'tail slate');
@@ -1076,6 +1080,8 @@ await tp2.evaluate(
     }),
 );
 await tp2.waitForTimeout(600);
+// The pause slate arrives a moment after pausing; measure once it is there, or the spot can land where it appears.
+await tp2.waitForSelector('.cs-slate', { state: 'visible', timeout: 4000 }).catch(() => {});
 // A point on the left of the picture that is bare video whether or not the controls are showing: below the
 // top bar's full height (the first tap wakes it) and above the pause slate. Controls and the slate rightly
 // ignore gestures, so a tap that lands on them is not a double tap.
@@ -1128,8 +1134,10 @@ await page.waitForFunction(() => (document.querySelector('video')?.readyState ??
 await page.evaluate(() => {
   const v = document.querySelector('video');
   v.currentTime = 150;
-  return v.play();
+  return v.play().catch(() => {});
 });
+// If the stall guard swapped a stuck file for another copy, wait for the new copy to be playing.
+await page.waitForFunction(() => { const v = document.querySelector('video'); return !v.paused && v.readyState >= 3; }, null, { timeout: 25000 }).catch(() => {});
 await page.waitForTimeout(1200);
 await wake();
 // A cut while playing brightens the corners for its glint; sample the resting state, between glints.
@@ -1281,7 +1289,9 @@ const fHc = await page.evaluate(() => ({ corner: getComputedStyle(document.query
 check('High contrast: the frame is plain white, no glow', fHc.corner === 'rgb(255, 255, 255)' && fHc.rim === 'rgb(255, 255, 255)', JSON.stringify(fHc));
 await page.locator('.seg-btn', { hasText: 'Default' }).click();
 await page.emulateMedia({ reducedMotion: 'reduce' });
-await page.evaluate(() => document.querySelector('video').play());
+await page.evaluate(() => document.querySelector('video').play().catch(() => {}));
+// If the stall guard swapped a stuck file for another copy, wait for the new copy to be playing.
+await page.waitForFunction(() => { const v = document.querySelector('video'); return !v.paused && v.readyState >= 3; }, null, { timeout: 25000 }).catch(() => {});
 await page.waitForTimeout(800);
 await page.evaluate(() => document.querySelector('video').pause());
 await page.waitForTimeout(300);
