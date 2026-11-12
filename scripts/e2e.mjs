@@ -1223,6 +1223,26 @@ check(
   !cleared.slate && cleared.focus && cleared.controls && /Frame cleared/.test(cleared.toast ?? '') && cleared.corners > 0.9 && restored === 1,
   JSON.stringify(cleared),
 );
+// A click on the picture leaves focus on the player itself, outside the controls: the skin's keys must still work.
+await page.evaluate(() => document.querySelector('.cs-root').focus());
+const fromPlayer = { focusOnRoot: await page.evaluate(() => document.activeElement?.classList.contains('cs-root')) };
+await page.keyboard.press('x');
+await page.waitForTimeout(300);
+fromPlayer.xClears = (await page.locator('.cs-slate').count()) === 0;
+await page.keyboard.press('x');
+await page.waitForTimeout(300);
+fromPlayer.xRestores = (await page.locator('.cs-slate').count()) === 1;
+await page.evaluate(() => document.querySelector('.cs-root').focus());
+await page.keyboard.press('t');
+await page.waitForTimeout(500);
+fromPlayer.tOpensLens = await page.evaluate(() => document.querySelector('.cs-root').dataset.lens === 'open');
+await page.keyboard.press('Escape');
+await page.waitForTimeout(400);
+check(
+  'X and T work with focus on the player itself (where a click on the picture puts it), not only on a control',
+  fromPlayer.focusOnRoot && fromPlayer.xClears && fromPlayer.xRestores && fromPlayer.tOpensLens,
+  JSON.stringify(fromPlayer),
+);
 await wake();
 await page.locator('.cs-slate .cs-pause-close').click();
 await page.waitForTimeout(250);

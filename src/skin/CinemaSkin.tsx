@@ -22,7 +22,6 @@ import {
   useMemo,
   useRef,
   useState,
-  type KeyboardEvent as ReactKeyboardEvent,
   type ReactNode,
 } from 'react';
 import { AppearanceProvider, useAppearance, type ResolvedAtmosphere, type SkinPalette } from './appearance/AppearanceContext';
@@ -514,8 +513,10 @@ function SkinInner({
     void store.play();
   }, [canPlayNow, currentSrc, store]);
 
-  const onKeyDown = (e: ReactKeyboardEvent<HTMLDivElement>) => {
+  const onKeyDown = (e: KeyboardEvent) => {
     if (isEditable(e.target) || e.ctrlKey || e.metaKey || e.altKey) return;
+    // Dialogs (keyboard guide, player health) own their keys.
+    if ((e.target as HTMLElement).closest?.('dialog')) return;
     const inPanel = (e.target as HTMLElement).closest('.cs-panel, .cs-atlas, .cs-lens');
     if ((e.key === 'x' || e.key === 'X') && playbackPaused && !inPanel && !(e.target as HTMLElement).closest('.cs-rail')) {
       e.preventDefault();
@@ -554,6 +555,19 @@ function SkinInner({
       }
     }
   };
+
+  // The skin's own keys (X, T, B, W, C, ?) listen on the whole player, like the Video.js hotkeys. Listening on the
+  // layout alone missed them whenever focus was on the player itself, which is where a click on the picture puts it.
+  const layoutRef = useRef<HTMLDivElement>(null);
+  const keyHandler = useRef(onKeyDown);
+  keyHandler.current = onKeyDown;
+  useEffect(() => {
+    const root = layoutRef.current?.closest<HTMLElement>('.cs-root');
+    if (!root) return;
+    const listen = (e: KeyboardEvent) => keyHandler.current(e);
+    root.addEventListener('keydown', listen);
+    return () => root.removeEventListener('keydown', listen);
+  }, []);
 
   const ctx = useMemo<SkinContextValue>(
     () => ({ mode: effectiveMode, setMode, announce, tier, openNavigation, closeNavigation }),
@@ -622,7 +636,7 @@ function SkinInner({
         style={look.cssVars}
       >
         <Atmosphere />
-        <div className="cs-layout" onKeyDown={onKeyDown}>
+        <div className="cs-layout" ref={layoutRef}>
           {hasRail ? (
             <section
               ref={railRef}
