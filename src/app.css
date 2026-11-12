@@ -16,6 +16,27 @@
   inherits: true;
   initial-value: #d8ff57;
 }
+/* The page's spectrum (deep, mid, light accent, highlight), reported by the player; dark ocean-teal at rest. */
+@property --page-sg-1 {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #04191c;
+}
+@property --page-sg-2 {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #0d4248;
+}
+@property --page-sg-3 {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #2b8a8f;
+}
+@property --page-sg-4 {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #c6eee6;
+}
 
 :root {
   --teal: color-mix(in oklab, var(--page-base) 92%, white);
@@ -27,7 +48,11 @@
   transition:
     --page-base 0.9s ease,
     --page-glow 0.9s ease,
-    --page-accent 0.9s ease;
+    --page-accent 0.9s ease,
+    --page-sg-1 1.2s ease,
+    --page-sg-2 1.2s ease,
+    --page-sg-3 1.2s ease,
+    --page-sg-4 1.2s ease;
   --font: 'Space Grotesk Variable', 'Space Grotesk', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   --display: var(--font);
   --mono: var(--font);
@@ -46,8 +71,10 @@ body {
   min-height: 100vh;
   color: var(--fg);
   background:
-    radial-gradient(90% 50% at 70% -10%, color-mix(in srgb, var(--page-glow) 55%, transparent), transparent 70%),
-    linear-gradient(var(--teal), var(--depth) 60%);
+    radial-gradient(70% 45% at 10% -8%, color-mix(in srgb, var(--page-sg-3) calc(var(--page-sg-amb, 0.35) * 40%), transparent), transparent 70%),
+    radial-gradient(60% 55% at 96% 26%, color-mix(in srgb, var(--page-sg-2) 62%, transparent), transparent 72%),
+    radial-gradient(80% 40% at 50% 112%, color-mix(in srgb, var(--page-sg-4) calc(var(--page-sg-amb, 0.35) * 10%), transparent), transparent 70%),
+    linear-gradient(var(--page-sg-angle, 160deg), color-mix(in oklab, var(--page-sg-1) 70%, var(--page-sg-2)), var(--page-sg-1) 55%, color-mix(in oklab, var(--page-sg-1) 80%, black) 100%);
   background-attachment: fixed;
   font-family: var(--font);
   line-height: 1.5;

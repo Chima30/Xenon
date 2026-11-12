@@ -45,7 +45,7 @@ export interface Film {
    * Signature colours, chosen by hand from the film's own imagery. The skin re-colours itself from these,
    * and passes the accent through its contrast guard, so a film change is felt across the whole player.
    */
-  palette: { accent: string; base: string; glow: string; ink: string; secondary: string };
+  palette: { accent: string; base: string; glow: string; ink: string; secondary: string; spectrum: readonly [string, string, string, string] };
 }
 
 export const SERVER_LABELS: Record<string, string> = {
@@ -102,7 +102,7 @@ export const FILMS: Film[] = [
     chapters: [],
     downloadable: true,
     // Ember Fantasy: deep plum and charcoal, warm ember light, ivory text.
-    palette: { accent: '#ff9f5a', base: '#1a1119', glow: '#ff6a2c', ink: '#f6eee2', secondary: '#a5638f' },
+    palette: { accent: '#ff9f5a', base: '#1a1119', glow: '#ff6a2c', ink: '#f6eee2', secondary: '#a5638f', spectrum: ['#120d1d', '#463057', '#bf5b3f', '#f4b06b'] },
     variants: [
       { server: 'mux', src: SINTEL_MUX_PLAYBACK_ID },
       ...commonsVariants('f/f1', SINTEL_FILE),
@@ -127,7 +127,7 @@ export const FILMS: Film[] = [
     chapters: [],
     downloadable: true,
     // Cyber Steel: industrial navy, cyan signal light, cool steel, silver text.
-    palette: { accent: '#5cd3ff', base: '#0a1322', glow: '#2b8cff', ink: '#e7eef6', secondary: '#8ea4ba' },
+    palette: { accent: '#5cd3ff', base: '#0a1322', glow: '#2b8cff', ink: '#e7eef6', secondary: '#8ea4ba', spectrum: ['#071420', '#19445c', '#36a4bc', '#c5e6ef'] },
     variants: commonsVariants('1/10', TOS_FILE),
   },
   {
@@ -145,7 +145,7 @@ export const FILMS: Film[] = [
     chapters: [],
     downloadable: true,
     // Woodland Cinema: woodland green surfaces, soft gold light, warm cream text, a green secondary.
-    palette: { accent: '#e8c56f', base: '#0f1a11', glow: '#d9b45c', ink: '#f4ecd6', secondary: '#8fbf74' },
+    palette: { accent: '#e8c56f', base: '#0f1a11', glow: '#d9b45c', ink: '#f4ecd6', secondary: '#8fbf74', spectrum: ['#071c17', '#204a37', '#a47835', '#e2d78a'] },
     variants: [
       ...commonsVariants('c/c0', BBB_FILE),
       { server: 'archive', src: 'https://archive.org/download/BigBuckBunny_124/Content/big_buck_bunny_720p_surround.mp4' },

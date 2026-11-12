@@ -80,7 +80,7 @@ interface Anchor {
  * The demo page wears the player's atmosphere: its background, glow, accent and a soft wash of the film's artwork
  * follow whatever the skin settled on (the film's palette, or the viewer's own Appearance choices).
  */
-const PAGE_VARS = ['--page-base', '--page-glow', '--page-accent', '--page-ink', '--page-art'] as const;
+const PAGE_VARS = ['--page-base', '--page-glow', '--page-accent', '--page-ink', '--page-art', '--page-sg-1', '--page-sg-2', '--page-sg-3', '--page-sg-4', '--page-sg-angle', '--page-sg-amb'] as const;
 function usePageAtmosphere() {
   useEffect(
     () => () => {
@@ -97,6 +97,10 @@ function usePageAtmosphere() {
     root.setProperty('--page-accent', a.accent);
     root.setProperty('--page-ink', a.ink);
     root.setProperty('--page-art', a.image ? `url("${a.image.replace(/"/g, '%22')}")` : 'none');
+    // The page wears the player's spectrum, so the gradient continues past the player's edge.
+    a.spectrum.forEach((c, i) => root.setProperty(`--page-sg-${i + 1}`, c));
+    root.setProperty('--page-sg-angle', `${a.angle}deg`);
+    root.setProperty('--page-sg-amb', String(a.ambient));
   }, []);
 }
 

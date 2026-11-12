@@ -1,0 +1,207 @@
+/* ==========================================================================
+   XENON Spectral Gradients. Loaded last.
+
+   Every surface is built from one four-stop spectrum (deep, mid, light accent, highlight: --sg-1 … --sg-4) and
+   three dials (--sg-k intensity, --sg-amb ambient colour, --sg-angle direction), so adjacent surfaces share one
+   colour identity at different strengths. The recipes:
+
+     shell    the player body: a multi-stop linear field plus two soft radial blooms
+     glaze    a translucent spectral tint layered OVER each surface's existing background, so Glass / Solid /
+              Clear and panel transparency keep working and text keeps its dark backing
+     edge     the thin metallic highlight on rims and capsules
+     fill     progress and level fills
+     grain    a faint brushed-metal texture on hardware surfaces
+
+   Text never sits on the light stops: --sg-3 appears only in blooms of at most a quarter strength, --sg-4 only
+   in hairline edges. The video element is never touched. High contrast and browsers without colour mixing keep
+   the solid surfaces defined earlier.
+   ========================================================================== */
+
+/* The four stops are registered, so a change of film crossfades them instead of snapping. */
+@property --sg-1 {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #070a12;
+}
+@property --sg-2 {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #1a2336;
+}
+@property --sg-3 {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #4c6b8a;
+}
+@property --sg-4 {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #cad9e6;
+}
+
+.cs-root {
+  --sg-k: 0.6;
+  --sg-amb: 0.35;
+  --sg-angle: 160deg;
+  transition:
+    --sg-1 1.2s ease,
+    --sg-2 1.2s ease,
+    --sg-3 1.2s ease,
+    --sg-4 1.2s ease;
+}
+.cs-root[data-motion='reduce'] {
+  transition: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .cs-root {
+    transition: none;
+  }
+}
+
+@supports (color: color-mix(in srgb, red 50%, blue)) {
+  .cs-root:not([data-hc]) {
+    --sg-mid: color-mix(in oklab, var(--sg-2) calc(var(--sg-k) * 62%), var(--sg-1));
+    --sg-shell:
+      radial-gradient(70% 60% at 6% 0%, color-mix(in srgb, var(--sg-3) calc(var(--sg-amb) * 30%), transparent), transparent 70%),
+      radial-gradient(65% 70% at 100% 100%, color-mix(in srgb, var(--sg-2) calc(var(--sg-amb) * 85%), transparent), transparent 72%),
+      linear-gradient(var(--sg-angle), var(--sg-1) 0%, var(--sg-mid) 52%, color-mix(in oklab, var(--sg-1) 80%, var(--sg-2)) 100%);
+    --sg-glaze:
+      radial-gradient(110% 90% at 0% 0%, color-mix(in srgb, var(--sg-3) calc(var(--sg-amb) * 24%), transparent), transparent 62%),
+      linear-gradient(var(--sg-angle), color-mix(in srgb, var(--sg-2) calc(var(--sg-k) * 52%), transparent), color-mix(in srgb, var(--sg-1) calc(var(--sg-k) * 34%), transparent) 72%);
+    --sg-glaze-soft:
+      linear-gradient(var(--sg-angle), color-mix(in srgb, var(--sg-2) calc(var(--sg-k) * 34%), transparent), transparent 80%);
+    --sg-edge: linear-gradient(
+      170deg,
+      color-mix(in srgb, var(--sg-4) 50%, transparent),
+      rgb(255 255 255 / 0.07) 30%,
+      rgb(0 0 0 / 0.32) 70%,
+      color-mix(in srgb, var(--sg-3) 38%, transparent)
+    );
+    --sg-fill: linear-gradient(90deg, color-mix(in oklab, var(--sg-3) 72%, var(--cs-citron)), var(--cs-citron));
+    --sg-grain: repeating-linear-gradient(90deg, rgb(255 255 255 / 0.018) 0 1px, transparent 1px 3px);
+    /* The Photon Frame rim and the dock's rim wear the spectral edge. */
+    --pf-edge: var(--sg-edge);
+    background: var(--sg-shell);
+  }
+
+  /* ---------- Control dock, Playback Pod, timeline ---------- */
+
+  .cs-root:not([data-hc]):not([data-scrim='high-contrast']) .cs-row {
+    background: var(--sg-grain), var(--sg-glaze), var(--cs-surf-controls, var(--cs-dock-bg));
+  }
+  .cs-root:not([data-hc]) .cs-pod::before {
+    background:
+      var(--sg-grain),
+      var(--sg-glaze),
+      linear-gradient(180deg, rgb(255 255 255 / 0.08), transparent 48%),
+      color-mix(in srgb, var(--cs-base) 80%, transparent);
+  }
+  .cs-root:not([data-hc]) .cs-pod-play {
+    background: radial-gradient(
+      120% 120% at 30% 22%,
+      color-mix(in oklab, var(--cs-citron) 70%, white) 0%,
+      var(--cs-citron) 46%,
+      color-mix(in oklab, var(--cs-citron) 64%, var(--sg-3)) 100%
+    );
+  }
+  .cs-root:not([data-hc]) .cs-pod-ring {
+    background: conic-gradient(from 210deg, var(--cs-citron), var(--sg-3), var(--sg-4), var(--sg-2), var(--cs-citron));
+  }
+  .cs-root:not([data-hc]):not([data-scrim='high-contrast']) .cs-fill {
+    background: var(--sg-fill);
+  }
+  .cs-root:not([data-hc]):not([data-scrim='high-contrast']) .cs-track {
+    background-image: linear-gradient(90deg, color-mix(in srgb, var(--sg-2) 55%, transparent), color-mix(in srgb, var(--sg-3) 22%, transparent));
+  }
+  .cs-root[data-dock='expanded']:not([data-hc]) .cs-bottom {
+    background: var(--sg-grain), var(--sg-glaze), var(--cs-metal);
+  }
+
+  /* ---------- Lightmeter plate ---------- */
+
+  .cs-root:not([data-hc]) .cs-plate {
+    background:
+      var(--sg-grain),
+      linear-gradient(90deg, transparent, color-mix(in srgb, var(--sg-2) calc(var(--sg-k) * 40%), transparent) 50%, transparent),
+      linear-gradient(180deg, color-mix(in oklab, var(--cs-base) 88%, white) 0%, color-mix(in oklab, var(--sg-1) 70%, black) 100%);
+  }
+
+  /* ---------- Navigation wheel ---------- */
+
+  .cs-root:not([data-hc]) .cs-rail {
+    background:
+      var(--sg-glaze),
+      radial-gradient(90% 45% at 0% 42%, color-mix(in srgb, var(--sg-3) calc(var(--sg-amb) * 34%), transparent), transparent 72%),
+      linear-gradient(180deg, color-mix(in srgb, var(--cs-base) 62%, transparent), color-mix(in srgb, var(--cs-base) 80%, transparent));
+  }
+  .cs-root:not([data-hc]):is([data-drawer='open'], [data-drawer='closing']) .cs-rail {
+    background:
+      var(--sg-glaze),
+      linear-gradient(180deg, color-mix(in srgb, var(--cs-base) 72%, transparent), color-mix(in srgb, var(--cs-base) 86%, transparent));
+  }
+  .cs-root:not([data-hc]) .cs-rail-bar {
+    background: linear-gradient(180deg, color-mix(in srgb, var(--sg-1) 74%, transparent) 60%, transparent);
+  }
+  .cs-root:not([data-hc]) .rail-detail,
+  .cs-root:not([data-hc]) .rail-tabs {
+    background: var(--sg-glaze-soft), color-mix(in srgb, var(--cs-base) 76%, transparent);
+  }
+  .cs-root:not([data-hc]) .wheel-hub {
+    background:
+      radial-gradient(circle at 68% 36%, color-mix(in oklab, var(--sg-2) 80%, white 6%), transparent 64%),
+      radial-gradient(circle at 50% 50%, var(--sg-2), var(--sg-1) 74%);
+  }
+  .cs-root:not([data-hc]) .wheel-ring {
+    background: conic-gradient(from 60deg, transparent 0 0deg, var(--sg-3) 30deg, transparent 60deg);
+  }
+  .cs-root:not([data-hc]) .wheel-light {
+    background: radial-gradient(closest-side, color-mix(in srgb, var(--sg-3) calc(var(--sg-amb) * 70% + 10%), transparent), transparent);
+  }
+
+  /* ---------- Film Slate, scene neighbours, edge lens ---------- */
+
+  .cs-root:not([data-hc]) .cs-slate-board {
+    background:
+      var(--sg-grain),
+      var(--sg-glaze),
+      color-mix(in srgb, color-mix(in oklab, var(--cs-base) 78%, black) 92%, transparent);
+  }
+  .cs-root:not([data-hc]) :is(.cs-pause-more, .cs-pause-card) {
+    background: var(--sg-glaze-soft), color-mix(in srgb, var(--cs-base) 80%, transparent);
+  }
+  .cs-root:not([data-hc]) .cs-seeklens[data-direction='backward'] {
+    background: radial-gradient(100% 62% at 0% 50%, color-mix(in srgb, var(--sg-3) 34%, transparent), color-mix(in srgb, var(--sg-1) 22%, transparent) 55%, transparent 72%);
+  }
+  .cs-root:not([data-hc]) .cs-seeklens[data-direction='forward'] {
+    background: radial-gradient(100% 62% at 100% 50%, color-mix(in srgb, var(--sg-3) 34%, transparent), color-mix(in srgb, var(--sg-1) 22%, transparent) 55%, transparent 72%);
+  }
+
+  /* ---------- Panels, dialogs, menus, popovers, tooltips, the Appearance Studio ---------- */
+
+  .cs-root:not([data-hc]) :is(.cs-panel, .cs-dialog, .cs-menu) {
+    background: var(--sg-glaze), var(--cs-panel-bg);
+  }
+  .cs-root:not([data-hc]) :is(.cs-card, .cs-switch, .cs-choice, .cs-row-btn) {
+    background-image: var(--sg-glaze-soft);
+  }
+  .cs-root:not([data-hc]) [data-tip]::after {
+    background: linear-gradient(170deg, color-mix(in oklab, var(--sg-2) 55%, #05070c), #05070c 70%);
+    border-color: color-mix(in srgb, var(--sg-3) 45%, #3b4565);
+  }
+  .cs-root:not([data-hc]) :is(.cs-tl-preview, .cs-lens) {
+    background: var(--sg-glaze), var(--cs-panel-bg);
+  }
+
+  /* ---------- My Atlas ---------- */
+
+  .cs-root:not([data-hc]) .cs-atlas {
+    background: var(--sg-glaze-soft), var(--cs-base);
+  }
+}
+
+/* High contrast keeps flat, opaque surfaces; forced colours keeps the system's. Nothing here applies to them. */
+@media (forced-colors: active) {
+  .cs-root {
+    background: Canvas;
+  }
+}

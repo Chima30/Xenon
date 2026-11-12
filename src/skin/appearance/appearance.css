@@ -205,3 +205,47 @@
   }
 }
 
+
+/* ---------- Spectral gradients card ---------- */
+
+.cs-spectrum {
+  display: grid;
+  gap: var(--sp-2);
+}
+.cs-spectrum-bar {
+  display: block;
+  height: 14px;
+  border-radius: var(--r-pill);
+  box-shadow:
+    0 0 0 1px var(--cs-hairline),
+    inset 0 1px 0 rgb(255 255 255 / 0.18);
+}
+.cs-spectrum-stops {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1) var(--sp-3);
+  font-size: var(--fs-xs);
+  color: var(--cs-ice-dim);
+}
+.cs-spectrum-edit {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--sp-2);
+}
+.cs-spectrum-input {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  font-size: var(--fs-xs);
+  color: var(--cs-ice-dim);
+  text-align: center;
+}
+.cs-spectrum-input input {
+  width: 100%;
+  min-height: var(--h-ctl);
+  padding: 2px;
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid var(--cs-hairline);
+  border-radius: var(--r-md);
+}

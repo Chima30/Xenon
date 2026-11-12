@@ -3,7 +3,10 @@ import { Card, Empty, Pill, Pills, SwitchRow } from '../ui';
 import { parseHex, toHex } from './color';
 import {
   DEFAULT_APPEARANCE,
+  GRADIENT_PRESETS,
   useAppearance,
+  type GradientPreset,
+  type GradientSettings,
   type AccentChoice,
   type BgSource,
   type PanelArea,
@@ -68,7 +71,7 @@ function Range({
         max={max}
         step={1}
         value={value}
-        aria-valuetext={`${value}${unit === '%' ? ' percent' : ' pixels'}`}
+        aria-valuetext={`${value}${unit === '%' ? ' percent' : unit === '\u00b0' ? ' degrees' : ' pixels'}`}
         onChange={(e) => onChange(Number(e.target.value))}
       />
     </label>
@@ -130,6 +133,8 @@ export function AppearanceCards() {
           onChange={(v) => ap.update({ enabled: v })}
         />
       </Card>
+
+      <SpectralCard />
 
       <Card title="Accent and panel colour" description="Accents always pass a 4.5:1 contrast check before they are used.">
         <Pills label="Accent colour">
@@ -266,10 +271,8 @@ export function AppearanceCards() {
             ) : null}
           </Card>
 
-          <Card title="Opacity, blur and light" description="Backgrounds are always darkened enough for text to stay readable.">
+          <Card title="Artwork opacity" description="Backgrounds are always darkened enough for text to stay readable. Blur and ambient colour are under Spectral gradients.">
             <Range label="Artwork opacity" value={a.opacity} min={0} max={100} unit="%" onChange={(v) => ap.update({ opacity: v })} />
-            <Range label="Blur" value={a.blur} min={0} max={60} unit="px" onChange={(v) => ap.update({ blur: v })} />
-            <Range label="Ambient light" value={a.ambient} min={0} max={100} unit="%" onChange={(v) => ap.update({ ambient: v })} />
           </Card>
 
           <Card title="Text contrast" description="High raises the target from 4.5:1 to 7:1.">
@@ -391,5 +394,85 @@ export function AppearanceCards() {
         </div>
       ) : null}
     </>
+  );
+}
+
+const PRESETS: { id: Exclude<GradientPreset, 'custom'>; label: string }[] = [
+  { id: 'subtle', label: 'Subtle' },
+  { id: 'cinematic', label: 'Cinematic' },
+  { id: 'vivid', label: 'Vivid' },
+];
+const STOPS = ['Deep', 'Mid', 'Light accent', 'Highlight'] as const;
+
+/**
+ * Spectral gradients: the four-stop spectrum every surface is built from, and the dials for it. Presets set the
+ * dials; moving any dial makes the look your own ("Custom"). Saved with the rest of Appearance.
+ */
+function SpectralCard() {
+  const ap = useAppearance();
+  const { appearance: a, resolved } = ap;
+  const g = a.gradient;
+  const set = (patch: Partial<GradientSettings>, extra: Parameters<typeof ap.update>[0] = {}) =>
+    ap.update({ ...extra, gradient: { ...g, preset: 'custom', ...patch } });
+  const sp = resolved.spectrum;
+  return (
+    <Card title="Spectral gradients" description="Every surface is layered from one four-colour spectrum, so the player, the wheel, the dock and the page share the film's light. The video itself is never tinted.">
+      <Pills label="Gradient preset">
+        {PRESETS.map((p) => (
+          <Pill
+            key={p.id}
+            selected={g.preset === p.id}
+            onClick={() => {
+              const v = GRADIENT_PRESETS[p.id];
+              ap.update({ ambient: v.ambient, blur: v.blur, gradient: { ...g, preset: p.id, intensity: v.intensity, panelAlpha: v.panelAlpha } });
+            }}
+          >
+            {p.label}
+          </Pill>
+        ))}
+        {g.preset === 'custom' ? <span className="cs-tag">Custom</span> : null}
+      </Pills>
+      <div className="cs-spectrum" aria-label={`Spectrum in use: ${sp.join(', ')}`} role="img">
+        <span className="cs-spectrum-bar" style={{ background: `linear-gradient(${g.direction}deg, ${sp[0]}, ${sp[1]} 38%, ${sp[2]} 74%, ${sp[3]})` }} />
+        <span className="cs-spectrum-stops" aria-hidden="true">
+          {sp.map((c, i) => (
+            <span key={i} className="cs-palette-item">
+              <span className="cs-swatch-dot" style={{ background: c }} /> {STOPS[i]} <code>{c}</code>
+            </span>
+          ))}
+        </span>
+      </div>
+      <Pills label="Palette">
+        <Pill selected={g.paletteMode === 'film'} onClick={() => set({ paletteMode: 'film' })}>
+          {a.theme === 'adaptive' ? 'Each film\u2019s palette' : 'XENON palette'}
+        </Pill>
+        <Pill selected={g.paletteMode === 'custom'} onClick={() => set({ paletteMode: 'custom', custom: [...(sp as unknown as [string, string, string, string])] })}>
+          My palette
+        </Pill>
+      </Pills>
+      {g.paletteMode === 'custom' ? (
+        <div className="cs-spectrum-edit" role="group" aria-label="My palette">
+          {STOPS.map((name, i) => (
+            <label key={name} className="cs-spectrum-input">
+              <input
+                type="color"
+                value={g.custom[i]}
+                onChange={(e) => {
+                  const next = [...g.custom] as [string, string, string, string];
+                  next[i] = e.target.value;
+                  set({ custom: next });
+                }}
+              />
+              <span>{name}</span>
+            </label>
+          ))}
+        </div>
+      ) : null}
+      <Range label="Gradient intensity" value={g.intensity} min={0} max={100} unit="%" onChange={(v) => set({ intensity: v })} />
+      <Range label="Ambient colour" value={a.ambient} min={0} max={100} unit="%" onChange={(v) => set({}, { ambient: v })} />
+      <Range label="Gradient direction" value={g.direction} min={0} max={360} unit={'\u00b0'} onChange={(v) => set({ direction: v })} />
+      <Range label="Background blur" value={a.blur} min={0} max={60} unit="px" onChange={(v) => set({}, { blur: v })} />
+      <Range label="Panel transparency" value={100 - g.panelAlpha} min={0} max={60} unit="%" onChange={(v) => set({ panelAlpha: 100 - v })} />
+    </Card>
   );
 }

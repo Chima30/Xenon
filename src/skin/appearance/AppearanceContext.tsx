@@ -36,7 +36,37 @@ export interface SkinPalette {
   ink?: string;
   /** A second, quieter highlight used for metallic detailing and ambient light. */
   secondary?: string;
+  /**
+   * The film's spectral identity, four stops from deep to light (e.g. deep forest, moss, bronze gold, sunlight).
+   * Every gradient in the skin is built from these; the accent above stays the contrast-checked control colour.
+   */
+  spectrum?: Spectrum;
 }
+
+/** Four colours from deep to light that every XENON gradient is built from. */
+export type Spectrum = readonly [string, string, string, string];
+/** XENON's own spectrum, used in the Fixed theme and for videos without a palette. */
+export const XENON_SPECTRUM: Spectrum = ['#070a12', '#1a2336', '#4c6b8a', '#cad9e6'];
+
+export type GradientPreset = 'subtle' | 'cinematic' | 'vivid' | 'custom';
+export interface GradientSettings {
+  preset: GradientPreset;
+  /** How strongly surfaces take the spectrum, 0 to 100. */
+  intensity: number;
+  /** Direction of the linear layers, in degrees. */
+  direction: number;
+  /** Panel opacity, 40 to 100 (100 is opaque). */
+  panelAlpha: number;
+  /** Follow each film's spectrum, or keep one custom spectrum for every film. */
+  paletteMode: 'film' | 'custom';
+  custom: [string, string, string, string];
+}
+/** Curated starting points. Ambient colour and background blur are the existing Appearance settings. */
+export const GRADIENT_PRESETS: Record<Exclude<GradientPreset, 'custom'>, { intensity: number; ambient: number; panelAlpha: number; blur: number }> = {
+  subtle: { intensity: 35, ambient: 20, panelAlpha: 94, blur: 32 },
+  cinematic: { intensity: 60, ambient: 35, panelAlpha: 90, blur: 28 },
+  vivid: { intensity: 85, ambient: 60, panelAlpha: 80, blur: 22 },
+};
 
 /** The colours the skin actually settled on, so a host page can match its surroundings to the player. */
 export interface ResolvedAtmosphere {
@@ -47,6 +77,11 @@ export interface ResolvedAtmosphere {
   secondary: string;
   /** Artwork shown behind the player, when the viewer has it on. */
   image: string | null;
+  /** The spectrum in use, deep to light, and the direction of its linear layers. */
+  spectrum: Spectrum;
+  angle: number;
+  /** Ambient colour strength, 0 to 1. */
+  ambient: number;
 }
 export type PanelArea = 'header' | 'wheel' | 'controls';
 
@@ -70,6 +105,7 @@ export interface Appearance {
   /** Ambient glow strength, 0 to 100. */
   ambient: number;
   panels: Record<PanelArea, PanelStyle>;
+  gradient: GradientSettings;
 }
 
 export const DEFAULT_APPEARANCE: Appearance = {
@@ -86,6 +122,7 @@ export const DEFAULT_APPEARANCE: Appearance = {
   contrast: 'normal',
   ambient: 35,
   panels: { header: 'glass', wheel: 'glass', controls: 'glass' },
+  gradient: { preset: 'cinematic', intensity: 60, direction: 160, panelAlpha: 90, paletteMode: 'film', custom: [...XENON_SPECTRUM] },
 };
 
 export const NAMED_ACCENTS: Record<'lavender' | 'teal' | 'rose', string> = {
@@ -130,7 +167,34 @@ function parseAppearance(v: unknown): Appearance | null {
       wheel: pick(panels.wheel, styles, d.panels.wheel),
       controls: pick(panels.controls, styles, d.panels.controls),
     },
+    gradient: parseGradient(v.gradient),
   };
+}
+
+function parseGradient(v: unknown): GradientSettings {
+  const d = DEFAULT_APPEARANCE.gradient;
+  if (!isRecord(v)) return { ...d, custom: [...d.custom] };
+  const c = Array.isArray(v.custom) ? v.custom : [];
+  return {
+    preset: pick(v.preset, ['subtle', 'cinematic', 'vivid', 'custom'] as const, d.preset),
+    intensity: num(v.intensity, 0, 100, d.intensity),
+    direction: num(v.direction, 0, 360, d.direction),
+    panelAlpha: num(v.panelAlpha, 40, 100, d.panelAlpha),
+    paletteMode: pick(v.paletteMode, ['film', 'custom'] as const, d.paletteMode),
+    custom: [0, 1, 2, 3].map((i) => hex(c[i], d.custom[i]!)) as [string, string, string, string],
+  };
+}
+
+/** A spectrum for a palette that has none: deepened base, base towards its secondary, its glow, its ink. */
+export function spectrumFor(p: SkinPalette | null): Spectrum {
+  if (!p) return XENON_SPECTRUM;
+  if (p.spectrum) return p.spectrum;
+  const b = parseHex(p.base) ?? [10, 14, 23];
+  const s = parseHex(p.secondary ?? p.accent) ?? b;
+  const g = parseHex(p.glow ?? p.accent) ?? s;
+  const ink = parseHex(p.ink ?? '#e7eef6') ?? [231, 238, 246];
+  const mixc = (x: RGB, y: RGB, t: number) => x.map((v, i) => Math.round(v + ((y[i] ?? v) - v) * t)) as RGB;
+  return [toHex(mixc(b, [0, 0, 0], 0.35)), toHex(mixc(b, s, 0.35)), toHex(mixc(g, b, 0.25)), toHex(mixc(ink, g, 0.15))];
 }
 
 function parsePresets(v: unknown): Preset[] | null {
@@ -429,6 +493,17 @@ export function AppearanceProvider({
     const filmSecondary = film?.secondary ? parseHex(film.secondary) : null;
     if (filmSecondary) vars['--cs-secondary'] = toHex(filmSecondary);
 
+    // Spectral gradients: four stops and three dials. They apply with or without the artwork layer.
+    const sp = spectrumIn(a, film);
+    sp.forEach((c, i) => {
+      vars[`--sg-${i + 1}`] = c;
+    });
+    vars['--sg-k'] = a.gradient.intensity / 100;
+    vars['--sg-amb'] = a.ambient / 100;
+    vars['--sg-angle'] = `${a.gradient.direction}deg`;
+    // Written only when moved, so a host's --xenon-panel-opacity keeps working by default.
+    if (a.gradient.panelAlpha !== DEFAULT_APPEARANCE.gradient.panelAlpha) vars['--cs-panel-alpha'] = a.gradient.panelAlpha / 100;
+
     if (a.contrast === 'high') {
       vars['--cs-ice'] = '#ffffff';
       vars['--cs-ice-dim'] = '#e6eaf2';
@@ -464,8 +539,11 @@ export function AppearanceProvider({
       glow: v['--cs-glow'] ?? '#5a78c8',
       secondary: v['--cs-secondary'] ?? '#ada0f8',
       image: derived.active && appearance.source !== 'color' ? derived.imageUrl : null,
+      spectrum: spectrumIn(appearance, activeFilm),
+      angle: appearance.gradient.direction,
+      ambient: appearance.ambient / 100,
     };
-  }, [cssVars, derived, appearance.source]);
+  }, [cssVars, derived, appearance, activeFilm]);
 
   const value = useMemo<AppearanceApi>(
     () => ({
@@ -491,6 +569,12 @@ export function AppearanceProvider({
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+}
+
+/** The spectrum a setting resolves to: the viewer's own, the film's, or XENON's. */
+function spectrumIn(a: Appearance, film: SkinPalette | null): Spectrum {
+  if (a.gradient.paletteMode === 'custom') return a.gradient.custom;
+  return spectrumFor(film);
 }
 
 /** For the "solid colour" source: the chosen colour becomes the art; the tint is a darkened copy so panels stay dark. */

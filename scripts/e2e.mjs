@@ -1381,6 +1381,86 @@ check('Reduced motion: no glint and no gliding needle; the readings simply chang
 await page.emulateMedia({ reducedMotion: 'no-preference' });
 await axeAudit(page, 'Lightmeter plate');
 
+
+/* ---------- 24. Spectral gradients ---------- */
+const spectral = () =>
+  page.evaluate(() => {
+    const root = document.querySelector('.cs-root');
+    const cs = getComputedStyle(root);
+    const hex = (v) => {
+      const m = v.match(/\d+/g);
+      return m ? '#' + m.slice(0, 3).map((n) => Number(n).toString(16).padStart(2, '0')).join('') : v;
+    };
+    return {
+      stops: [1, 2, 3, 4].map((i) => hex(cs.getPropertyValue(`--sg-${i}`).trim())),
+      page: hex(getComputedStyle(document.documentElement).getPropertyValue('--page-sg-2').trim()),
+      shell: cs.backgroundImage,
+      dock: getComputedStyle(document.querySelector('.cs-row')).backgroundImage,
+      video: getComputedStyle(document.querySelector('video')).filter + '|' + getComputedStyle(document.querySelector('video')).backgroundImage,
+    };
+  });
+for (const [film, stops] of [
+  ['sintel', ['#120d1d', '#463057', '#bf5b3f', '#f4b06b']],
+  ['tears-of-steel', ['#071420', '#19445c', '#36a4bc', '#c5e6ef']],
+  ['big-buck-bunny', ['#071c17', '#204a37', '#a47835', '#e2d78a']],
+]) {
+  await open(film);
+  const s = await spectral();
+  check(
+    `Spectral gradients on ${film}: its four stops drive the layered shell, the dock and the page; the video is untouched`,
+    stops.every((c, i) => s.stops[i] === c) && s.page === stops[1] && (s.shell.match(/gradient/g) ?? []).length >= 3 && (s.dock.match(/gradient/g) ?? []).length >= 3 && s.video === 'none|none',
+    JSON.stringify(s.stops),
+  );
+  await shot(page, `spectral-${film}`);
+}
+await wake();
+await page.locator('.cs-reel').click();
+await page.waitForTimeout(500);
+await page.keyboard.press('Home');
+await page.waitForTimeout(500);
+await page.keyboard.press('Enter');
+await page.waitForTimeout(150);
+await page.keyboard.press('Enter');
+await page.waitForTimeout(400);
+const xMid = (await spectral()).stops[1];
+await page.waitForTimeout(1300);
+const xEnd = (await spectral()).stops[1];
+check('Switching films crossfades the spectrum (Bunny’s moss to Sintel’s plum) without reloading the player', xMid !== '#204a37' && xMid !== '#463057' && xEnd === '#463057', `${xMid} → ${xEnd}`);
+await wake();
+await page.locator('button[aria-label="Appearance settings"]').click();
+await page.waitForTimeout(600);
+const sgCard = page.getByRole('region', { name: 'Spectral gradients' });
+await sgCard.getByRole('button', { name: 'Vivid' }).click();
+await page.waitForTimeout(300);
+await sgCard.getByRole('button', { name: 'My palette' }).click();
+await page.waitForTimeout(200);
+const controls = await sgCard.evaluate((el) => ({
+  sliders: [...el.querySelectorAll('input[type="range"]')].map((i) => i.closest('label')?.textContent?.split(':')[0]),
+  colours: el.querySelectorAll('input[type="color"]').length,
+}));
+await page.keyboard.press('Escape');
+await page.reload();
+await page.waitForSelector('.cs-root');
+await page.waitForTimeout(600);
+const kept = await page.evaluate(() => {
+  const a = JSON.parse(localStorage.getItem('cinema-skin:v1:appearance') ?? '{}');
+  const r = document.querySelector('.cs-root').style;
+  return { preset: a.gradient?.preset, mode: a.gradient?.paletteMode, k: r.getPropertyValue('--sg-k'), alpha: r.getPropertyValue('--cs-panel-alpha') };
+});
+check(
+  'Appearance Studio: presets, film or own palette with four colour stops, and sliders for intensity, ambient colour, direction, blur and panel transparency, saved across a reload',
+  controls.colours === 4 && ['Gradient intensity', 'Ambient colour', 'Gradient direction', 'Background blur', 'Panel transparency'].every((n) => controls.sliders.includes(n)) && kept.mode === 'custom' && kept.k === '0.85' && kept.alpha === '0.8',
+  JSON.stringify({ controls, kept }),
+);
+await openLab();
+await page.locator('.seg-btn', { hasText: 'High Contrast Test' }).click();
+await page.waitForTimeout(300);
+const hcSurface = await page.evaluate(() => ({ shell: getComputedStyle(document.querySelector('.cs-root')).backgroundImage, dock: getComputedStyle(document.querySelector('.cs-row')).backgroundImage }));
+check('High contrast: flat, opaque surfaces with no gradients', hcSurface.shell === 'none' && !/gradient/.test(hcSurface.dock), JSON.stringify(hcSurface));
+await page.locator('.seg-btn', { hasText: 'Default' }).click();
+await page.evaluate(() => localStorage.removeItem('cinema-skin:v1:appearance'));
+await axeAudit(page, 'spectral surfaces');
+
 check('No uncaught page errors', errors.length === 0, errors.slice(0, 3).join(' | '));
 
 await browser.close();

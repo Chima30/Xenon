@@ -139,6 +139,32 @@ See `ACCESSIBILITY_CHECKLIST.md` for what still needs automated and manual testi
 - **My Atlas**: a strip of frames with names, notes, Play and Preview actions, and a runtime map.
 - **Skin Studio** (`#/studio`, demo only): live presets, colours, radius, panel opacity and blur, font and control size, player width, and copyable CSS.
 
+## Spectral gradients (feature/spectral-gradients)
+
+Every surface is now layered from one four-stop spectrum per film (deep, mid, light accent, highlight):
+
+| Film | Identity | Spectrum |
+| --- | --- | --- |
+| Big Buck Bunny | Woodland Gold | `#071C17` `#204A37` `#A47835` `#E2D78A` |
+| Sintel | Ember Twilight | `#120D1D` `#463057` `#BF5B3F` `#F4B06B` |
+| Tears of Steel | Arctic Cyan | `#071420` `#19445C` `#36A4BC` `#C5E6EF` |
+
+- **Recipes, not one gradient** (`src/skin/spectral.css`). Each surface uses the recipe that fits it, so adjacent surfaces share one colour identity at different strengths:
+  - **Shell** (the player body): a multi-stop linear field plus two soft radial blooms.
+  - **Glaze:** a translucent spectral tint layered over each surface's existing background, so Glass, Solid and Clear and panel transparency still apply and text keeps its dark backing.
+  - **Edge:** the thin metallic highlight on the Photon Frame rim and the dock.
+  - **Fill:** progress and level fills.
+  - **Grain:** a faint brushed-metal texture on hardware surfaces.
+- **Where:** the page background (which continues the player's spectrum), the Photon Frame, the navigation wheel and its card, the Playback Pod, the dock, the timeline, the Lightmeter, the Film Slate and scene cards, My Atlas, settings panels, dialogs, menus, tooltips, the Time Lens and the Appearance Studio. The video is never tinted or filtered.
+- **Film switching:** the four stops are registered custom properties, so a switch crossfades the player and the page together over 1.2 s without touching playback. With reduced motion the change is immediate.
+- **Appearance Studio › Spectral gradients:**
+  - **Presets:** Subtle, Cinematic and Vivid.
+  - **Palette:** each film's palette, or your own four colours.
+  - **Sliders:** gradient intensity, ambient colour, gradient direction, background blur and panel transparency.
+  - **Accent:** custom accent colours are in the Accent card.
+  - **Saving:** everything is saved in localStorage.
+- **Accessibility:** a unit test composites the strongest preset over a fully white frame and checks each film's text stays at 4.5:1 or better. High contrast keeps flat, opaque surfaces. Forced colours keeps the system's. Browsers without CSS colour mixing keep the previous solid surfaces.
+
 ## Lightmeter and animated optical corners (feature/lightmeter)
 
 - **Lightmeter.** A slim plate under the picture reads the frame on screen the way a cinematographer's meter would. The picture keeps exactly 16:9; the plate sits below it.
