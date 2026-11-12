@@ -139,6 +139,24 @@ See `ACCESSIBILITY_CHECKLIST.md` for what still needs automated and manual testi
 - **My Atlas**: a strip of frames with names, notes, Play and Preview actions, and a runtime map.
 - **Skin Studio** (`#/studio`, demo only): live presets, colours, radius, panel opacity and blur, font and control size, player width, and copyable CSS.
 
+## Lightmeter and animated optical corners (feature/lightmeter)
+
+- **Lightmeter.** A slim plate under the picture reads the frame on screen the way a cinematographer's meter would. The picture keeps exactly 16:9; the plate sits below it.
+  - **The scale** runs from −3 to +3 stops, painted with the frame's own tones, each placed where its brightness falls.
+  - **The needle** is the frame's key: the average brightness against middle grey, in stops (EV).
+  - **The reading** adds warm, neutral or cool and the colour temperature in kelvin. It shows "12000+ K" or "2000− K" where the approximation stops being reliable.
+  - **Sampling:** it reads a 48×27 copy of the frame every 1.5 s while playing, and once on pause, seek and load. Nothing runs while the tab is hidden.
+  - **Unreadable video:** where a host does not allow its pixels to be read (no CORS), it says "No reading" instead of guessing. Wikimedia files are now requested with CORS so they can be read; the archive.org fallback is left as it was.
+- **Animated optical corners**, driven by the picture, never by an idle loop:
+  - **Light catch:** they take the frame's key light, the lamp's coral in a warm room and steel blue in a blue street, and glide between them.
+  - **Glint:** on a cut (a real change of light) one glint runs along each bracket, clockwise round the frame.
+  - **Lens iris:** each corner's lens is a small hexagonal iris that opens in dark frames and stops down in bright ones.
+  - **Unchanged states:** saving still pulses lavender; high contrast stays white and still.
+- **Sizes and preferences:**
+  - **Small players:** phone keeps the scale and the exposure; the smallest player and fullscreen drop the plate.
+  - **Reduced motion:** no glint and no gliding needle.
+  - **Screen readers:** the meter is a labelled image (for example "Light meter: −1.9 EV, warm, 4000 K") that does not announce every reading.
+
 ## Photon Frame (feature/photon-frame)
 
 XENON's signature housing: a 1px machined rim on the player's own radius and four **optical corner markers**. Each marker is a bracket that follows the rounded corner, fades along its arms, and has a small lens index inside the curve. It is CSS only (`src/skin/frame/`), aria-hidden, takes no clicks, and nothing animates continuously.

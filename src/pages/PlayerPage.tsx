@@ -31,6 +31,9 @@ function FilmMedia({ film, variant }: { film: Film; variant: Variant }) {
       poster={film.frameAt(film.duration ? film.duration * 0.3 : 30, 960) ?? undefined}
       playsInline
       preload="metadata"
+      // Wikimedia serves its files with CORS, so the Lightmeter and the slate may read the picture. Other hosts are
+      // left as they are: if they do not allow it, the meter says "No reading" instead of breaking playback.
+      crossOrigin={variant.server === 'commons' ? 'anonymous' : undefined}
     />
   );
 }

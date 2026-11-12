@@ -1131,6 +1131,9 @@ await page.evaluate(() => {
 });
 await page.waitForTimeout(1200);
 await wake();
+// A cut while playing brightens the corners for its glint; sample the resting state, between glints.
+await page.waitForFunction(() => !document.querySelector('.cs-photon').dataset.glint, null, { timeout: 5000 }).catch(() => {});
+await page.waitForTimeout(450);
 const fPlay = await frame();
 await page.mouse.move(5, 5);
 await page.waitForTimeout(4300);
@@ -1143,10 +1146,17 @@ check(
 await page.evaluate(() => document.querySelector('video').pause());
 await page.waitForTimeout(1600);
 const fPause = await frame();
+// Paused corners carry the frame's own key light, as the Lightmeter reads it (the film's accent if unreadable).
+const keyLight = await page.evaluate(() => {
+  const v = document.querySelector('.cs-root').style.getPropertyValue('--cs-light').trim();
+  if (!v) return null;
+  const n = parseInt(v.slice(1), 16);
+  return `rgb(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255})`;
+});
 check(
-  'Paused: the optical corners light in turn (pause-to-freeze) in the film’s accent and stay lit; the Film Slate appears',
-  fPause.playback === 'paused' && fPause.animation === 'pf-freeze' && fPause.opacity > 0.9 && fPause.colour === 'rgb(92, 211, 255)' && (await page.locator('.cs-slate').count()) === 1,
-  JSON.stringify(fPause),
+  'Paused: the optical corners light in turn (pause-to-freeze) in the frame’s own key light and stay lit; the Film Slate appears',
+  fPause.playback === 'paused' && fPause.animation === 'pf-freeze' && fPause.opacity > 0.9 && fPause.colour === (keyLight ?? 'rgb(92, 211, 255)') && (await page.locator('.cs-slate').count()) === 1,
+  JSON.stringify({ ...fPause, keyLight }),
 );
 await shot(page, 'photon-paused');
 await wake();
@@ -1157,7 +1167,7 @@ await page.waitForTimeout(1000);
 const fAfter = await frame();
 check(
   'Saving a moment pulses the frame in the Moment Atlas lavender, then returns to the film’s colour',
-  fSaved.flash !== null && fSaved.colour === 'rgb(173, 160, 248)' && fAfter.flash === null && fAfter.colour === 'rgb(92, 211, 255)',
+  fSaved.flash !== null && fSaved.colour === 'rgb(173, 160, 248)' && fAfter.flash === null && fAfter.colour === (keyLight ?? 'rgb(92, 211, 255)'),
   `${fSaved.colour} → ${fAfter.colour}`,
 );
 await page.locator('.cs-pod-play').focus();
@@ -1285,6 +1295,91 @@ const fontOk = await page.evaluate(() =>
   [...document.querySelectorAll('.cs-root button, .cs-root .cs-slate *, .cs-root .rail *, .cs-root .cs-time')].every((el) => /Space Grotesk/.test(getComputedStyle(el).fontFamily)),
 );
 check('Space Grotesk throughout the player chrome', fontOk);
+
+
+/* ---------- 23. Lightmeter and the animated optical corners ---------- */
+const meter = () =>
+  page.evaluate(() => {
+    const root = document.querySelector('.cs-root');
+    const plate = document.querySelector('.cs-plate');
+    const stage = document.querySelector('.cs-stage').getBoundingClientRect();
+    const pr = plate.getBoundingClientRect();
+    const corner = document.querySelector('.cs-photon-corner');
+    return {
+      reading: plate.dataset.reading,
+      label: document.querySelector('.cs-lm').getAttribute('aria-label'),
+      read: document.querySelector('.cs-lm-read').innerText.replace(/\s+/g, ' ').trim(),
+      needle: parseFloat(document.querySelector('.cs-lm-needle')?.style.left ?? 'NaN'),
+      scale: getComputedStyle(document.querySelector('.cs-lm-scale')).backgroundImage,
+      light: root.style.getPropertyValue('--cs-light'),
+      ap: Number(root.style.getPropertyValue('--pf-ap')),
+      corner: getComputedStyle(corner).borderTopColor,
+      glint: document.querySelector('.cs-photon').dataset.glint ?? null,
+      glintAnim: getComputedStyle(corner, '::before').animationName,
+      ratio: Math.round((stage.width / stage.height) * 1000) / 1000,
+      plateH: Math.round(pr.height),
+      below: pr.top >= stage.bottom - 1,
+      display: getComputedStyle(plate).display,
+    };
+  });
+await open('tears-of-steel');
+await page.waitForFunction(() => (document.querySelector('video')?.readyState ?? 0) >= 2, null, { timeout: 30000 });
+await seekTo(174);
+await page.waitForFunction(() => document.querySelector('.cs-plate')?.dataset.reading === 'on', null, { timeout: 8000 }).catch(() => {});
+await page.waitForTimeout(1300);
+const warmRoom = await meter();
+check(
+  'Lightmeter: a 40px plate under a picture that stays exactly 16:9; it reads the real frame (exposure, warmth, colour temperature) and paints the scale with its tones',
+  warmRoom.reading === 'on' && warmRoom.plateH === 40 && warmRoom.below && warmRoom.ratio === 1.778 && /^Light meter: [\u2212+]?\d\.\d EV, warm, \d{4} K$/.test(warmRoom.label ?? '') && /WARM \d{4} K/.test(warmRoom.read) && /linear-gradient/.test(warmRoom.scale) && warmRoom.needle > 0 && warmRoom.needle < 50,
+  JSON.stringify(warmRoom),
+);
+check('The optical corners catch the frame\u2019s key light, and the lens irises open for a dark frame', warmRoom.light !== '' && warmRoom.ap > 0.7, JSON.stringify({ light: warmRoom.light, ap: warmRoom.ap, corner: warmRoom.corner }));
+await shot(page, 'lightmeter-warm');
+await seekTo(151);
+const glinted = await page
+  .waitForFunction(() => !!document.querySelector('.cs-photon')?.dataset.glint, null, { timeout: 3000, polling: 16 })
+  .then(() => true)
+  .catch(() => false);
+const atCut = await meter();
+await page.waitForTimeout(1600);
+const blueStreet = await meter();
+check(
+  'A cut: one glint runs round the corner brackets, the needle glides to the new exposure and the corners turn to the new light',
+  glinted && /pf-glint/.test(atCut.glintAnim) && blueStreet.glint === null && /COOL/.test(blueStreet.read) && blueStreet.needle < warmRoom.needle && blueStreet.light !== warmRoom.light && blueStreet.corner !== warmRoom.corner,
+  JSON.stringify({ glinted, anim: atCut.glintAnim, read: blueStreet.read, needle: [warmRoom.needle, blueStreet.needle], corner: [warmRoom.corner, blueStreet.corner] }),
+);
+await shot(page, 'lightmeter-cool');
+for (const [size, h, shown] of [
+  ['Tablet', 40, 'grid'],
+  ['Phone', 32, 'grid'],
+  ['Tiny', 0, 'none'],
+]) {
+  await setSize(size);
+  await page.waitForTimeout(300);
+  const m = await meter();
+  const ox = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  check(`Lightmeter @ ${size}: ${shown === 'none' ? 'withdrawn on the smallest player' : `${h}px plate, nothing overflows`}`, m.display === shown && m.plateH === h && ox <= 0, JSON.stringify({ display: m.display, h: m.plateH, read: m.read, ox }));
+}
+await setSize('Desktop');
+await page.locator('.cs-pod-play').focus().catch(() => {});
+await page.keyboard.press('f');
+await page.waitForTimeout(700);
+const fsMeter = await page.evaluate(() => ({ fs: !!document.fullscreenElement, plate: getComputedStyle(document.querySelector('.cs-plate')).display }));
+await page.keyboard.press('f');
+await page.waitForTimeout(500);
+check('Fullscreen: the plate steps aside with the frame', fsMeter.fs && fsMeter.plate === 'none', JSON.stringify(fsMeter));
+await page.emulateMedia({ reducedMotion: 'reduce' });
+await page.reload();
+await page.waitForSelector('.cs-plate');
+await page.waitForFunction(() => (document.querySelector('video')?.readyState ?? 0) >= 2, null, { timeout: 30000 });
+await seekTo(174);
+await page.waitForTimeout(900);
+await seekTo(151);
+await page.waitForTimeout(600);
+const stillMeter = await page.evaluate(() => ({ glint: document.querySelector('.cs-photon').dataset.glint ?? null, needleTransition: getComputedStyle(document.querySelector('.cs-lm-needle')).transitionDuration }));
+check('Reduced motion: no glint and no gliding needle; the readings simply change', stillMeter.glint === null && /^0s/.test(stillMeter.needleTransition), JSON.stringify(stillMeter));
+await page.emulateMedia({ reducedMotion: 'no-preference' });
+await axeAudit(page, 'Lightmeter plate');
 
 check('No uncaught page errors', errors.length === 0, errors.slice(0, 3).join(' | '));
 

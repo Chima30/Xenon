@@ -34,6 +34,7 @@ import { PlaybackPod } from './dock/PlaybackPod';
 import { SeekLens } from './dock/SeekLens';
 import { TailSlate } from './slate/TailSlate';
 import { PhotonFrame } from './frame/PhotonFrame';
+import { Lightmeter } from './frame/Lightmeter';
 import { formatTime } from './format';
 import { useWidthTier, type Tier } from './hooks';
 import {
@@ -779,6 +780,8 @@ function SkinInner({
                 {status}
               </p>
             </div>
+
+            <Lightmeter mediaKey={mediaKey} />
 
             {/* Panels live beside the stage, not inside it: over the video on wide players, under it on small ones. */}
             <SettingsPanel

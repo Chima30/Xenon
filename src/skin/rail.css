@@ -42,9 +42,10 @@
 /* Wide players keep one stage height in every mode and every rail state, so switching modes, opening the
    drawer or collapsing the rail never makes the page jump. In Explore the picture gives the rail its room. */
 @container cs (min-width: 761px) {
+  /* The picture keeps exactly 16:9; the Lightmeter plate (when shown) sits under it. */
   .cs-stagewrap,
   .cs-root[data-mode] .cs-stagewrap {
-    height: 56.25cqi;
+    height: calc(56.25cqi + var(--cs-plate-h, 0px));
   }
   .cs-stage,
   .cs-root[data-mode='explore'] .cs-stage {
