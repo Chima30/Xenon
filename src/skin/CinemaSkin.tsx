@@ -7,11 +7,8 @@ import {
   Hotkey,
   MuteButton,
   PiPButton,
-  PlayButton,
-  SeekButton,
   StatusAnnouncer,
   Time,
-  TimeSlider,
   VolumeSlider,
   useMedia,
 } from '@videojs/react';
@@ -27,11 +24,15 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   type ReactNode,
 } from 'react';
-import { AppearanceProvider, useAppearance, type SkinPalette } from './appearance/AppearanceContext';
+import { AppearanceProvider, useAppearance, type ResolvedAtmosphere, type SkinPalette } from './appearance/AppearanceContext';
 import { Atmosphere } from './appearance/Atmosphere';
 import { ClipPanel, EMPTY_CLIP, type Clip } from './ClipPanel';
 import { DiagnosticsDialog, type DiagRow } from './DiagnosticsDialog';
-import { clamp, formatTime } from './format';
+import { SceneDial } from './dock/SceneDial';
+import { Timeline, type ScenePreview, type ThumbnailAt, type TimelineMarker } from './dock/Timeline';
+import { TimeLens } from './dock/TimeLens';
+import { Transport } from './dock/Transport';
+import { formatTime } from './format';
 import { useWidthTier, type Tier } from './hooks';
 import {
   BookmarkIcon,
@@ -40,31 +41,34 @@ import {
   ChevronLeftIcon,
   ClipIcon,
   CompassIcon,
+  DialIcon,
   ExitFullscreenIcon,
   FullscreenIcon,
   HelpIcon,
+  LensIcon,
   MoreIcon,
   MuteIcon,
   PaletteIcon,
-  PauseIcon,
   PipIcon,
   PlayIcon,
   PulseIcon,
-  ReplayIcon,
+  ReelIcon,
   ScrimIcon,
-  SeekBackIcon,
-  SeekForwardIcon,
   SettingsIcon,
   VolumeIcon,
 } from './icons';
 import { KeymapDialog } from './KeymapDialog';
 import { FloatingPanel } from './FloatingPanel';
-import { PrefsProvider, usePrefs } from './prefs/PrefsContext';
+import { PauseCanvas } from './PauseCanvas';
+import { PrefsProvider, usePrefs, type DockLayout } from './prefs/PrefsContext';
+import { ReelHandle } from './ReelHandle';
+import { sceneIndexAt, sceneKind, type SkinScene } from './scenes';
 import { SettingsPanel, type ChoiceSet, type DownloadInfo, type SettingsTab, type SkipSegment } from './SettingsPanel';
 import { CaptionOverlay } from './subtitles/CaptionOverlay';
 import type { AutoSync } from './subtitles/SubtitleCards';
 import { SubtitleProvider, useSubtitles } from './subtitles/SubtitleContext';
 import { TranscriptPanel } from './subtitles/TranscriptPanel';
+import { TimePortal, type PortalStop } from './TimePortal';
 import { loadPrefs, savePrefs, SCRIM_MODES, type ScrimMode } from './storage';
 import '@fontsource-variable/space-grotesk';
 import './tokens.css';
@@ -73,19 +77,22 @@ import './panels.css';
 import './appearance/appearance.css';
 import './polish.css';
 import './instrument.css';
+import './hardware.css';
+
+export type { ScenePreview, ThumbnailAt, TimelineMarker } from './dock/Timeline';
+export type { SkinScene } from './scenes';
 
 export type SkinMode = 'watch' | 'explore' | 'remember';
 
-export interface TimelineMarker {
-  time: number;
-  kind: 'moment' | 'anchor' | 'scene';
-  label: string;
-}
-
-/** What the timeline shows while the pointer is over a position: a real still and a name, when the host has them. */
-export interface ScenePreview {
-  image?: string | null;
-  label?: string;
+/** A request to show stops in the Time Portal. Nothing changes until the viewer chooses the primary action. */
+export interface PortalRequest {
+  stops: PortalStop[];
+  index: number;
+  opener?: HTMLElement | null;
+  /** Label for the primary action per stop; null hides it. Defaults to "Jump here". */
+  actionLabel?: (stop: PortalStop) => string | null;
+  /** What the primary action does. Defaults to a jump that leaves a Return Anchor. */
+  onAction?: (stop: PortalStop) => void;
 }
 
 interface SkinContextValue {
@@ -95,6 +102,10 @@ interface SkinContextValue {
   announce: (message: string) => void;
   /** Layout tier derived from the player's real container width. */
   tier: Tier;
+  openPortal: (request: PortalRequest) => void;
+  closePortal: () => void;
+  /** Closes the wheel drawer in Watch mode (no effect in Explore, where the wheel is a column). */
+  closeNavigation: () => void;
 }
 
 const SkinContext = createContext<SkinContextValue | null>(null);
@@ -112,15 +123,15 @@ export interface CinemaSkinProps {
   subtitle?: string;
   /** Identifies the film for per-film storage of uploaded subtitles. Defaults to a shared key. */
   mediaKey?: string;
-  /** Left rail shown in Explore mode (the navigation wheel). Optional: omit for a plain one-video embed. */
+  /** The navigation wheel. Shown as a column in Explore and as a drawer from the reel handle in Watch. Optional. */
   railSlot?: ReactNode;
   /** Panel shown under the video in Remember mode (the moment atlas). Optional. */
   atlasSlot?: ReactNode;
   /** Extra buttons for the top-right toolbar. On very small players they move into the More menu. */
   topActions?: ReactNode;
-  /** Ticks drawn over the seek bar. They never take pointer events. */
+  /** Saved moments and the Return Anchor, drawn on the timeline. Scene cuts come from `scenes`. */
   markers?: TimelineMarker[];
-  /** When set, a "Save moment" button appears in the control bar. */
+  /** When set, a "Save moment" button appears in the control bar and on the Pause Canvas. */
   onSaveMoment?: () => void;
   /** Extra rows for the Player health dialog. */
   diagnosticsRows?: DiagRow[];
@@ -145,17 +156,28 @@ export interface CinemaSkinProps {
   /** Called to build a shareable link for a clip; the share button is omitted when not provided. */
   onShareClip?: (start: number, end: number) => void;
   initialClip?: Clip;
-  /** Called when the viewer uses a skip button or jumps via the transcript. */
+  /** Called for every intentional jump (scenes, lens, skip, transcript), so the host can keep a Return Anchor. */
   onJump?: (time: number, label: string) => void;
+  /** The Return Anchor left by the last jump, offered on the Pause Canvas, Scene Dial and Time Portal. */
+  returnAnchor?: { time: number; onReturn: () => void } | null;
   /** Licensed artwork for the selected film. Used only when the viewer turns Adaptive atmosphere on. */
   artwork?: string | null;
   /** Credit line shown in the Appearance settings, e.g. "Still frame from Sintel (CC BY 3.0)". */
   artworkLabel?: string;
-  /** The film's signature colours. Every surface, control and highlight is re-coloured from them. */
+  /** The film's signature colours. In the Adaptive theme every surface and control is re-coloured from them. */
   palette?: SkinPalette | null;
-  /** Content floated over the stage, above the controls (the host uses it for the Time Portal). */
+  /** Called whenever the player's atmosphere changes, so the host page can match its surroundings. */
+  onAtmosphere?: (atmosphere: ResolvedAtmosphere) => void;
+  /**
+   * Scenes of this video: authored chapters, or plainly labelled sections. They drive the scene cuts on the
+   * timeline, the Scene Dial, the Pause Canvas and the Time Lens. Omit them and those features step aside.
+   */
+  scenes?: SkinScene[];
+  /** Returns a real still (from thumbnail metadata or a permitted frame service) for a second of the video. */
+  thumbnailAt?: ThumbnailAt;
+  /** Content floated over the stage, above the controls. */
   stageSlot?: ReactNode;
-  /** Returns a still and a name for a timeline position. Omit it and the timeline shows the time alone. */
+  /** Overrides the timeline hover preview. */
   scenePreview?: (time: number) => ScenePreview | null;
 
   /**
@@ -173,12 +195,14 @@ const SCRIM_LABEL: Record<ScrimMode, string> = {
   theater: 'Theater',
 };
 
-type PanelName = 'settings' | 'transcript' | 'clip' | 'more';
+type PanelName = 'settings' | 'transcript' | 'clip' | 'more' | 'dial';
 
 function isEditable(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
   return target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName);
 }
+
+const NO_SCENES: SkinScene[] = [];
 
 export function CinemaSkin(props: CinemaSkinProps) {
   return (
@@ -213,6 +237,11 @@ function SkinInner({
   onShareClip,
   initialClip,
   onJump,
+  returnAnchor,
+  artwork,
+  onAtmosphere,
+  scenes = NO_SCENES,
+  thumbnailAt,
   videoOverlay,
   stageSlot,
   scenePreview,
@@ -223,7 +252,10 @@ function SkinInner({
   const look = useAppearance();
   const view = usePrefs();
   const wrapRef = useRef<HTMLDivElement>(null);
-  const { tier } = useWidthTier(wrapRef);
+  const railRef = useRef<HTMLElement>(null);
+  const reelRef = useRef<HTMLButtonElement>(null);
+  const { tier, width: stageWidth } = useWidthTier(wrapRef);
+  const layout: DockLayout = view.prefs.dockLayout;
 
   const [mode, setModeState] = useState<SkinMode>(defaultMode);
   const [scrim, setScrim] = useState<ScrimMode>(() => loadPrefs().scrim);
@@ -234,13 +266,20 @@ function SkinInner({
   const [settingsTab, setSettingsTab] = useState<SettingsTab>('playback');
   const [panelOpener, setPanelOpener] = useState<HTMLElement | null>(null);
   const [clip, setClip] = useState<Clip>(initialClip ?? EMPTY_CLIP);
+  const [lens, setLens] = useState<{ opener: HTMLElement | null } | null>(null);
+  const [drawer, setDrawer] = useState(false);
+  const [portal, setPortal] = useState<PortalRequest | null>(null);
   const clipRun = useRef(false); // true while "Play clip" is running without looping
 
   const hasModes = Boolean(railSlot || atlasSlot);
   const effectiveMode: SkinMode =
     mode === 'explore' && !railSlot ? 'watch' : mode === 'remember' && !atlasSlot ? 'watch' : mode;
+  const drawerOpen = drawer && effectiveMode === 'watch' && Boolean(railSlot);
 
-  const setMode = useCallback((m: SkinMode) => setModeState(m), []);
+  const setMode = useCallback((m: SkinMode) => {
+    setModeState(m);
+    setDrawer(false);
+  }, []);
   const announce = useCallback((message: string) => {
     // Clear first so repeating the same message is announced again.
     setStatus('');
@@ -259,6 +298,12 @@ function SkinInner({
     return () => window.clearTimeout(t);
   }, [status]);
 
+  // Let the host page wear the same atmosphere as the player.
+  const resolved = look.resolved;
+  useEffect(() => {
+    onAtmosphere?.(resolved);
+  }, [resolved, onAtmosphere]);
+
   /* ---- panels ---- */
   const openPanel = (name: PanelName, opener?: HTMLElement | null) => {
     setPanelOpener(opener ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null));
@@ -273,6 +318,47 @@ function SkinInner({
     if (tab) setSettingsTab(tab);
     openPanel('settings', opener);
   };
+  const toggleLens = (opener: HTMLElement | null) => {
+    if (lens) setLens(null);
+    else {
+      setPanel(null);
+      setLens({ opener });
+    }
+  };
+
+  /* ---- wheel drawer (Watch mode) ---- */
+  const toggleDrawer = useCallback(() => setDrawer((d) => !d), []);
+  const closeNavigation = useCallback(() => setDrawer(false), []);
+  const drawerWasOpen = useRef(false);
+  useEffect(() => {
+    const rail = railRef.current;
+    if (drawerOpen) {
+      drawerWasOpen.current = true;
+      // Move focus onto the wheel's current frame (or the first control) once it is no longer inert.
+      requestAnimationFrame(() => {
+        const target =
+          rail?.querySelector<HTMLElement>('.wheel-item[tabindex="0"]') ?? rail?.querySelector<HTMLElement>('button, [tabindex="0"]');
+        target?.focus({ preventScroll: true });
+      });
+      const onDown = (e: PointerEvent) => {
+        const t = e.target as Element | null;
+        if (!t || rail?.contains(t) || t.closest('.cs-reel, .tp, .cs-panel, dialog')) return;
+        setDrawer(false);
+      };
+      document.addEventListener('pointerdown', onDown, true);
+      return () => document.removeEventListener('pointerdown', onDown, true);
+    }
+    if (drawerWasOpen.current) {
+      drawerWasOpen.current = false;
+      // Focus returns to the reel handle that opened it (unless the viewer has moved on to something else).
+      const active = document.activeElement;
+      if (!active || active === document.body || rail?.contains(active)) reelRef.current?.focus({ preventScroll: true });
+    }
+  }, [drawerOpen]);
+
+  /* ---- Time Portal ---- */
+  const openPortal = useCallback((request: PortalRequest) => setPortal(request), []);
+  const closePortal = useCallback(() => setPortal(null), []);
 
   /* ---- clip looping: checked on a short interval, tighter than the 4 Hz timeupdate ---- */
   const clipEnd = clip.end;
@@ -319,11 +405,50 @@ function SkinInner({
     announce('Appearance, accessibility and dock settings restored to defaults');
   };
 
+  /** Every intentional jump goes through the host (which keeps the Return Anchor and announces it), or seeks here. */
+  const jump = (time: number, label: string) => {
+    if (onJump) onJump(time, label);
+    else {
+      void store.seek(time);
+      announce(`Jumped to ${label}, ${formatTime(time)}`);
+    }
+  };
+
+  /** Scene previews from the dial, the lens and the Pause Canvas all open the same Time Portal. */
+  const kind = sceneKind(scenes);
+  const previewScene = (index: number, opener: HTMLElement | null) =>
+    openPortal({
+      stops: scenes.map((s) => ({
+        time: s.start,
+        end: s.end,
+        title: s.title,
+        image: thumbnailAt ? thumbnailAt(s.start + 1, 500) : null,
+        kind,
+        note: s.description,
+      })),
+      index,
+      opener,
+    });
+
   const onKeyDown = (e: ReactKeyboardEvent<HTMLDivElement>) => {
     if (isEditable(e.target) || e.ctrlKey || e.metaKey || e.altKey) return;
-    if (e.key === '?') {
+    const inPanel = (e.target as HTMLElement).closest('.cs-panel, .cs-atlas, .tp, .cs-lens');
+    if (e.key === 'Escape' && drawerOpen) {
+      e.preventDefault();
+      setDrawer(false);
+    } else if (e.key === '?') {
       e.preventDefault();
       setHelpOpen(true);
+    } else if ((e.key === 't' || e.key === 'T') && !inPanel) {
+      e.preventDefault();
+      toggleLens(document.activeElement instanceof HTMLElement ? document.activeElement : null);
+    } else if ((e.key === 'w' || e.key === 'W') && railSlot && !inPanel) {
+      e.preventDefault();
+      if (effectiveMode === 'explore') railRef.current?.querySelector<HTMLElement>('.wheel-item[tabindex="0"]')?.focus();
+      else {
+        if (effectiveMode !== 'watch') setModeState('watch');
+        toggleDrawer();
+      }
     } else if ((e.key === 'c' || e.key === 'C') && !(e.target as HTMLElement).closest('.cs-panel, .cs-rail, .cs-atlas')) {
       e.preventDefault();
       if (subs.tracks.length === 0) announce('No subtitles available. Open the subtitle settings to add some.');
@@ -334,14 +459,15 @@ function SkinInner({
     }
   };
 
-  const ctx = useMemo<SkinContextValue>(() => ({ mode: effectiveMode, setMode, announce, tier }), [effectiveMode, setMode, announce, tier]);
-
-  const jump = (time: number, label: string) => {
-    if (onJump) onJump(time, label);
-    else void store.seek(time);
-  };
+  const ctx = useMemo<SkinContextValue>(
+    () => ({ mode: effectiveMode, setMode, announce, tier, openPortal, closePortal, closeNavigation }),
+    [effectiveMode, setMode, announce, tier, openPortal, closePortal, closeNavigation],
+  );
 
   const reduced = view.prefs.reducedMotion;
+  const hasScenes = scenes.length > 0;
+  const tiny = tier === 'tiny' || tier === 'micro';
+  const busy = Boolean(portal || lens || drawerOpen || panel);
 
   return (
     <SkinContext.Provider value={ctx}>
@@ -352,6 +478,9 @@ function SkinInner({
         data-atm={look.derived.active ? 'on' : 'off'}
         data-has-rail={railSlot ? '' : undefined}
         data-rail={look.wheelCollapsed ? 'collapsed' : 'open'}
+        data-drawer={drawerOpen ? 'open' : undefined}
+        data-dock={layout}
+        data-lens={lens ? 'open' : undefined}
         data-tier={tier}
         data-large={view.prefs.largeControls || undefined}
         data-hc={view.highContrast || undefined}
@@ -364,30 +493,50 @@ function SkinInner({
         <Atmosphere />
         <div className="cs-layout" onKeyDown={onKeyDown}>
           {railSlot ? (
-            <section className="cs-rail" aria-label="Navigate films and scenes" inert={effectiveMode !== 'explore'}>
+            <section
+              ref={railRef}
+              id="cs-rail"
+              className="cs-rail"
+              aria-label="Navigation wheel: films and scenes"
+              inert={!(effectiveMode === 'explore' || drawerOpen)}
+              data-interactive
+            >
               <div className="cs-rail-inner">
                 <div className="cs-rail-bar">
                   <span className="cs-rail-title" aria-hidden="true">
-                    Navigate
+                    <ReelIcon /> Navigate
                   </span>
-                  <button
-                    type="button"
-                    className="cs-icon-btn cs-rail-toggle"
-                    aria-expanded={!look.wheelCollapsed}
-                    aria-controls="cs-rail-body"
-                    aria-label={look.wheelCollapsed ? 'Expand the wheel panel' : 'Collapse the wheel panel'}
-                    data-tip={look.wheelCollapsed ? 'Expand wheel' : 'Collapse wheel'}
-                    data-tip-align="end"
-                    onClick={() => {
-                      look.setWheelCollapsed(!look.wheelCollapsed);
-                      announce(look.wheelCollapsed ? 'Wheel panel expanded' : 'Wheel panel collapsed');
-                    }}
-                  >
-                    <ChevronLeftIcon />
-                  </button>
+                  {drawerOpen ? (
+                    <button
+                      type="button"
+                      className="cs-icon-btn cs-rail-toggle"
+                      aria-label="Close the navigation wheel"
+                      data-tip="Close (Esc)"
+                      data-tip-align="end"
+                      onClick={() => setDrawer(false)}
+                    >
+                      <ChevronLeftIcon />
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="cs-icon-btn cs-rail-toggle"
+                      aria-expanded={!look.wheelCollapsed}
+                      aria-controls="cs-rail-body"
+                      aria-label={look.wheelCollapsed ? 'Expand the wheel panel' : 'Collapse the wheel panel'}
+                      data-tip={look.wheelCollapsed ? 'Expand wheel' : 'Collapse wheel'}
+                      data-tip-align="end"
+                      onClick={() => {
+                        look.setWheelCollapsed(!look.wheelCollapsed);
+                        announce(look.wheelCollapsed ? 'Wheel panel expanded' : 'Wheel panel collapsed');
+                      }}
+                    >
+                      <ChevronLeftIcon />
+                    </button>
+                  )}
                 </div>
                 {/* inert removes the hidden wheel from the tab order and the accessibility tree while collapsed. */}
-                <div id="cs-rail-body" className="cs-rail-body" inert={look.wheelCollapsed}>
+                <div id="cs-rail-body" className="cs-rail-body" inert={look.wheelCollapsed && !drawerOpen}>
                   {railSlot}
                 </div>
               </div>
@@ -402,7 +551,27 @@ function SkinInner({
                   {videoOverlay}
                 </div>
               ) : null}
+              <PauseCanvas
+                title={title}
+                subtitle={subtitle}
+                scenes={scenes}
+                thumbnailAt={thumbnailAt}
+                onSaveMoment={onSaveMoment}
+                returnAnchor={returnAnchor}
+                onPreviewScene={previewScene}
+                tier={tier}
+                suppressed={!view.prefs.pauseCanvas || busy}
+              />
               <CaptionOverlay />
+              {railSlot && effectiveMode === 'watch' && tier !== 'micro' ? (
+                <ReelHandle
+                  buttonRef={reelRef}
+                  open={drawerOpen}
+                  onToggle={() => toggleDrawer()}
+                  artwork={artwork ?? null}
+                  controlsId="cs-rail"
+                />
+              ) : null}
               <Controls.Root>
                 <Controls.Content className="cs-controls">
                   <TopBar
@@ -422,10 +591,20 @@ function SkinInner({
                     appearanceOpen={panel === 'settings' && settingsTab === 'appearance'}
                     extra={topActions}
                   />
-                  <CenterCluster />
+                  {layout === 'floating' ? (
+                    <div className="cs-center">
+                      <Transport placement="stage" />
+                    </div>
+                  ) : (
+                    <div className="cs-center" aria-hidden="true" />
+                  )}
                   <BottomBar
                     tier={tier}
-                    markers={markers}
+                    stageWidth={stageWidth}
+                    layout={layout}
+                    markers={markers ?? []}
+                    scenes={scenes}
+                    thumbnailAt={thumbnailAt}
                     scenePreview={scenePreview}
                     clip={clip}
                     onSaveMoment={onSaveMoment}
@@ -433,6 +612,20 @@ function SkinInner({
                     settingsTab={settingsTab}
                     onSettings={(tab, el) => toggleSettings(tab, el)}
                     onSimple={toggleSimple}
+                    lensOpen={Boolean(lens)}
+                    onLens={toggleLens}
+                    lens={
+                      lens ? (
+                        <TimeLens
+                          onClose={() => setLens(null)}
+                          returnFocusTo={lens.opener}
+                          scenes={scenes}
+                          thumbnailAt={thumbnailAt}
+                          markers={markers ?? []}
+                          onJump={jump}
+                        />
+                      ) : null
+                    }
                   />
                 </Controls.Content>
               </Controls.Root>
@@ -477,6 +670,19 @@ function SkinInner({
               onAnnounce={announce}
               onShare={onShareClip}
             />
+            {hasScenes ? (
+              <SceneDial
+                open={panel === 'dial'}
+                onClose={closePanel}
+                returnFocusTo={panelOpener}
+                scenes={scenes}
+                thumbnailAt={thumbnailAt}
+                onJump={jump}
+                onPreview={(i, el) => previewScene(i, el)}
+                returnAnchor={returnAnchor}
+                preferList={tiny}
+              />
+            ) : null}
             <MorePanel
               open={panel === 'more'}
               onClose={closePanel}
@@ -484,6 +690,9 @@ function SkinInner({
               tier={tier}
               onSaveMoment={onSaveMoment}
               onClip={() => openPanel('clip', panelOpener)}
+              onLens={() => toggleLens(panelOpener)}
+              onDial={hasScenes ? () => openPanel('dial', panelOpener) : undefined}
+              onWheel={railSlot && effectiveMode === 'watch' ? () => setDrawer(true) : undefined}
               onSettings={(tab) => {
                 setSettingsTab(tab);
                 openPanel('settings', panelOpener);
@@ -494,6 +703,19 @@ function SkinInner({
               onHelp={() => setHelpOpen(true)}
               extra={topActions}
             />
+            {portal ? (
+              <PortalHost
+                request={portal}
+                onIndex={(i) => setPortal((p) => (p ? { ...p, index: Math.max(0, Math.min(i, p.stops.length - 1)) } : p))}
+                onClose={closePortal}
+                onAction={(stop) => {
+                  setPortal(null);
+                  if (portal.onAction) portal.onAction(stop);
+                  else jump(stop.time, stop.title);
+                }}
+                returnAnchor={returnAnchor}
+              />
+            ) : null}
             {stageSlot}
           </div>
 
@@ -508,7 +730,7 @@ function SkinInner({
         <DiagnosticsDialog open={diagOpen} onClose={() => setDiagOpen(false)} extraRows={diagnosticsRows} />
 
         {/* Hotkeys listen on the container, so they are scoped to this player and ignore typing in fields.
-            "C" is handled above because captions are drawn by the skin, not by native text tracks. */}
+            "C", "T" and "W" are handled above because they drive skin features rather than media actions. */}
         <Hotkey keys="Space" action="togglePaused" />
         <Hotkey keys="k" action="togglePaused" />
         <Hotkey keys="m" action="toggleMuted" />
@@ -524,9 +746,9 @@ function SkinInner({
         <Gesture type="tap" action="toggleControls" pointer="touch" />
         <Gesture type="doubletap" action="seekStep" value={-10} region="left" />
         <Gesture type="doubletap" action="seekStep" value={10} region="right" />
-        {/* Announces Playing, Paused, Muted and seeks to screen readers. The class keeps it in the accessibility
-            tree but off screen; it must never be hidden with display or visibility. */}
-        <StatusAnnouncer className="cs-sr cs-announcer" />
+        {/* Announces Playing, Paused, Muted and seeks to screen readers. .cs-announcer keeps it in the accessibility
+            tree but clipped to a 1px box off the layout; it is never hidden with display or visibility. */}
+        <StatusAnnouncer className="cs-announcer" />
 
         <ErrorDialog.Root>
           <ErrorDialog.Popup className="cs-error">
@@ -553,6 +775,44 @@ function SkinInner({
 }
 
 /* ------------------------------------------------------------------ */
+
+/** Reads the playhead once a second so the portal's "ahead / behind" stays live without re-rendering the skin. */
+function PortalHost({
+  request,
+  onIndex,
+  onClose,
+  onAction,
+  returnAnchor,
+}: {
+  request: PortalRequest;
+  onIndex: (i: number) => void;
+  onClose: () => void;
+  onAction: (stop: PortalStop) => void;
+  returnAnchor?: { time: number; onReturn: () => void } | null;
+}) {
+  const now = usePlayer((s) => Math.floor(s.currentTime));
+  return (
+    <TimePortal
+      stops={request.stops}
+      index={request.index}
+      onIndex={onIndex}
+      currentTime={now}
+      anchorTime={returnAnchor?.time ?? null}
+      onJump={onAction}
+      actionLabel={request.actionLabel}
+      onReturn={
+        returnAnchor
+          ? () => {
+              onClose();
+              returnAnchor.onReturn();
+            }
+          : undefined
+      }
+      onClose={onClose}
+      returnFocusTo={request.opener}
+    />
+  );
+}
 
 interface TopBarProps {
   title?: string;
@@ -632,43 +892,7 @@ function TopBar(p: TopBarProps) {
   );
 }
 
-function CenterCluster() {
-  const ended = usePlayer((s) => s.ended);
-  return (
-    <div className="cs-center">
-      <SeekButton
-        seconds={-10}
-        className="cs-btn cs-btn-round"
-        render={(props) => (
-          <button {...props} data-tip="Back 10 s (J)">
-            <SeekBackIcon />
-            <span className="cs-seek-num">10</span>
-          </button>
-        )}
-      />
-      <PlayButton
-        className="cs-btn cs-btn-play"
-        render={(props, state) => (
-          <button {...props} data-tip={state.ended || ended ? 'Replay (K)' : state.paused ? 'Play (K)' : 'Pause (K)'}>
-            {state.ended || ended ? <ReplayIcon /> : state.paused ? <PlayIcon /> : <PauseIcon />}
-          </button>
-        )}
-      />
-      <SeekButton
-        seconds={10}
-        className="cs-btn cs-btn-round"
-        render={(props) => (
-          <button {...props} data-tip="Forward 10 s (L)">
-            <SeekForwardIcon />
-            <span className="cs-seek-num">10</span>
-          </button>
-        )}
-      />
-    </div>
-  );
-}
-
-/** Spinner for buffering and for the first load, with a visible label so it is never a mystery. */
+/** Spinner for the first load, with a visible label so it is never a mystery. Mid-play buffering spins the play bezel. */
 function LoadingState() {
   const waiting = usePlayer((s) => s.waiting);
   const paused = usePlayer((s) => s.paused);
@@ -697,92 +921,54 @@ function SkipButton({ segments, onSkip }: { segments?: SkipSegment[]; onSkip: (t
   );
 }
 
-function Markers({ markers, clip }: { markers: TimelineMarker[]; clip: Clip }) {
-  const duration = usePlayer((s) => s.duration);
-  if (!(duration > 0)) return null;
-  const pct = (t: number) => `${clamp((t / duration) * 100, 0, 100)}%`;
-  return (
-    <>
-      {clip.start !== null && clip.end !== null && clip.end > clip.start ? (
-        <span
-          className="cs-clip-range"
-          aria-hidden="true"
-          style={{ left: pct(clip.start), width: `${clamp(((clip.end - clip.start) / duration) * 100, 0, 100)}%` }}
-        />
-      ) : null}
-      {markers.map((m, i) => (
-        <span key={`${m.kind}-${m.time}-${i}`} className="cs-marker" data-kind={m.kind} style={{ left: pct(m.time) }} aria-hidden="true" />
-      ))}
-    </>
-  );
-}
-
-/**
- * The seek bar plus a pointer preview. The preview never claims to be a live frame: it shows the still and name
- * the host supplies for that part of the film, with the exact time under the pointer. It is decorative for
- * assistive technology, because the slider already speaks its own value.
- */
-function Timeline({
-  markers,
-  clip,
-  scenePreview,
-}: {
-  markers: TimelineMarker[];
-  clip: Clip;
-  scenePreview?: (time: number) => ScenePreview | null;
-}) {
-  const duration = usePlayer((s) => s.duration);
-  const ref = useRef<HTMLDivElement>(null);
-  const [hover, setHover] = useState<number | null>(null);
-  const [badImage, setBadImage] = useState<string | null>(null);
-  const time = hover !== null ? hover * duration : 0;
-  const info = hover !== null && scenePreview ? scenePreview(time) : null;
-  const image = info?.image && info.image !== badImage ? info.image : null;
-  return (
-    <div
-      ref={ref}
-      className="cs-tl"
-      onPointerMove={(e) => {
-        const r = ref.current?.getBoundingClientRect();
-        if (r && r.width > 0 && duration > 0) setHover(clamp((e.clientX - r.left) / r.width, 0, 1));
-      }}
-      onPointerLeave={() => setHover(null)}
-      onPointerCancel={() => setHover(null)}
-    >
-      {hover !== null && duration > 0 ? (
-        <div className="cs-tl-preview" aria-hidden="true" data-image={image ? '' : undefined} style={{ ['--x' as string]: `${hover * 100}%` }}>
-          {image ? <img src={image} alt="" draggable={false} onError={() => setBadImage(image)} /> : null}
-          <span className="cs-tl-meta">
-            {info?.label ? <span className="cs-tl-label">{info.label}</span> : null}
-            <span className="cs-tl-time">{formatTime(time)}</span>
-          </span>
-        </div>
-      ) : null}
-      <TimeSlider.Root className="cs-timeslider">
-        <TimeSlider.Track className="cs-track">
-          <TimeSlider.Buffer className="cs-buffer" />
-          <TimeSlider.Fill className="cs-fill" />
-        </TimeSlider.Track>
-        <Markers markers={markers} clip={clip} />
-        <TimeSlider.Thumb className="cs-thumb" />
-      </TimeSlider.Root>
-    </div>
-  );
+/** Live needle for the Scene Dial button: where the playhead sits in the runtime, in 5-degree steps. */
+function DialButtonIcon() {
+  const angle = usePlayer((s) => (s.duration > 0 ? Math.round((s.currentTime / s.duration) * 72) * 5 : 0));
+  return <DialIcon angle={angle} />;
 }
 
 interface BottomProps {
   tier: Tier;
-  markers?: TimelineMarker[];
+  /** Measured stage width; the docked transport needs more room before Tools can stay in the dock. */
+  stageWidth: number;
+  layout: DockLayout;
+  markers: TimelineMarker[];
+  scenes: SkinScene[];
+  thumbnailAt?: ThumbnailAt;
   scenePreview?: (time: number) => ScenePreview | null;
   clip: Clip;
   onSaveMoment?: () => void;
   panel: PanelName | null;
   settingsTab: SettingsTab;
   onSettings: (tab: SettingsTab | null, opener: HTMLElement) => void;
-  onSimple: (name: 'clip' | 'transcript' | 'more', opener: HTMLElement) => void;
+  onSimple: (name: 'clip' | 'transcript' | 'more' | 'dial', opener: HTMLElement) => void;
+  lensOpen: boolean;
+  onLens: (opener: HTMLElement) => void;
+  lens: ReactNode;
 }
 
-function BottomBar({ tier, markers, scenePreview, clip, onSaveMoment, panel, settingsTab, onSettings, onSimple }: BottomProps) {
+/**
+ * The control dock, organised as an instrument: Primary (transport), Timeline (strip and time), Tools, Sound and
+ * Viewing. What does not fit at the current width moves into More; play, seek, time, mute and fullscreen never do.
+ */
+function BottomBar({
+  tier,
+  stageWidth,
+  layout,
+  markers,
+  scenes,
+  thumbnailAt,
+  scenePreview,
+  clip,
+  onSaveMoment,
+  panel,
+  settingsTab,
+  onSettings,
+  onSimple,
+  lensOpen,
+  onLens,
+  lens,
+}: BottomProps) {
   const store = usePlayer();
   const pip = usePlayer((s) => s.pictureInPictureAvailability);
   const cast = usePlayer((s) => s.remotePlaybackAvailability);
@@ -792,44 +978,99 @@ function BottomBar({ tier, markers, scenePreview, clip, onSaveMoment, panel, set
   const tiny = tier === 'tiny' || tier === 'micro';
   const micro = tier === 'micro';
   const hasClip = clip.start !== null || clip.end !== null;
+  // Tools stay in the dock only when everything fits on one line; otherwise they move into More.
+  const roomy = tier === 'full' && (layout === 'floating' || (layout === 'expanded' && stageWidth >= 900));
+  const inlineTimeline = layout === 'compact' && tier === 'full';
+  const showMore = !roomy;
+  const hasScenes = scenes.length > 0;
+  const playing = usePlayer((s) => sceneIndexAt(scenes, s.currentTime));
+
+  const timeline = <Timeline markers={markers} clip={clip} scenes={scenes} thumbnailAt={thumbnailAt} scenePreview={scenePreview} lensOpen={lensOpen} />;
 
   return (
-    <div className="cs-bottom">
-      <Timeline markers={markers ?? []} clip={clip} scenePreview={scenePreview} />
+    <div className="cs-bottom" data-layout={layout}>
+      {lens}
+      {!inlineTimeline ? timeline : null}
 
       <Controls.Group className="cs-row" aria-label="Playback controls">
-        <div className="cs-time">
-          <Time.Value type="current" />
-          <span aria-hidden="true">/</span>
-          <Time.Value type="duration" />
+        {layout !== 'floating' ? (
+          <div className="cs-group" data-group="primary">
+            <span className="cs-group-cap" aria-hidden="true">
+              Play
+            </span>
+            <Transport placement="dock" />
+          </div>
+        ) : null}
+
+        <div className="cs-group" data-group="time">
+          <span className="cs-group-cap" aria-hidden="true">
+            {hasScenes && playing >= 0 ? scenes[playing]?.title : 'Time'}
+          </span>
+          <div className="cs-time">
+            <Time.Value type="current" />
+            <span aria-hidden="true">/</span>
+            <Time.Value type="duration" />
+          </div>
         </div>
 
-        <div className="cs-spacer" />
+        {inlineTimeline ? <div className="cs-group cs-group-timeline">{timeline}</div> : <div className="cs-spacer" />}
 
-        {!tiny && onSaveMoment ? (
-          <button type="button" className="cs-btn cs-btn-label" onClick={onSaveMoment} data-tip="Save this moment">
-            <BookmarkIcon />
-            <span>Save moment</span>
-          </button>
+        {roomy ? (
+          <div className="cs-group" data-group="tools" role="group" aria-label="Tools">
+            <span className="cs-group-cap" aria-hidden="true">
+              Tools
+            </span>
+            {onSaveMoment ? (
+              <button type="button" className="cs-btn cs-btn-label" onClick={onSaveMoment} data-tip="Save this moment">
+                <BookmarkIcon />
+                <span>Save moment</span>
+              </button>
+            ) : null}
+            <button
+              type="button"
+              className="cs-btn"
+              data-panel-toggle
+              data-on={hasClip ? '' : undefined}
+              aria-expanded={panel === 'clip'}
+              aria-haspopup="dialog"
+              aria-label="Clip selection"
+              data-tip="Clip"
+              onClick={(e) => onSimple('clip', e.currentTarget)}
+            >
+              <ClipIcon />
+            </button>
+            <button
+              type="button"
+              className="cs-btn"
+              aria-expanded={lensOpen}
+              aria-haspopup="dialog"
+              aria-label="Time Lens"
+              data-tip="Time Lens (T)"
+              onClick={(e) => onLens(e.currentTarget)}
+            >
+              <LensIcon />
+            </button>
+            {hasScenes ? (
+              <button
+                type="button"
+                className="cs-btn"
+                data-panel-toggle
+                aria-expanded={panel === 'dial'}
+                aria-haspopup="dialog"
+                aria-label="Scene dial"
+                data-tip="Scene dial"
+                onClick={(e) => onSimple('dial', e.currentTarget)}
+              >
+                <DialButtonIcon />
+              </button>
+            ) : null}
+          </div>
         ) : null}
 
-        {!tiny ? (
-          <button
-            type="button"
-            className="cs-btn"
-            data-panel-toggle
-            data-on={hasClip ? '' : undefined}
-            aria-expanded={panel === 'clip'}
-            aria-haspopup="dialog"
-            aria-label="Clip selection"
-            data-tip="Clip"
-            onClick={(e) => onSimple('clip', e.currentTarget)}
-          >
-            <ClipIcon />
-          </button>
-        ) : null}
-
-        <div className="cs-volume">
+        <div className="cs-group cs-volume" data-group="audio" role="group" aria-label="Sound">
+          <span className="cs-group-cap" aria-hidden="true">
+            Sound
+          </span>
           <MuteButton
             className="cs-btn"
             render={(props, state) => (
@@ -848,76 +1089,81 @@ function BottomBar({ tier, markers, scenePreview, clip, onSaveMoment, panel, set
           ) : null}
         </div>
 
-        {!tiny ? (
-        <button
-          type="button"
-          className="cs-btn"
-          data-panel-toggle
-          data-on={subs.active ? '' : undefined}
-          aria-expanded={panel === 'settings' && settingsTab === 'subtitles'}
-          aria-haspopup="dialog"
-          aria-label={subs.active ? `Subtitles: ${subs.active.label}` : 'Subtitles: off'}
-          data-tip="Subtitles (C)"
-          onClick={(e) => onSettings('subtitles', e.currentTarget)}
-        >
-          <CaptionsIcon />
-        </button>
-        ) : null}
-
-        {!tiny && cast === 'available' ? (
-          <button type="button" className="cs-btn" aria-label="Cast to a device" data-tip="Cast" onClick={() => void store.promptRemotePlayback()}>
-            <CastIcon />
-          </button>
-        ) : null}
-
-        {!tiny && pip === 'available' ? (
-          <PiPButton className="cs-btn" render={(props) => <button {...props} data-tip="Picture-in-picture (I)"><PipIcon /></button>} />
-        ) : null}
-
-        {!micro ? (
-        <button
-          type="button"
-          className="cs-btn"
-          data-panel-toggle
-          aria-expanded={panel === 'settings' && settingsTab !== 'subtitles' && settingsTab !== 'appearance'}
-          aria-haspopup="dialog"
-          aria-label="Settings"
-          data-tip="Settings"
-          onClick={(e) => onSettings(settingsTab === 'subtitles' || settingsTab === 'appearance' ? 'playback' : null, e.currentTarget)}
-        >
-          <SettingsIcon />
-        </button>
-        ) : null}
-
-        {tiny ? (
-          <button
-            type="button"
-            className="cs-btn"
-            data-panel-toggle
-            aria-expanded={panel === 'more'}
-            aria-haspopup="dialog"
-            aria-label="More controls"
-            data-tip="More"
-            onClick={(e) => onSimple('more', e.currentTarget)}
-          >
-            <MoreIcon />
-          </button>
-        ) : null}
-
-        <FullscreenButton
-          className="cs-btn"
-          render={(props, state) => (
-            <button {...props} data-tip={state.fullscreen ? 'Exit fullscreen (F)' : 'Fullscreen (F)'} data-tip-align="end">
-              {state.fullscreen ? <ExitFullscreenIcon /> : <FullscreenIcon />}
+        <div className="cs-group" data-group="view" role="group" aria-label="Viewing">
+          <span className="cs-group-cap" aria-hidden="true">
+            View
+          </span>
+          {!tiny ? (
+            <button
+              type="button"
+              className="cs-btn"
+              data-panel-toggle
+              data-on={subs.active ? '' : undefined}
+              aria-expanded={panel === 'settings' && settingsTab === 'subtitles'}
+              aria-haspopup="dialog"
+              aria-label={subs.active ? `Subtitles: ${subs.active.label}` : 'Subtitles: off'}
+              data-tip="Subtitles (C)"
+              onClick={(e) => onSettings('subtitles', e.currentTarget)}
+            >
+              <CaptionsIcon />
             </button>
-          )}
-        />
+          ) : null}
+
+          {!tiny && cast === 'available' ? (
+            <button type="button" className="cs-btn" aria-label="Cast to a device" data-tip="Cast" onClick={() => void store.promptRemotePlayback()}>
+              <CastIcon />
+            </button>
+          ) : null}
+
+          {!tiny && pip === 'available' ? (
+            <PiPButton className="cs-btn" render={(props) => <button {...props} data-tip="Picture-in-picture (I)"><PipIcon /></button>} />
+          ) : null}
+
+          {!micro ? (
+            <button
+              type="button"
+              className="cs-btn"
+              data-panel-toggle
+              aria-expanded={panel === 'settings' && settingsTab !== 'subtitles' && settingsTab !== 'appearance'}
+              aria-haspopup="dialog"
+              aria-label="Settings"
+              data-tip="Settings"
+              onClick={(e) => onSettings(settingsTab === 'subtitles' || settingsTab === 'appearance' ? 'playback' : null, e.currentTarget)}
+            >
+              <SettingsIcon />
+            </button>
+          ) : null}
+
+          {showMore ? (
+            <button
+              type="button"
+              className="cs-btn"
+              data-panel-toggle
+              aria-expanded={panel === 'more'}
+              aria-haspopup="dialog"
+              aria-label="More controls"
+              data-tip="More"
+              onClick={(e) => onSimple('more', e.currentTarget)}
+            >
+              <MoreIcon />
+            </button>
+          ) : null}
+
+          <FullscreenButton
+            className="cs-btn"
+            render={(props, state) => (
+              <button {...props} data-tip={state.fullscreen ? 'Exit fullscreen (F)' : 'Fullscreen (F)'} data-tip-align="end">
+                {state.fullscreen ? <ExitFullscreenIcon /> : <FullscreenIcon />}
+              </button>
+            )}
+          />
+        </div>
       </Controls.Group>
     </div>
   );
 }
 
-/** Secondary actions for very small players, where the dock keeps only the essentials. */
+/** Secondary actions for smaller players and the Compact layout, where the dock keeps only the essentials. */
 function MorePanel({
   open,
   onClose,
@@ -925,6 +1171,9 @@ function MorePanel({
   tier,
   onSaveMoment,
   onClip,
+  onLens,
+  onDial,
+  onWheel,
   onSettings,
   onScrim,
   scrim,
@@ -938,6 +1187,9 @@ function MorePanel({
   tier: Tier;
   onSaveMoment?: () => void;
   onClip: () => void;
+  onLens: () => void;
+  onDial?: () => void;
+  onWheel?: () => void;
   onSettings: (tab: SettingsTab) => void;
   onScrim: () => void;
   scrim: ScrimMode;
@@ -955,11 +1207,24 @@ function MorePanel({
   };
   return (
     <FloatingPanel open={open} onClose={onClose} title="More controls" returnFocusTo={returnFocusTo}>
-      <div className="cs-more">
-        {extra ? <div className="cs-more-extra">{extra}</div> : null}
+      <div className="cs-more" data-interactive>
+        {extra && (tier === 'tiny' || tier === 'micro') ? <div className="cs-more-extra">{extra}</div> : null}
         {onSaveMoment ? (
           <button type="button" className="cs-row-btn" onClick={act(onSaveMoment)}>
             <BookmarkIcon /> <span>Save this moment</span>
+          </button>
+        ) : null}
+        <button type="button" className="cs-row-btn" onClick={act(onLens)}>
+          <LensIcon /> <span>Time Lens</span>
+        </button>
+        {onDial ? (
+          <button type="button" className="cs-row-btn" onClick={act(onDial)}>
+            <DialIcon /> <span>Scene dial</span>
+          </button>
+        ) : null}
+        {onWheel ? (
+          <button type="button" className="cs-row-btn" onClick={act(onWheel)}>
+            <ReelIcon /> <span>Navigation wheel</span>
           </button>
         ) : null}
         <button type="button" className="cs-row-btn" onClick={act(onClip)}>

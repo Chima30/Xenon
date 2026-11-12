@@ -26,7 +26,8 @@
   box-sizing: border-box;
 }
 
-.cs-root button {
+/* Zero specificity: buttons inherit the brand face and ink, and any component rule can still set its own. */
+:where(.cs-root) :where(button) {
   font: inherit;
   color: inherit;
 }
@@ -200,11 +201,13 @@
   pointer-events: auto;
 }
 
-/* Hidden when idle, but never while something inside has keyboard focus. */
-.cs-controls:not([data-visible]):not(:has(:focus-visible)):not(:has([aria-expanded='true'])) {
-  opacity: 0;
+/* Hidden when idle, but never while something inside has keyboard focus, a menu is open or the Time Lens is in use.
+   The parts fade rather than the container, so the Expanded console (which sits under the picture) can stay. */
+.cs-controls > * {
+  transition: opacity 0.25s ease;
 }
-.cs-controls:not([data-visible]):not(:has(:focus-visible)):not(:has([aria-expanded='true'])) > * {
+.cs-controls:not([data-visible]):not(:has(:focus-visible)):not(:has([aria-expanded='true'])):not(:has(.cs-lens)) > * {
+  opacity: 0;
   pointer-events: none;
 }
 

@@ -41,7 +41,7 @@ describe('TimePortal', () => {
   it('falls back gracefully when no still exists', () => {
     const { container } = setup();
     expect(container.querySelector('img')).toBeNull();
-    expect(screen.getByText('No still for this moment')).toBeTruthy();
+    expect(screen.getByText('No still available')).toBeTruthy();
   });
 
   it('shows notes written by a person', () => {
@@ -65,7 +65,7 @@ describe('TimePortal', () => {
 
   it('steps between neighbouring scenes and disables at the ends', () => {
     const { props } = setup({ index: 0 });
-    expect((screen.getByRole('button', { name: 'No earlier scene' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button', { name: 'Nothing earlier' }) as HTMLButtonElement).disabled).toBe(true);
     fireEvent.click(screen.getByRole('button', { name: /Next: Section 4/ }));
     expect(props.onIndex).toHaveBeenCalledWith(1);
   });

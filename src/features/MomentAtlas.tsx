@@ -24,8 +24,17 @@ interface Props {
   onPreview?: (id: string, opener: HTMLElement) => void;
 }
 
-export function MomentAtlas({ film, moments, onSaveNow, onSaveLast, onSeek, onPreview }: Props) {
-  const { announce } = useCinemaSkin();
+export function MomentAtlas({ film, moments, onSaveNow, onSaveLast, onSeek, onPreview: previewOverride }: Props) {
+  const { announce, openPortal } = useCinemaSkin();
+  // By default a moment opens in the skin's Time Portal: inspect it without leaving your place.
+  const onPreview =
+    previewOverride ??
+    ((id: string, opener: HTMLElement) =>
+      openPortal({
+        stops: moments.map((m) => ({ time: m.time, title: m.label, image: film.frameAt(m.time, 500), kind: 'Saved moment', note: m.note })),
+        index: Math.max(0, moments.findIndex((m) => m.id === id)),
+        opener,
+      }));
   const all = useMoments();
   const fileRef = useRef<HTMLInputElement>(null);
   const duration = film.duration ?? 0;

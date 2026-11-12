@@ -10,7 +10,17 @@ export interface ViewPrefs {
   dockLabels: boolean;
   /** Tighter dock spacing. */
   dockCompact: boolean;
+  /**
+   * Control arrangement. Floating: transport over the video, a floating console below.
+   * Compact: one slim bar. Expanded: a labelled console under the video that never covers the picture.
+   */
+  dockLayout: DockLayout;
+  /** Show the Pause Canvas (title, scene and actions) when the film is paused. */
+  pauseCanvas: boolean;
 }
+
+export type DockLayout = 'floating' | 'compact' | 'expanded';
+export const DOCK_LAYOUTS: readonly DockLayout[] = ['floating', 'compact', 'expanded'];
 
 export const DEFAULT_PREFS: ViewPrefs = {
   highContrast: false,
@@ -18,6 +28,8 @@ export const DEFAULT_PREFS: ViewPrefs = {
   reducedMotion: false,
   dockLabels: true,
   dockCompact: false,
+  dockLayout: 'floating',
+  pauseCanvas: true,
 };
 
 export type ProfileId = 'standard' | 'high-contrast' | 'large' | 'reduced-motion';
@@ -53,6 +65,8 @@ const parse = (v: unknown): ViewPrefs | null => {
     reducedMotion: b(v.reducedMotion, false),
     dockLabels: b(v.dockLabels, true),
     dockCompact: b(v.dockCompact, false),
+    dockLayout: DOCK_LAYOUTS.find((l) => l === v.dockLayout) ?? 'floating',
+    pauseCanvas: b(v.pauseCanvas, true),
   };
 };
 
@@ -102,9 +116,10 @@ export function PrefsProvider({ forceHighContrast, children }: { forceHighContra
   const applyProfile = useCallback(
     (id: ProfileId) => {
       const p = PROFILES.find((x) => x.id === id);
-      if (p) commit({ ...DEFAULT_PREFS, ...p.prefs });
+      // Profiles change accessibility settings only; the viewer's dock layout and Pause Canvas choice stay.
+      if (p) commit({ ...DEFAULT_PREFS, dockLayout: prefs.dockLayout, pauseCanvas: prefs.pauseCanvas, ...p.prefs });
     },
-    [commit],
+    [commit, prefs.dockLayout, prefs.pauseCanvas],
   );
   const reset = useCallback(() => commit(DEFAULT_PREFS), [commit]);
 

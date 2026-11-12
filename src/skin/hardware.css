@@ -1,0 +1,856 @@
+/* ==========================================================================
+   XENON · Cinematic Hardware. Loaded last.
+   The controls are drawn as one engineered instrument: a machined transport, a measured filmstrip, a console
+   of grouped modules, and a reel that stays at the edge of the picture. Every colour comes from tokens.css,
+   so each film re-tints the whole machine.
+   ========================================================================== */
+
+.cs-root {
+  /* Machined surfaces: a faint top light and a darker foot, mixed from the film's base colour. */
+  --cs-metal: linear-gradient(
+    180deg,
+    color-mix(in oklab, var(--cs-base) 78%, white) 0%,
+    color-mix(in oklab, var(--cs-base) 90%, white) 42%,
+    color-mix(in oklab, var(--cs-base) 96%, black) 100%
+  );
+  --cs-bevel: inset 0 1px 0 rgb(255 255 255 / 0.1), inset 0 -1px 0 rgb(0 0 0 / 0.45);
+  --cs-recess: inset 0 1px 3px rgb(0 0 0 / 0.55), 0 1px 0 rgb(255 255 255 / 0.05);
+  --cs-console-h: 0px;
+  box-shadow:
+    0 0 0 1px var(--cs-hairline),
+    0 30px 80px rgb(0 0 0 / 0.45),
+    0 0 120px color-mix(in srgb, var(--cs-glow) 12%, transparent);
+}
+
+.cs-layout {
+  position: relative;
+}
+
+/* ---------- Screen-reader status announcer: in the accessibility tree, never in the layout ---------- */
+
+.cs-root .cs-announcer {
+  position: absolute !important;
+  top: 0;
+  left: 0;
+  width: 1px !important;
+  height: 1px !important;
+  margin: -1px !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+  pointer-events: none;
+}
+
+/* ==========================================================================
+   Transport
+   ========================================================================== */
+
+.cs-transport {
+  --play: 78px;
+  --wing-w: 68px;
+  --wing-h: 54px;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  isolation: isolate;
+}
+/* The plate the wings are cut from. */
+.cs-transport[data-placement='stage']::before {
+  content: '';
+  position: absolute;
+  inset: calc((var(--play) - var(--wing-h)) / 2) 0;
+  z-index: -1;
+  background: var(--cs-metal);
+  border: 1px solid var(--cs-hairline);
+  border-radius: var(--r-pill);
+  box-shadow:
+    var(--cs-bevel),
+    0 16px 40px rgb(0 0 0 / 0.5);
+  -webkit-backdrop-filter: blur(var(--cs-panel-blur));
+  backdrop-filter: blur(var(--cs-panel-blur));
+  opacity: 0.94;
+}
+.cs-root .cs-transport .cs-btn.cs-wing {
+  position: relative;
+  width: var(--wing-w);
+  min-width: var(--wing-w);
+  height: var(--wing-h);
+  padding: 0;
+  color: var(--cs-ice);
+  background: transparent;
+  border: 0;
+  border-radius: var(--r-pill);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+/* Wings sit flush against the lens: one plate, no overlapping hit areas. */
+.cs-root .cs-transport .cs-wing[data-side='back'] {
+  border-radius: var(--r-pill) 0 0 var(--r-pill);
+}
+.cs-root .cs-transport .cs-wing[data-side='forward'] {
+  border-radius: 0 var(--r-pill) var(--r-pill) 0;
+}
+.cs-root .cs-transport .cs-wing svg {
+  width: 24px;
+  height: 24px;
+}
+.cs-root .cs-transport .cs-wing .cs-seek-num {
+  left: calc(50% + (var(--side, 0px)));
+}
+.cs-root .cs-transport .cs-wing[data-side='back'] .cs-seek-num {
+  --side: -5px;
+}
+.cs-root .cs-transport .cs-wing[data-side='forward'] .cs-seek-num {
+  --side: 5px;
+}
+@media (hover: hover) {
+  .cs-root .cs-transport .cs-btn.cs-wing:hover {
+    color: var(--cs-citron);
+    background: color-mix(in srgb, var(--cs-ice) 7%, transparent);
+  }
+}
+
+/* The lens: a solid accent disc with an engraved bezel and a lit index notch. */
+.cs-root .cs-transport .cs-btn.cs-btn-play {
+  position: relative;
+  z-index: 1;
+  width: var(--play);
+  min-width: var(--play);
+  height: var(--play);
+  padding: 0;
+  overflow: visible;
+  color: var(--cs-ink-on-citron);
+  background: radial-gradient(
+    120% 120% at 32% 22%,
+    color-mix(in oklab, var(--cs-citron) 70%, white) 0%,
+    var(--cs-citron) 48%,
+    color-mix(in oklab, var(--cs-citron) 78%, black) 100%
+  );
+  border: 0;
+  border-radius: 50%;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.5),
+    inset 0 -3px 6px rgb(0 0 0 / 0.25),
+    0 0 0 5px color-mix(in oklab, var(--cs-base) 70%, black),
+    0 0 0 6px var(--cs-hairline),
+    0 14px 34px rgb(0 0 0 / 0.55),
+    0 0 46px color-mix(in srgb, var(--cs-glow) 30%, transparent);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+.cs-root .cs-transport .cs-btn.cs-btn-play svg {
+  position: relative;
+  width: calc(var(--play) * 0.36);
+  height: calc(var(--play) * 0.36);
+}
+.cs-bezel {
+  position: absolute;
+  inset: -13px;
+  border-radius: 50%;
+  background: repeating-conic-gradient(from -2deg, color-mix(in srgb, var(--cs-ice) 55%, transparent) 0 1.4deg, transparent 1.4deg 15deg);
+  -webkit-mask: radial-gradient(circle, transparent 0 calc(50% - 6px), #000 calc(50% - 5px) calc(50% - 1px), transparent 50%);
+  mask: radial-gradient(circle, transparent 0 calc(50% - 6px), #000 calc(50% - 5px) calc(50% - 1px), transparent 50%);
+  transform: rotate(0deg);
+  transition: transform 0.6s var(--ease-spring);
+  pointer-events: none;
+}
+.cs-transport[data-paused] .cs-bezel {
+  transform: rotate(-30deg);
+}
+.cs-transport[data-buffering] .cs-bezel {
+  background: conic-gradient(from 0deg, var(--cs-ice) 0 70deg, transparent 70deg);
+  animation: cs-spin 0.9s linear infinite;
+}
+.cs-root .cs-transport .cs-btn.cs-btn-play::before {
+  content: '';
+  position: absolute;
+  top: -15px;
+  left: 50%;
+  width: 3px;
+  height: 7px;
+  background: var(--cs-citron);
+  border-radius: 2px;
+  box-shadow: 0 0 8px var(--cs-citron);
+  translate: -50% 0;
+}
+@media (hover: hover) {
+  .cs-root .cs-transport .cs-btn.cs-btn-play:hover {
+    background: radial-gradient(
+      120% 120% at 32% 22%,
+      color-mix(in oklab, var(--cs-citron) 55%, white) 0%,
+      color-mix(in oklab, var(--cs-citron) 92%, white) 48%,
+      color-mix(in oklab, var(--cs-citron) 82%, black) 100%
+    );
+  }
+}
+.cs-root .cs-transport .cs-btn.cs-btn-play:active {
+  transform: scale(0.96);
+}
+/* Mid-play buffering spins the bezel instead of covering the button with a second spinner. */
+.cs-root[data-dock='floating'] .cs-buffering:not([data-initial]) .cs-spinner {
+  display: none;
+}
+
+/* Dock placement: the same unit, smaller, without the plate. */
+.cs-transport[data-placement='dock'] {
+  --play: 46px;
+  --wing-w: 42px;
+  --wing-h: 40px;
+  padding: 0 6px 0 2px;
+}
+.cs-transport[data-placement='dock'] .cs-bezel {
+  inset: -6px;
+  -webkit-mask: radial-gradient(circle, transparent 0 calc(50% - 4px), #000 calc(50% - 3px) calc(50% - 1px), transparent 50%);
+  mask: radial-gradient(circle, transparent 0 calc(50% - 4px), #000 calc(50% - 3px) calc(50% - 1px), transparent 50%);
+}
+.cs-root .cs-transport[data-placement='dock'] .cs-btn.cs-btn-play {
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.45),
+    inset 0 -2px 4px rgb(0 0 0 / 0.25),
+    0 4px 12px rgb(0 0 0 / 0.45);
+}
+.cs-root .cs-transport[data-placement='dock'] .cs-btn.cs-btn-play::before {
+  top: -9px;
+  height: 4px;
+}
+.cs-root .cs-transport[data-placement='dock'] .cs-wing[data-side='back'],
+.cs-root .cs-transport[data-placement='dock'] .cs-wing[data-side='forward'] {
+  margin: 0;
+  padding: 0;
+}
+.cs-root .cs-transport[data-placement='dock'] .cs-wing svg {
+  width: 20px;
+  height: 20px;
+}
+.cs-root .cs-transport[data-placement='dock'] .cs-wing .cs-seek-num {
+  --side: 0px;
+}
+
+/* Sizes */
+.cs-stagewrap[data-tier='compact'] .cs-transport[data-placement='stage'] {
+  --play: 66px;
+  --wing-w: 58px;
+  --wing-h: 46px;
+}
+.cs-stagewrap:is([data-tier='tiny'], [data-tier='micro']) .cs-transport[data-placement='stage'] {
+  --play: 56px;
+  --wing-w: 50px;
+  --wing-h: 44px;
+}
+.cs-stagewrap:is([data-tier='tiny'], [data-tier='micro']) .cs-transport[data-placement='dock'] .cs-wing {
+  display: none;
+}
+.cs-root[data-large] .cs-transport[data-placement='stage'] {
+  --play: 88px;
+  --wing-w: 74px;
+  --wing-h: 60px;
+}
+.cs-root[data-large] .cs-transport[data-placement='dock'] {
+  --play: 52px;
+  --wing-w: 52px;
+  --wing-h: 52px;
+}
+.cs-center {
+  gap: 0;
+}
+
+/* ==========================================================================
+   Dock: grouped modules on a machined console
+   ========================================================================== */
+
+.cs-bottom {
+  position: relative;
+}
+.cs-row {
+  position: relative;
+  gap: 4px;
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.05), transparent 45%), var(--cs-dock-bg);
+  box-shadow:
+    var(--cs-bevel),
+    0 14px 40px rgb(0 0 0 / 0.45);
+}
+/* An engraved line of the film's secondary light along the top edge. */
+.cs-row::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: 18%;
+  right: 18%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--cs-secondary) 70%, transparent), transparent);
+  pointer-events: none;
+}
+.cs-group {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+.cs-group-cap {
+  display: none;
+}
+.cs-group:is([data-group='tools'], [data-group='audio'], [data-group='view']) {
+  padding-left: 6px;
+  margin-left: 2px;
+  box-shadow: inset 1px 0 0 var(--cs-hairline);
+}
+.cs-group[data-group='primary'] + .cs-group[data-group='time'] {
+  padding-left: 4px;
+  box-shadow: inset 1px 0 0 var(--cs-hairline);
+}
+
+/* Time readout: a recessed display, digits that never jiggle. */
+.cs-group[data-group='time'] .cs-time {
+  min-height: 34px;
+  align-items: center;
+  margin: 0 4px;
+  padding: 0 12px;
+  background: color-mix(in oklab, var(--cs-base) 80%, black);
+  border-radius: var(--r-sm);
+  box-shadow: var(--cs-recess);
+  letter-spacing: 0.02em;
+}
+
+/* Labels on wide docks, icons when space is short; the accessible name never changes. */
+@container csstage (max-width: 980px) {
+  .cs-row [data-group='tools'] .cs-btn-label:not([data-keep]) {
+    padding: 0;
+    width: var(--h-ctl);
+  }
+  .cs-row [data-group='tools'] .cs-btn-label:not([data-keep]) span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+@container csstage (max-width: 820px) {
+  .cs-volslider {
+    display: none;
+  }
+}
+
+/* ---------- Compact: one slim bar, timeline inline ---------- */
+
+.cs-root[data-dock='compact'] .cs-bottom {
+  padding: var(--sp-6) var(--sp-3) var(--sp-3);
+}
+.cs-root[data-dock='compact'] .cs-row {
+  padding: 4px;
+}
+.cs-group-timeline {
+  flex: 1 1 auto;
+  min-width: 140px;
+  padding: 0 10px;
+}
+.cs-group-timeline .cs-tl {
+  width: 100%;
+  padding: 0;
+}
+
+/* ---------- Expanded: a labelled console under the picture ---------- */
+
+.cs-root[data-dock='expanded'] {
+  --cs-console-h: 122px;
+}
+.cs-root[data-dock='expanded'] .cs-stage {
+  padding-bottom: var(--cs-console-h);
+}
+.cs-root[data-dock='expanded'] .cs-bottom {
+  height: var(--cs-console-h);
+  align-content: end;
+  gap: 4px;
+  padding: 8px var(--sp-4) 10px;
+  background: var(--cs-metal);
+  box-shadow: inset 0 1px 0 var(--cs-hairline);
+}
+.cs-root[data-dock='expanded'] .cs-row {
+  gap: 8px;
+  padding: 18px 0 0;
+  background: none;
+  border: 0;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+.cs-root[data-dock='expanded'] .cs-row::before {
+  content: none;
+}
+.cs-root[data-dock='expanded'] .cs-group {
+  padding: 3px;
+  margin: 0;
+  background: color-mix(in oklab, var(--cs-base) 82%, black);
+  border-radius: var(--r-md);
+  box-shadow: var(--cs-recess);
+}
+.cs-root[data-dock='expanded'] .cs-group-cap {
+  position: absolute;
+  bottom: calc(100% + 3px);
+  left: 6px;
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  font: var(--fw-semibold) var(--fs-xs) / 1 var(--cs-font);
+  letter-spacing: var(--ls-label);
+  text-transform: uppercase;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--cs-label);
+}
+.cs-root[data-dock='expanded'] .cs-group[data-group='time'] {
+  background: none;
+  box-shadow: none;
+}
+.cs-root[data-dock='expanded'] .cs-group[data-group='time'] .cs-group-cap {
+  max-width: 220px;
+}
+/* The console never covers the picture, so it stays put while the overlay fades. */
+.cs-root[data-dock='expanded'] .cs-controls > .cs-bottom {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+.cs-root[data-dock='expanded'] .cs-captions {
+  bottom: calc(var(--cs-console-h) + 4%);
+}
+.cs-root[data-dock='expanded']:has(.cs-controls[data-visible]) .cs-captions[data-position='bottom'] {
+  bottom: calc(var(--cs-console-h) + 16px);
+}
+.cs-root[data-dock='expanded'] .cs-panel {
+  bottom: calc(var(--cs-console-h) + 8px);
+  max-height: calc(100% - var(--cs-console-h) - 24px);
+}
+.cs-root[data-dock='expanded'] :is(.cs-toast, .cs-skip) {
+  bottom: calc(var(--cs-console-h) + 16px);
+}
+.cs-root[data-dock='expanded'] .cs-stage :is(video, mux-video) {
+  height: 100%;
+}
+@container cs (min-width: 761px) {
+  .cs-root[data-dock='expanded'] .cs-stagewrap {
+    height: calc(56.25cqi + var(--cs-console-h));
+  }
+  .cs-root[data-dock='expanded'][data-mode='explore'] .cs-stagewrap {
+    height: calc(max(56.25cqi, 580px) + var(--cs-console-h));
+  }
+}
+@container csstage (max-width: 760px) {
+  .cs-root[data-dock='expanded'] .cs-stage {
+    aspect-ratio: auto;
+    height: calc(100cqi * 9 / 16 + var(--cs-console-h));
+  }
+}
+@container csstage (max-width: 520px) {
+  .cs-root[data-dock='expanded'] .cs-stage {
+    height: calc(100cqi * 3 / 4 + var(--cs-console-h));
+  }
+  .cs-root[data-dock='expanded'] {
+    --cs-console-h: 104px;
+  }
+}
+.cs-root:fullscreen[data-dock='expanded'] .cs-stage {
+  height: 100%;
+}
+
+/* ==========================================================================
+   Precision filmstrip timeline
+   ========================================================================== */
+
+.cs-track {
+  overflow: visible;
+}
+/* One graduation per minute of runtime, engraved under the strip. */
+.cs-graduation {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 3px);
+  height: 4px;
+  background: repeating-linear-gradient(90deg, color-mix(in srgb, var(--cs-ice) 38%, transparent) 0 1px, transparent 1px var(--tl-unit, 10%));
+  opacity: 0;
+  transition: opacity var(--t-fast) ease;
+  pointer-events: none;
+}
+.cs-tl:hover .cs-graduation,
+.cs-timeslider:focus-within .cs-graduation,
+.cs-root[data-lens] .cs-graduation {
+  opacity: 1;
+}
+.cs-fill {
+  background: linear-gradient(90deg, color-mix(in oklab, var(--cs-citron) 70%, var(--cs-base)), var(--cs-citron));
+  box-shadow: 0 0 10px color-mix(in srgb, var(--cs-citron) 45%, transparent);
+}
+/* Scene boundaries: a clean cut through the strip. */
+.cs-marker[data-kind='scene'] {
+  width: 3px;
+  height: 10px;
+  background: var(--cs-base);
+  opacity: 1;
+}
+/* Saved moments: lavender bars standing above the strip. */
+.cs-marker[data-kind='moment'] {
+  height: 12px;
+  translate: -50% -85%;
+  background: var(--cs-moment);
+}
+/* Return Anchor: an accent diamond with a dark keyline. */
+.cs-marker[data-kind='anchor'] {
+  width: 11px;
+  height: 11px;
+  background: var(--cs-anchor);
+  box-shadow:
+    0 0 0 2px var(--cs-base),
+    0 0 10px var(--cs-anchor);
+}
+.cs-thumb {
+  background: radial-gradient(circle at 35% 30%, color-mix(in oklab, var(--cs-citron) 60%, white), var(--cs-citron) 60%);
+}
+.cs-tl-preview {
+  border-color: var(--cs-accent-line);
+}
+.cs-tl-preview::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -6px;
+  width: 10px;
+  height: 10px;
+  background: inherit;
+  border-right: 1px solid var(--cs-accent-line);
+  border-bottom: 1px solid var(--cs-accent-line);
+  rotate: 45deg;
+  translate: -50% 0;
+}
+
+/* ==========================================================================
+   Reel handle: the edge of the navigation wheel, always at the left of the picture
+   ========================================================================== */
+
+.cs-reel,
+.cs-root .cs-reel[data-tip] {
+  position: absolute;
+  left: 0;
+  top: calc((100% - var(--cs-console-h)) / 2);
+  z-index: 12;
+  width: 30px;
+  height: 172px;
+  padding: 0;
+  cursor: pointer;
+  background: none;
+  border: 0;
+  translate: 0 -50%;
+  transition:
+    translate var(--t-slow) var(--ease-spring),
+    width var(--t-med) var(--ease-out),
+    opacity var(--t-med) ease;
+}
+.cs-reel-body {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background:
+    radial-gradient(160% 70% at -40% 50%, transparent 58%, rgb(0 0 0 / 0.35) 59%, transparent 61%),
+    linear-gradient(90deg, color-mix(in oklab, var(--cs-base) 70%, black), color-mix(in oklab, var(--cs-secondary) 32%, var(--cs-base)) 70%, color-mix(in oklab, var(--cs-secondary) 55%, var(--cs-base)));
+  border: 1px solid var(--cs-hairline);
+  border-left: 0;
+  border-radius: 0 100% 100% 0 / 0 50% 50% 0;
+  box-shadow:
+    inset -1px 0 0 rgb(255 255 255 / 0.18),
+    inset 0 1px 0 rgb(255 255 255 / 0.12),
+    8px 0 26px rgb(0 0 0 / 0.5),
+    0 0 30px color-mix(in srgb, var(--cs-glow) 18%, transparent);
+}
+/* A sliver of the current film, seen through the reel's window. */
+.cs-reel-window {
+  position: absolute;
+  top: 22%;
+  bottom: 22%;
+  left: 0;
+  width: 15px;
+  overflow: hidden;
+  background: var(--cs-steel);
+  border-radius: 0 999px 999px 0;
+  box-shadow: inset -2px 0 4px rgb(0 0 0 / 0.6);
+}
+.cs-reel-window img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.85;
+  transition: opacity var(--t-med) ease;
+}
+/* Sprocket teeth along the rim. */
+.cs-reel-teeth {
+  position: absolute;
+  inset: 8px 0;
+  background: repeating-linear-gradient(180deg, rgb(255 255 255 / 0.32) 0 1.5px, transparent 1.5px 7px);
+  -webkit-mask: linear-gradient(90deg, transparent 0 calc(100% - 7px), #000 calc(100% - 7px) calc(100% - 2px), transparent calc(100% - 2px));
+  mask: linear-gradient(90deg, transparent 0 calc(100% - 7px), #000 calc(100% - 7px) calc(100% - 2px), transparent calc(100% - 2px));
+}
+/* The illuminated selection indicator. */
+.cs-reel-led {
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  width: 3px;
+  height: 30px;
+  background: var(--cs-citron);
+  border-radius: 2px;
+  box-shadow: 0 0 10px var(--cs-citron);
+  translate: 0 -50%;
+}
+@media (hover: hover) {
+  .cs-reel:hover {
+    width: 40px;
+  }
+  .cs-reel:hover .cs-reel-window img {
+    opacity: 1;
+  }
+}
+.cs-reel:focus-visible {
+  outline-offset: 4px;
+}
+/* While the controls rest, the reel tucks back to a sliver so it never sits over the film in earnest. */
+.cs-root:not(:has(.cs-controls[data-visible])) .cs-reel:not(:focus-visible):not(:hover):not([aria-expanded='true']) {
+  translate: -58% -50%;
+  opacity: 0.6;
+}
+.cs-root[data-drawer='open'] .cs-reel {
+  opacity: 0;
+  pointer-events: none;
+}
+.cs-root[data-tier='tiny'] .cs-reel {
+  width: 24px;
+  height: 116px;
+}
+.cs-root [data-tip][data-tip-pos='right']::after {
+  top: 50%;
+  bottom: auto;
+  left: calc(100% + 10px);
+  transform: translate(4px, -50%);
+}
+.cs-root [data-tip][data-tip-pos='right']:is(:hover, :focus-visible)::after {
+  transform: translate(0, -50%);
+}
+
+/* ==========================================================================
+   Wheel drawer (Watch mode): the reel unrolls into the full instrument over the left of the picture
+   ========================================================================== */
+
+.cs-rail-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.cs-rail-title svg {
+  width: 16px;
+  height: 16px;
+}
+@container cs (min-width: 761px) {
+  .cs-root[data-drawer='open'] {
+    --cs-rail-w: 380px;
+  }
+  .cs-root[data-drawer='open'] .cs-rail {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    z-index: 26;
+    width: var(--cs-rail-w);
+    visibility: visible;
+    background: linear-gradient(180deg, color-mix(in oklab, var(--cs-base) 92%, white), var(--cs-base) 70%);
+    border-radius: var(--r-xl) 0 0 var(--r-xl);
+    box-shadow:
+      inset -1px 0 0 var(--cs-hairline),
+      30px 0 70px rgb(0 0 0 / 0.55);
+    transform-origin: left center;
+    animation: cs-drawer-in var(--t-slow) var(--ease-spring) both;
+  }
+}
+@keyframes cs-drawer-in {
+  from {
+    opacity: 0;
+    clip-path: inset(0 85% 0 0 round 0 50% 50% 0);
+  }
+  to {
+    opacity: 1;
+    clip-path: inset(0 0 0 0 round 0);
+  }
+}
+.cs-root[data-drawer='open'] .cs-rail-body {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  max-height: none;
+}
+.cs-root[data-drawer='open'] .cs-rail-bar {
+  flex-direction: row;
+  padding: var(--sp-3) var(--sp-3) 0 var(--sp-5);
+}
+.cs-root[data-drawer='open'] .cs-rail-title {
+  writing-mode: horizontal-tb;
+  rotate: none;
+  order: 0;
+  margin: 0;
+}
+.cs-root[data-drawer='open'] .cs-rail-toggle svg {
+  rotate: none;
+}
+@container cs (max-width: 760px) {
+  .cs-root[data-drawer='open'] .cs-rail {
+    display: block;
+    visibility: visible;
+  }
+}
+
+/* ==========================================================================
+   States
+   ========================================================================== */
+
+/* Lens open: the centre transport steps aside so the strip has the picture's attention. */
+.cs-root[data-lens] .cs-center {
+  opacity: 0;
+  pointer-events: none;
+}
+.cs-root[data-lens]:is([data-tier='tiny'], [data-tier='micro']) .cs-top {
+  opacity: 0;
+  pointer-events: none;
+}
+/* The Pause Canvas carries the title while paused. */
+.cs-root:has(.cs-pause:not([data-compact])) .cs-titleblock {
+  opacity: 0;
+}
+
+/* Disabled controls read as unavailable, not broken. */
+.cs-root :is(.cs-btn, .cs-chip):disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+}
+
+/* ---------- High contrast ---------- */
+
+.cs-root[data-hc] .cs-transport[data-placement='stage']::before,
+.cs-root[data-hc] .cs-reel-body,
+.cs-root[data-hc][data-dock='expanded'] .cs-bottom {
+  background: #000;
+  border: 2px solid #fff;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+.cs-root[data-hc] .cs-transport .cs-btn.cs-btn-play {
+  background: var(--cs-citron);
+  box-shadow: 0 0 0 3px #000, 0 0 0 5px #fff;
+}
+.cs-root[data-hc] .cs-group[data-group='time'] .cs-time {
+  background: #000;
+  box-shadow: 0 0 0 1px #fff;
+}
+.cs-root[data-hc] .cs-marker[data-kind='scene'] {
+  background: #000;
+  box-shadow: 0 0 0 1px #fff;
+}
+
+/* ---------- Motion ---------- */
+
+.cs-root[data-motion='reduce'] :is(.cs-bezel, .cs-reel, .cs-rail, .cs-graduation) {
+  transition: none !important;
+  animation: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .cs-bezel,
+  .cs-reel,
+  .cs-graduation,
+  .cs-root[data-drawer='open'] .cs-rail {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+@media (forced-colors: active) {
+  .cs-transport[data-placement='stage']::before,
+  .cs-reel-body {
+    border: 1px solid CanvasText;
+    background: Canvas;
+  }
+  .cs-reel-led,
+  .cs-bezel {
+    background: Highlight;
+  }
+}
+
+/* The wheel's title bar (and its close button) stays in view while the rail scrolls. */
+.cs-rail-bar {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  padding-bottom: var(--sp-2);
+  background: linear-gradient(180deg, color-mix(in oklab, var(--cs-base) 92%, white) 70%, transparent);
+}
+
+/* Primary chips (Jump, Play) keep their accent fill on every theme surface. */
+.cs-root .cs-chip.cs-chip-primary:not(:disabled),
+.cs-root[data-atm='on'] .cs-chip.cs-chip-primary:not(:disabled) {
+  color: var(--cs-ink-on-citron);
+  background: var(--cs-citron);
+  border-color: var(--cs-citron);
+}
+@media (hover: hover) {
+  .cs-root[data-atm] .cs-chip.cs-chip-primary:not(:disabled):hover {
+    background: color-mix(in oklab, var(--cs-citron) 86%, white);
+  }
+}
+
+/* Thin, themed scrollbars inside the wheel rail. */
+.cs-rail > .cs-rail-inner {
+  scrollbar-width: thin;
+  scrollbar-color: var(--cs-line) transparent;
+}
+
+/* Touch screens: every control in the top bar gets a full 44px target. */
+@media (pointer: coarse) {
+  .cs-root .cs-seg-btn {
+    height: var(--h-ctl);
+  }
+}
+
+/* Small players: the dock drops its decorative spacing so every essential fits on one line. */
+.cs-stagewrap:is([data-tier='tiny'], [data-tier='micro']) .cs-row {
+  gap: 0;
+  padding: 3px;
+}
+.cs-stagewrap:is([data-tier='tiny'], [data-tier='micro']) .cs-group {
+  padding-left: 0;
+  margin-left: 0;
+  box-shadow: none;
+}
+.cs-stagewrap:is([data-tier='tiny'], [data-tier='micro']) .cs-group[data-group='time'] .cs-time {
+  margin: 0;
+  padding: 0 6px;
+  background: none;
+  box-shadow: none;
+}
+.cs-stagewrap:is([data-tier='tiny'], [data-tier='micro']) .cs-transport[data-placement='dock'] {
+  padding: 0 2px;
+}
+.cs-root[data-dock='compact'] .cs-stagewrap:is([data-tier='tiny'], [data-tier='micro']) .cs-bottom,
+.cs-root[data-dock='expanded'] .cs-stagewrap:is([data-tier='tiny'], [data-tier='micro']) .cs-bottom {
+  padding-left: var(--sp-2);
+  padding-right: var(--sp-2);
+}
+
+/* Expanded console on smaller players: no captions (there is no room for them), a lower console. */
+.cs-root[data-dock='expanded'] .cs-stagewrap:not([data-tier='full']) .cs-group-cap {
+  display: none;
+}
+.cs-root[data-dock='expanded'] .cs-stagewrap:not([data-tier='full']) .cs-row {
+  padding-top: 4px;
+}
+.cs-root[data-dock='expanded'] .cs-stagewrap:not([data-tier='full']) {
+  --cs-console-h: 96px;
+}

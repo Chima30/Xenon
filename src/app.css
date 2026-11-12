@@ -1,12 +1,33 @@
-/* Demo site: dark ocean-teal. The skin brings its own obsidian/citron palette. */
+/* Demo site. At rest it is dark ocean-teal; on the player page it takes on the film's atmosphere, which
+   the player reports through --page-* custom properties (see PlayerPage). */
+
+@property --page-base {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #062b30;
+}
+@property --page-glow {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #145a60;
+}
+@property --page-accent {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #d8ff57;
+}
 
 :root {
-  --teal: #062b30;
-  --depth: #06191d;
-  --fg: #f4f6f2;
-  --soft: #b4c8cb;
-  --line: #2c4b51;
-  --accent: #d8ff57;
+  --teal: color-mix(in oklab, var(--page-base) 92%, white);
+  --depth: color-mix(in oklab, var(--page-base) 70%, black);
+  --fg: var(--page-ink, #f4f6f2);
+  --soft: color-mix(in oklab, var(--fg) 72%, var(--page-base));
+  --line: color-mix(in oklab, var(--page-base) 72%, white);
+  --accent: var(--page-accent);
+  transition:
+    --page-base 0.9s ease,
+    --page-glow 0.9s ease,
+    --page-accent 0.9s ease;
   --font: 'Space Grotesk Variable', 'Space Grotesk', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   --display: var(--font);
   --mono: var(--font);
@@ -20,14 +41,34 @@
 }
 
 body {
+  position: relative;
   margin: 0;
   min-height: 100vh;
   color: var(--fg);
   background:
-    radial-gradient(90% 50% at 70% -10%, rgb(20 90 96 / 0.55), transparent 70%),
+    radial-gradient(90% 50% at 70% -10%, color-mix(in srgb, var(--page-glow) 55%, transparent), transparent 70%),
     linear-gradient(var(--teal), var(--depth) 60%);
+  background-attachment: fixed;
   font-family: var(--font);
   line-height: 1.5;
+}
+/* A soft, darkened wash of the film's artwork behind the whole page. It never reaches the video itself. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: -6%;
+  z-index: -1;
+  background-image: var(--page-art, none);
+  background-size: cover;
+  background-position: center;
+  filter: blur(56px) saturate(1.15);
+  opacity: 0.2;
+  transition: opacity 0.9s ease;
+  pointer-events: none;
+}
+#root {
+  position: relative;
+  isolation: isolate;
 }
 
 a {
@@ -384,6 +425,9 @@ kbd {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  :root {
+    transition: none;
+  }
   * {
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;

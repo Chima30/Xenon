@@ -29,6 +29,16 @@
   inherits: true;
   initial-value: #0a0e17;
 }
+@property --cs-film-ink {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #f4f6f2;
+}
+@property --cs-secondary {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #ada0f8;
+}
 @property --cs-glow {
   syntax: '<color>';
   inherits: true;
@@ -55,8 +65,9 @@
   --cs-steel: color-mix(in oklab, var(--cs-base) 84%, white);
   --cs-line: color-mix(in oklab, var(--cs-base) 74%, white);
   --cs-hairline: rgb(255 255 255 / 0.09);
-  --cs-ice: #f4f6f2;
-  --cs-ice-dim: #b9c1cd;
+  --cs-ice: var(--cs-film-ink, #f4f6f2); /* ivory, silver or cream per film */
+  --cs-ice-dim: color-mix(in oklab, var(--cs-ice) 72%, var(--cs-base));
+  --cs-secondary: #ada0f8; /* quieter second light: metal detailing, ambient */
   --cs-lavender: #ada0f8; /* memory colour: saved moments, in every film theme */
   --cs-teal: #8dd3cf;
   --cs-danger: #ff8a8a;
@@ -144,6 +155,8 @@
     --cs-citron 0.7s ease,
     --cs-ink-on-citron 0.7s ease,
     --cs-base 0.7s ease,
+    --cs-film-ink 0.7s ease,
+    --cs-secondary 0.7s ease,
     --cs-glow 0.7s ease;
 }
 

@@ -349,8 +349,8 @@
   backdrop-filter: blur(var(--cs-panel-blur)) saturate(1.3);
   box-shadow: var(--cs-shadow-1);
 }
-.cs-row .cs-btn:not([data-on]):not([aria-expanded='true']),
-.cs-root[data-atm='on'] .cs-row .cs-btn:not([data-on]):not([aria-expanded='true']) {
+.cs-row .cs-btn:not([data-on]):not([aria-expanded='true']):not(.cs-btn-play),
+.cs-root[data-atm='on'] .cs-row .cs-btn:not([data-on]):not([aria-expanded='true']):not(.cs-btn-play) {
   background: transparent;
   border-color: transparent;
 }
@@ -688,8 +688,8 @@
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
 }
-.cs-root[data-hc] .cs-row .cs-btn:not([data-on]):not([aria-expanded='true']),
-.cs-root[data-scrim='high-contrast'] .cs-row .cs-btn:not([data-on]):not([aria-expanded='true']) {
+.cs-root[data-hc] .cs-row .cs-btn:not([data-on]):not([aria-expanded='true']):not(.cs-btn-play),
+.cs-root[data-scrim='high-contrast'] .cs-row .cs-btn:not([data-on]):not([aria-expanded='true']):not(.cs-btn-play) {
   border-color: transparent !important;
 }
 .cs-root[data-hc] .cs-btn[data-on]::before,

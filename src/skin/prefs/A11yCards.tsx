@@ -1,5 +1,11 @@
 import { Card, Pill, Pills, SwitchRow } from '../ui';
-import { PROFILES, usePrefs } from './PrefsContext';
+import { PROFILES, usePrefs, type DockLayout } from './PrefsContext';
+
+const LAYOUTS: { id: DockLayout; label: string; description: string }[] = [
+  { id: 'floating', label: 'Floating', description: 'The transport floats over the picture; a console sits below it and rests when idle.' },
+  { id: 'compact', label: 'Compact', description: 'One slim bar with the timeline inline. Tools move into More.' },
+  { id: 'expanded', label: 'Expanded', description: 'A labelled console under the picture. It never covers the film and never hides.' },
+];
 
 /** Standard / High contrast / Large controls / Reduced motion. Anything can be tweaked afterwards. */
 export function ProfileCard() {
@@ -50,7 +56,23 @@ export function ViewPrefsCard() {
 export function DockCard() {
   const { prefs, set } = usePrefs();
   return (
-    <Card title="Control dock" description="How the playback controls are arranged. Small players adapt automatically.">
+    <Card title="Control dock" description="How the playback controls are arranged. Small players adapt automatically; play, seek, time, sound and fullscreen are always reachable.">
+      <Pills label="Control arrangement">
+        {LAYOUTS.map((l) => (
+          <Pill key={l.id} selected={prefs.dockLayout === l.id} onClick={() => set({ dockLayout: l.id })}>
+            {l.label}
+          </Pill>
+        ))}
+      </Pills>
+      <p className="cs-card-desc" role="status">
+        {LAYOUTS.find((l) => l.id === prefs.dockLayout)?.description}
+      </p>
+      <SwitchRow
+        label="Pause Canvas"
+        description="When paused, show the title, where you are, the neighbouring scenes and quick actions beside the frame."
+        checked={prefs.pauseCanvas}
+        onChange={(v) => set({ pauseCanvas: v })}
+      />
       <SwitchRow
         label="Show button labels"
         description="Text beside icons such as Save moment, when there is room."

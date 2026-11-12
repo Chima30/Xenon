@@ -33,9 +33,20 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
   {
     title: 'Navigation wheel',
     items: [
-      { keys: ['↑', '↓', '←', '→'], action: 'Browse films or scenes (does not seek or change video)' },
+      { keys: ['W'], action: 'Open or close the wheel (from Watch mode); focus it in Explore' },
+      { keys: ['↑', '↓', '←', '→'], action: 'Turn the wheel (does not seek or change video)' },
       { keys: ['Home', 'End'], action: 'First or last item' },
-      { keys: ['Enter', 'Space'], action: 'Select the highlighted film or scene' },
+      { keys: ['Enter', 'Space'], action: 'Preview the film or scene in the gate; Play or Jump confirms' },
+    ],
+  },
+  {
+    title: 'Time Lens and Scene Dial',
+    items: [
+      { keys: ['T'], action: 'Open or close the Time Lens' },
+      { keys: ['←', '→'], action: 'Move the lens one frame (Shift: one second); never seeks' },
+      { keys: ['↑', '↓'], action: 'Zoom the lens in or out' },
+      { keys: ['Enter'], action: 'Jump to the lens or dial position (leaves a return point)' },
+      { keys: ['←', '→', 'Home', 'End'], action: 'Scene dial: choose the previous, next, first or last scene' },
     ],
   },
   {

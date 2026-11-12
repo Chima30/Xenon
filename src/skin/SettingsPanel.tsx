@@ -261,10 +261,10 @@ export function SettingsPanel(props: Props) {
         id: 'atmosphere',
         tab: 'appearance',
         title: 'Adaptive movie atmosphere',
-        keywords: 'theme background colour color accent blur opacity ambient glow light panel glass solid preset artwork poster image custom',
+        keywords: 'theme adaptive fixed film atmosphere background colour color accent panel blur opacity ambient glow light glass solid preset artwork poster image custom',
         node: <AppearanceCards />,
       },
-      { id: 'dock', tab: 'appearance', title: 'Control dock', keywords: 'labels compact buttons layout toolbar', node: <DockCard /> },
+      { id: 'dock', tab: 'appearance', title: 'Control dock', keywords: 'labels compact floating expanded console buttons layout toolbar pause canvas arrangement', node: <DockCard /> },
 
       { id: 'profile-b', tab: 'accessibility', title: 'Accessibility profile', keywords: 'preset standard high contrast large controls reduced motion', node: <ProfileCard /> },
       { id: 'view', tab: 'accessibility', title: 'Viewing preferences', keywords: 'high contrast large controls reduce motion animation size touch', node: <ViewPrefsCard /> },

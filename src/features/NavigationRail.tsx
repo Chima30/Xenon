@@ -2,6 +2,7 @@ import { usePlayer } from '@videojs/react/video';
 import { useMemo, useState } from 'react';
 import { sectionsFor, type Film, type Section } from '../data/catalog';
 import { resumeTime, type Progress } from '../data/stores';
+import { useCinemaSkin } from '../skin';
 import { formatTime } from '../skin/format';
 import { CompassIcon, PlayIcon } from '../skin/icons';
 import { NavigationWheel, type WheelItem, type WheelVariant } from './NavigationWheel';
@@ -10,9 +11,8 @@ interface Props {
   films: Film[];
   film: Film;
   progress: Record<string, Progress>;
+  /** Switches the playing film. Only called from the explicit "Play" action of a film preview. */
   onSelectFilm: (id: string) => void;
-  /** Selecting a scene opens the Time Portal; it never seeks by itself. */
-  onPreviewSection: (section: Section, sections: Section[], opener: HTMLElement) => void;
 }
 
 /** Index of the section containing `time`, or -1. */
@@ -24,7 +24,8 @@ export function sectionIndexAt(sections: Section[], time: number): number {
   return -1;
 }
 
-export function NavigationRail({ films, film, progress, onSelectFilm, onPreviewSection }: Props) {
+export function NavigationRail({ films, film, progress, onSelectFilm }: Props) {
+  const { openPortal, closeNavigation, announce } = useCinemaSkin();
   const [face, setFace] = useState<WheelVariant>('movies');
   const playerDuration = usePlayer((s) => s.duration);
   // Trust the player's real duration once loaded; before that use the verified catalog value.
@@ -57,6 +58,49 @@ export function NavigationRail({ films, film, progress, onSelectFilm, onPreviewS
   }));
 
   const current = sections[activeSection];
+
+  const filmFacts = (f: Film) => {
+    const p = progress[f.id];
+    const r = resumeTime(p);
+    return [f.genre, String(f.year), f.duration ? formatTime(f.duration) : null, r ? `resume at ${formatTime(r)}` : null]
+      .filter(Boolean)
+      .join(' · ');
+  };
+  const previewFilm = (id: string, opener: HTMLElement) =>
+    openPortal({
+      stops: films.map((f) => ({
+        id: f.id,
+        time: 0,
+        title: f.title,
+        image: f.frameAt(f.duration ? f.duration * 0.3 : 30, 500),
+        kind: 'Film',
+        facts: f.id === film.id ? `${filmFacts(f)} · playing now` : filmFacts(f),
+        note: `${f.description} ${f.creator}, ${f.license.name}.`,
+        badge: f.duration ? formatTime(f.duration) : null,
+      })),
+      index: Math.max(0, films.findIndex((f) => f.id === id)),
+      opener,
+      actionLabel: (stop) => (stop.id === film.id ? null : `Play ${stop.title}`),
+      onAction: (stop) => {
+        if (!stop.id || stop.id === film.id) return;
+        onSelectFilm(stop.id);
+        closeNavigation();
+        announce(`Switching to ${stop.title}`);
+      },
+    });
+  const previewSection = (s: Section, opener: HTMLElement) =>
+    openPortal({
+      stops: sections.map((x) => ({
+        time: x.start,
+        end: x.end,
+        title: x.title,
+        image: film.frameAt(x.start + 1, 500),
+        kind: x.isChapter ? 'Chapter' : 'Section',
+        note: x.isChapter ? film.chapters[x.index]?.description : undefined,
+      })),
+      index: Math.max(0, sections.indexOf(s)),
+      opener,
+    });
   const filmStill = film.frameAt(film.duration ? film.duration * 0.3 : 30, 330);
 
   return (
@@ -74,7 +118,7 @@ export function NavigationRail({ films, film, progress, onSelectFilm, onPreviewS
         </div>
         <p className="rail-note">
           {face === 'movies'
-            ? 'Turn with the arrow keys, the scroll wheel or a drag. Enter loads the film in the gate.'
+            ? 'Turn with the arrow keys, the scroll wheel or a drag. Enter previews the film in the gate; nothing changes until you choose Play.'
             : film.chapters.length > 0
               ? 'Chapters of this film. Enter opens a preview; nothing changes until you choose Jump here.'
               : 'This file has no published chapters, so its runtime is split into equal timed sections. Enter opens a preview.'}
@@ -88,9 +132,9 @@ export function NavigationRail({ films, film, progress, onSelectFilm, onPreviewS
             movies: {
               items: filmItems,
               activeId: film.id,
-              onSelect: (id) => onSelectFilm(id),
+              onSelect: (id, opener) => previewFilm(id, opener),
               label: 'Films',
-              activeWord: 'Playing',
+              activeWord: 'Now showing',
               unit: 'Films',
               hubImage: filmStill,
             },
@@ -99,7 +143,7 @@ export function NavigationRail({ films, film, progress, onSelectFilm, onPreviewS
               activeId: activeSection >= 0 ? String(activeSection) : null,
               onSelect: (id, opener) => {
                 const s = sections[Number(id)];
-                if (s) onPreviewSection(s, sections, opener);
+                if (s) previewSection(s, opener);
               },
               label: `Scenes of ${film.title}`,
               activeWord: 'Now',

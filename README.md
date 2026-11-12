@@ -139,6 +139,31 @@ See `ACCESSIBILITY_CHECKLIST.md` for what still needs automated and manual testi
 - **My Atlas**: a strip of frames with names, notes, Play and Preview actions, and a runtime map.
 - **Skin Studio** (`#/studio`, demo only): live presets, colours, radius, panel opacity and blur, font and control size, player width, and copyable CSS.
 
+## Cinematic Hardware (design/cinematic-hardware)
+
+XENON is drawn as one instrument rather than a toolbar:
+
+- **Reel handle and wheel drawer.** In Watch mode the edge of a film reel sits at the left of the picture, with a sliver of the current film in its window and a lit index. Click it, or press **W**, and it unrolls into the full Movies/Scenes wheel over the left of the picture; Escape or a click outside closes it and focus returns to the reel. Choosing a film opens a **film preview**; nothing changes until you press **Play**. On phones the wheel is a swipe carousel under the video.
+- **Transport.** Rewind and forward are the wings of one machined plate; play/pause is a lens with an engraved bezel that turns a notch on every state change and spins while buffering. It is rendered once: over the picture in Floating, inside the dock in Compact and Expanded.
+- **Precision filmstrip timeline.** A real Video.js TimeSlider with one graduation per minute, scene boundaries as cuts, saved moments as lavender bars and the Return Anchor as a diamond. Hovering shows a real still near that second.
+- **Time Lens** (**T** or the lens button). The timeline opens into a filmstrip: a magnified still at the target, nine stills across a 2 min / 40 s / 12 s span, timestamps, scene cuts, moments and the playhead. Arrows, drag or the ±1/±5 s buttons aim it; it never seeks until **Jump**, which leaves a Return Anchor. Without thumbnails it still works as a timecode ruler.
+- **Precision Scene Dial.** A radial ARIA slider whose graduations sit only where scenes really begin, with the playhead, the Return Anchor, a preview and Jump. A plain **List** view offers the same choices. It is hidden when a video has no scene data.
+- **Pause Canvas.** When paused: the title, time, current scene, the previous and next scenes (previews open in the Time Portal), Save moment and the Return Anchor, in the film's colours, beside the frame and under the captions. It takes no focus; Space/K resumes. Turn it off in Appearance › Control dock.
+- **Control dock layouts** (Appearance › Control dock): **Floating**, **Compact** (one slim bar, timeline inline) or **Expanded** (a labelled console under the picture that never covers the film). Tools that do not fit move into More; play, seek, time, sound and fullscreen are always reachable.
+- **Film-reactive atmosphere.** Sintel is *Ember Fantasy*, Tears of Steel *Cyber Steel*, Big Buck Bunny *Woodland Cinema*. Each palette sets the surfaces, accent, text and a secondary light; the demo page around the player follows too. Appearance offers Adaptive or Fixed theme, custom accent and panel colour, artwork, opacity, blur and ambient light. The video itself is never tinted.
+
+**About scenes.** The bundled films publish no chapters, so the Scenes wheel, Scene Dial, Pause Canvas and Time Lens use equal, plainly labelled *sections* (Section 1, Section 2…). Supply real chapters in `Film.chapters` (title, start, optional description) and they become chapter titles everywhere, with descriptions shown as Scene Insight.
+
+### Real-browser checks
+
+With the dev server running:
+
+```bash
+npm run e2e -- http://localhost:5173 ./e2e-shots
+```
+
+`scripts/e2e.mjs` drives an installed Chrome or Edge through playwright-core (no browser download): every dock layout at Desktop, Tablet, Phone and Tiny, film switching and theming, the Pause Canvas, the status announcer, the Time Lens, the Scene Dial, the wheel drawer, Explore and My Atlas, keyboard focus, Escape and focus return, reduced motion and high contrast.
+
 ### Public CSS custom properties
 
 | Property | Purpose |

@@ -99,7 +99,7 @@ describe('CinemaSkin', () => {
     const announcer = document.querySelector('.cs-announcer') as HTMLElement;
     expect(announcer).toBeTruthy();
     expect(announcer.getAttribute('role')).toBe('status');
-    expect(announcer.classList.contains('cs-sr')).toBe(true);
+    expect(announcer.classList.contains('cs-announcer')).toBe(true);
     expect(announcer.hidden).toBe(false);
     expect(announcer.getAttribute('aria-hidden')).toBeNull();
   });

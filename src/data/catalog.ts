@@ -45,7 +45,7 @@ export interface Film {
    * Signature colours, chosen by hand from the film's own imagery. The skin re-colours itself from these,
    * and passes the accent through its contrast guard, so a film change is felt across the whole player.
    */
-  palette: { accent: string; base: string; glow: string };
+  palette: { accent: string; base: string; glow: string; ink: string; secondary: string };
 }
 
 export const SERVER_LABELS: Record<string, string> = {
@@ -101,8 +101,8 @@ export const FILMS: Film[] = [
     source: { label: 'Wikimedia Commons', url: 'https://commons.wikimedia.org/wiki/File:Sintel_movie_4K.webm' },
     chapters: [],
     downloadable: true,
-    // Ember and dragon fire over a cold night.
-    palette: { accent: '#ffb35c', base: '#170f12', glow: '#ff7a3c' },
+    // Ember Fantasy: deep plum and charcoal, warm ember light, ivory text.
+    palette: { accent: '#ff9f5a', base: '#1a1119', glow: '#ff6a2c', ink: '#f6eee2', secondary: '#a5638f' },
     variants: [
       { server: 'mux', src: SINTEL_MUX_PLAYBACK_ID },
       ...commonsVariants('f/f1', SINTEL_FILE),
@@ -126,8 +126,8 @@ export const FILMS: Film[] = [
     },
     chapters: [],
     downloadable: true,
-    // Hologram cyan over Amsterdam steel.
-    palette: { accent: '#6fd6ff', base: '#0a121c', glow: '#2aa8ff' },
+    // Cyber Steel: industrial navy, cyan signal light, cool steel, silver text.
+    palette: { accent: '#5cd3ff', base: '#0a1322', glow: '#2b8cff', ink: '#e7eef6', secondary: '#8ea4ba' },
     variants: commonsVariants('1/10', TOS_FILE),
   },
   {
@@ -144,8 +144,8 @@ export const FILMS: Film[] = [
     source: { label: 'Wikimedia Commons', url: 'https://commons.wikimedia.org/wiki/File:Big_Buck_Bunny_4K.webm' },
     chapters: [],
     downloadable: true,
-    // Spring meadow.
-    palette: { accent: '#b9f27c', base: '#0d1710', glow: '#5fd068' },
+    // Woodland Cinema: deep forest green, warm cream, soft gold, a restrained lime accent.
+    palette: { accent: '#c4df7c', base: '#0e1a12', glow: '#d8b25a', ink: '#f3ebd5', secondary: '#e2bd66' },
     variants: [
       ...commonsVariants('c/c0', BBB_FILE),
       { server: 'archive', src: 'https://archive.org/download/BigBuckBunny_124/Content/big_buck_bunny_720p_surround.mp4' },

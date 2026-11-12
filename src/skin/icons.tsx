@@ -191,3 +191,32 @@ export const ChevronRightIcon = (p: IconProps) => (
     <path d="m9 5 7 7-7 7" />
   </Base>
 );
+/** Time Lens: a loupe over a strip of frames. */
+export const LensIcon = (p: IconProps) => (
+  <Base {...p}>
+    <rect x="2.5" y="5" width="13" height="9" rx="1.5" />
+    <path d="M6.5 5v9M11.5 5v9" />
+    <circle cx="16.5" cy="15.5" r="4" />
+    <path d="m19.5 18.5 2.5 2.5" />
+  </Base>
+);
+/** Scene dial. `angle` (degrees, 0 = top) points the needle at the current position in the film. */
+export const DialIcon = ({ angle = 0, ...p }: IconProps & { angle?: number }) => (
+  <Base {...p}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 3v2M21 12h-2M12 21v-2M3 12h2" />
+    <path d="M12 12 12 6.5" transform={`rotate(${angle} 12 12)`} strokeWidth="2.2" />
+    <circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none" />
+  </Base>
+);
+/** Film reel, for the navigation wheel. */
+export const ReelIcon = (p: IconProps) => (
+  <Base {...p}>
+    <circle cx="12" cy="12" r="9" />
+    <circle cx="12" cy="12" r="1.6" />
+    <circle cx="12" cy="7" r="1.8" />
+    <circle cx="12" cy="17" r="1.8" />
+    <circle cx="7" cy="12" r="1.8" />
+    <circle cx="17" cy="12" r="1.8" />
+  </Base>
+);

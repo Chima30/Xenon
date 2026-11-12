@@ -16,7 +16,8 @@ const SOURCES: { id: BgSource; label: string }[] = [
   { id: 'custom', label: 'My image' },
 ];
 const ACCENTS: { id: AccentChoice; label: string }[] = [
-  { id: 'default', label: 'Citron' },
+  { id: 'default', label: 'Film' },
+  { id: 'citron', label: 'Citron' },
   { id: 'poster', label: 'From artwork' },
   { id: 'lavender', label: 'Lavender' },
   { id: 'teal', label: 'Teal' },
@@ -83,6 +84,8 @@ export function AppearanceCards() {
   const [msg, setMsg] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
   const [hexText, setHexText] = useState(a.color);
   const [accentText, setAccentText] = useState(a.customAccent);
+  const [panelText, setPanelText] = useState(a.panelColor ?? '#14161f');
+  const film = ap.filmPalette;
 
   const commitHex = (text: string, apply: (hex: string) => void, fail: string) => {
     const rgb = parseHex(text);
@@ -93,13 +96,98 @@ export function AppearanceCards() {
 
   return (
     <>
-      <Card title="Adaptive movie atmosphere" description="Tints the surroundings with the selected film's artwork. The video is never touched.">
+      <Card title="Theme" description="Adaptive re-colours the whole player for each film. Fixed keeps one look for every film.">
+        <Pills label="Theme">
+          {(['adaptive', 'fixed'] as const).map((t) => (
+            <Pill key={t} selected={a.theme === t} onClick={() => ap.update({ theme: t })}>
+              {t === 'adaptive' ? 'Adaptive' : 'Fixed'}
+            </Pill>
+          ))}
+        </Pills>
+        {a.theme === 'adaptive' && film ? (
+          <div className="cs-palette" aria-label="This film's palette">
+            {[
+              { name: 'Surface', c: film.base },
+              { name: 'Accent', c: film.accent },
+              { name: 'Text', c: film.ink },
+              { name: 'Light', c: film.secondary },
+            ]
+              .filter((p): p is { name: string; c: string } => Boolean(p.c))
+              .map((p) => (
+                <span key={p.name} className="cs-palette-item">
+                  <span className="cs-swatch-dot cs-swatch-lg" style={{ background: p.c }} aria-hidden="true" />
+                  {p.name} <code>{p.c}</code>
+                </span>
+              ))}
+          </div>
+        ) : (
+          <p className="cs-card-desc">{a.theme === 'fixed' ? 'Fixed: XENON obsidian with your accent choice.' : 'This video has no signature palette; colours come from its artwork when it can be read.'}</p>
+        )}
         <SwitchRow
-          label="Use film atmosphere"
-          description={a.enabled ? 'On: background, panels and accents follow the film.' : 'Off: XENON keeps its plain dark look.'}
+          label="Film artwork behind the player"
+          description={a.enabled ? 'On: a blurred, darkened still sits behind the interface. The video itself is never tinted.' : 'Off: plain surfaces only.'}
           checked={a.enabled}
           onChange={(v) => ap.update({ enabled: v })}
         />
+      </Card>
+
+      <Card title="Accent and panel colour" description="Accents always pass a 4.5:1 contrast check before they are used.">
+        <Pills label="Accent colour">
+          {ACCENTS.map((c) => (
+            <Pill key={c.id} selected={a.accent === c.id} onClick={() => ap.update({ accent: c.id })}>
+              {c.label}
+            </Pill>
+          ))}
+        </Pills>
+        {a.accent === 'custom' ? (
+          <label className="cs-form">
+            Accent (hex)
+            <input
+              value={accentText}
+              maxLength={7}
+              onChange={(e) => {
+                setAccentText(e.target.value);
+                const rgb = parseHex(e.target.value);
+                if (rgb) {
+                  setMsg(null);
+                  ap.update({ customAccent: toHex(rgb) });
+                }
+              }}
+              onBlur={() => commitHex(accentText, (h) => ap.update({ customAccent: h }), 'Use a hex colour like #ff7a59.')}
+            />
+          </label>
+        ) : null}
+        <p className="cs-card-desc" role="status">
+          Contrast on panels: {derived.accent.ratio.toFixed(1)}:1.{' '}
+          {derived.accent.fellBack
+            ? 'That colour could not be made readable, so the default accent is used.'
+            : derived.accent.adjusted
+              ? 'Lightened slightly to stay readable.'
+              : 'Meets the 4.5:1 minimum.'}
+        </p>
+        <Pills label="Panel colour">
+          <Pill selected={a.panelColor === null} onClick={() => ap.update({ panelColor: null })}>
+            {a.theme === 'adaptive' ? 'Film' : 'XENON'}
+          </Pill>
+          <Pill selected={a.panelColor !== null} onClick={() => ap.update({ panelColor: parseHex(panelText) ? toHex(parseHex(panelText)!) : '#14161f' })}>
+            Custom
+          </Pill>
+        </Pills>
+        {a.panelColor !== null ? (
+          <label className="cs-form">
+            Panel colour (hex, keep it dark)
+            <input
+              value={panelText}
+              maxLength={7}
+              onChange={(e) => {
+                setPanelText(e.target.value);
+                const rgb = parseHex(e.target.value);
+                if (rgb) ap.update({ panelColor: toHex(rgb) });
+              }}
+              onBlur={() => commitHex(panelText, (h) => ap.update({ panelColor: h }), 'Use a hex colour like #14161f.')}
+            />
+          </label>
+        ) : null}
       </Card>
 
       {a.enabled ? (
@@ -182,42 +270,6 @@ export function AppearanceCards() {
             <Range label="Artwork opacity" value={a.opacity} min={0} max={100} unit="%" onChange={(v) => ap.update({ opacity: v })} />
             <Range label="Blur" value={a.blur} min={0} max={60} unit="px" onChange={(v) => ap.update({ blur: v })} />
             <Range label="Ambient light" value={a.ambient} min={0} max={100} unit="%" onChange={(v) => ap.update({ ambient: v })} />
-          </Card>
-
-          <Card title="Accent colour" description="Used for selected items, focus rings and the progress bar.">
-            <Pills label="Accent colour">
-              {ACCENTS.map((c) => (
-                <Pill key={c.id} selected={a.accent === c.id} onClick={() => ap.update({ accent: c.id })}>
-                  {c.label}
-                </Pill>
-              ))}
-            </Pills>
-            {a.accent === 'custom' ? (
-              <label className="cs-form">
-                Accent (hex)
-                <input
-                  value={accentText}
-                  maxLength={7}
-                  onChange={(e) => {
-                    setAccentText(e.target.value);
-                    const rgb = parseHex(e.target.value);
-                    if (rgb) {
-                      setMsg(null);
-                      ap.update({ customAccent: toHex(rgb) });
-                    }
-                  }}
-                  onBlur={() => commitHex(accentText, (h) => ap.update({ customAccent: h }), 'Use a hex colour like #ff7a59.')}
-                />
-              </label>
-            ) : null}
-            <p className="cs-card-desc" role="status">
-              Contrast on panels: {derived.accent.ratio.toFixed(1)}:1.{' '}
-              {derived.accent.fellBack
-                ? 'That colour could not be made readable, so the default accent is used.'
-                : derived.accent.adjusted
-                  ? 'Lightened slightly to stay readable.'
-                  : 'Meets the 4.5:1 minimum.'}
-            </p>
           </Card>
 
           <Card title="Text contrast" description="High raises the target from 4.5:1 to 7:1.">
@@ -321,7 +373,7 @@ export function AppearanceCards() {
           Your browser would not save these settings; they last until you close the tab.
         </p>
       ) : null}
-      {a.enabled ? (
+      {a.enabled || a.theme !== 'adaptive' || a.accent !== 'default' || a.panelColor ? (
         <div className="cs-chips">
           <button
             type="button"
@@ -330,7 +382,8 @@ export function AppearanceCards() {
               ap.reset();
               setHexText(DEFAULT_APPEARANCE.color);
               setAccentText(DEFAULT_APPEARANCE.customAccent);
-              setMsg({ kind: 'ok', text: 'Appearance reset to the default, with the atmosphere off.' });
+              setPanelText('#14161f');
+              setMsg({ kind: 'ok', text: 'Appearance reset: Adaptive theme, film accent, artwork on.' });
             }}
           >
             Reset appearance

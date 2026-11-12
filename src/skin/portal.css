@@ -6,7 +6,7 @@
 .tp {
   position: absolute;
   inset: 0;
-  z-index: 22;
+  z-index: 30;
   display: grid;
   place-items: center;
   padding: var(--sp-4);

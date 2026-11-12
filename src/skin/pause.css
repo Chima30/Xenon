@@ -1,0 +1,291 @@
+/* ==========================================================================
+   Pause Canvas. The paused frame stays the centre: information sits in a soft band at the left, the
+   neighbouring scenes at the right, the transport in between. It lies under captions and controls.
+   ========================================================================== */
+
+.cs-pause {
+  --pause-top: 76px;
+  --pause-bottom: 150px;
+  position: absolute;
+  inset: 0 0 var(--cs-console-h) 0;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-6);
+  padding: var(--pause-top) var(--sp-6) var(--pause-bottom) clamp(48px, 6%, 76px);
+  pointer-events: none;
+  background:
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--cs-base) 88%, transparent) 0%,
+      color-mix(in srgb, var(--cs-base) 52%, transparent) 26%,
+      transparent 48%,
+      transparent 72%,
+      color-mix(in srgb, var(--cs-base) 55%, transparent) 100%
+    ),
+    radial-gradient(60% 80% at 0% 50%, color-mix(in srgb, var(--cs-glow) 14%, transparent), transparent 70%);
+  animation: cs-pause-in 0.5s ease both;
+}
+.cs-root[data-dock='compact'] .cs-pause {
+  --pause-bottom: 96px;
+}
+.cs-root[data-dock='expanded'] .cs-pause {
+  --pause-bottom: var(--sp-6);
+}
+@keyframes cs-pause-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.cs-pause-panel {
+  display: grid;
+  align-content: center;
+  gap: var(--sp-2);
+  width: min(34%, 380px);
+  max-height: 100%;
+  overflow: hidden;
+  pointer-events: auto;
+  animation: cs-pause-rise 0.55s var(--ease-out) both;
+}
+@keyframes cs-pause-rise {
+  from {
+    opacity: 0;
+    transform: translateX(-12px);
+  }
+}
+.cs-pause-panel > * {
+  margin: 0;
+}
+.cs-pause-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font: var(--fw-semibold) var(--fs-xs) / 1 var(--cs-font);
+  letter-spacing: var(--ls-label);
+  text-transform: uppercase;
+  color: var(--cs-label);
+}
+.cs-pause-led {
+  width: 7px;
+  height: 7px;
+  background: var(--cs-citron);
+  border-radius: 50%;
+  box-shadow: 0 0 8px var(--cs-citron);
+}
+.cs-pause-title {
+  font: var(--fw-bold) clamp(1.5rem, 3.2cqi, 2.4rem) / 1.02 var(--cs-font);
+  letter-spacing: -0.02em;
+  text-shadow: 0 2px 20px rgb(0 0 0 / 0.5);
+  overflow-wrap: anywhere;
+}
+.cs-pause-sub {
+  font: var(--fw-medium) var(--fs-sm) / 1.3 var(--cs-font);
+  color: var(--cs-ice-dim);
+}
+.cs-pause-time {
+  font: var(--fw-medium) var(--fs-md) / 1 var(--cs-font);
+  font-variant-numeric: tabular-nums;
+  color: var(--cs-ice-dim);
+}
+.cs-pause-time strong {
+  font-size: var(--fs-xl);
+  font-weight: var(--fw-bold);
+  color: var(--cs-ice);
+}
+.cs-pause-scene {
+  display: grid;
+  gap: 2px;
+  padding-left: var(--sp-3);
+  font: var(--fw-semibold) var(--fs-md) / 1.3 var(--cs-font);
+  border-left: 2px solid var(--cs-citron);
+}
+.cs-pause-scene-kind {
+  font: var(--fw-semibold) var(--fs-xs) / 1.2 var(--cs-font);
+  letter-spacing: var(--ls-label);
+  text-transform: uppercase;
+  color: var(--cs-label);
+}
+.cs-pause-insight {
+  display: grid;
+  gap: 2px;
+  padding-left: var(--sp-3);
+  border-left: 2px solid var(--cs-secondary);
+}
+.cs-pause-insight p {
+  margin: 0;
+  font-size: var(--fs-sm);
+  line-height: var(--lh-body);
+}
+.cs-pause-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin-top: var(--sp-1);
+}
+.cs-pause-hint {
+  font-size: var(--fs-xs);
+  color: var(--cs-ice-dim);
+}
+.cs-pause-hint kbd {
+  min-height: 22px;
+  min-width: 22px;
+  font-size: var(--fs-xs);
+}
+
+/* Neighbouring scenes at the right edge. */
+.cs-pause-side {
+  display: grid;
+  gap: var(--sp-2);
+  width: min(26%, 260px);
+  pointer-events: auto;
+  animation: cs-pause-rise-r 0.55s var(--ease-out) both;
+}
+@keyframes cs-pause-rise-r {
+  from {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+}
+.cs-pause-card {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  align-items: center;
+  gap: var(--sp-3);
+  padding: 5px;
+  color: var(--cs-ice);
+  text-align: left;
+  cursor: pointer;
+  background: color-mix(in srgb, var(--cs-base) 72%, transparent);
+  border: var(--bw) solid var(--cs-hairline);
+  border-radius: var(--r-md);
+  -webkit-backdrop-filter: blur(var(--cs-panel-blur));
+  backdrop-filter: blur(var(--cs-panel-blur));
+  transition: border-color var(--t-fast) ease, transform var(--t-fast) ease;
+}
+.cs-pause-still {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  font: var(--fw-bold) var(--fs-sm) / 1 var(--cs-font);
+  color: var(--cs-label);
+  background: var(--cs-steel);
+  border-radius: calc(var(--r-md) - 4px);
+}
+.cs-pause-still img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.cs-pause-card-text {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+.cs-pause-card-label {
+  font: var(--fw-semibold) var(--fs-xs) / 1.2 var(--cs-font);
+  letter-spacing: var(--ls-label);
+  text-transform: uppercase;
+  color: var(--cs-label);
+}
+.cs-pause-card-title {
+  overflow: hidden;
+  font: var(--fw-semibold) var(--fs-sm) / 1.25 var(--cs-font);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.cs-pause-card-time {
+  font: var(--fw-medium) var(--fs-xs) / 1.2 var(--cs-font);
+  font-variant-numeric: tabular-nums;
+  color: var(--cs-ice-dim);
+}
+@media (hover: hover) {
+  .cs-pause-card:hover {
+    border-color: var(--cs-accent-line);
+    transform: translateX(-2px);
+  }
+}
+.cs-pause :is(button):focus-visible {
+  outline: 3px solid var(--cs-focus);
+  outline-offset: 2px;
+}
+
+/* Compact: one quiet line under the top bar. */
+.cs-pause[data-compact] {
+  inset: auto auto auto 0;
+  top: 58px;
+  display: block;
+  padding: 0 var(--sp-3);
+  background: none;
+}
+.cs-pause-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  max-width: 100%;
+  margin: 0;
+  padding: 6px 12px;
+  font: var(--fw-medium) var(--fs-xs) / 1.2 var(--cs-font);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  background: color-mix(in srgb, var(--cs-base) 82%, transparent);
+  border: var(--bw) solid var(--cs-hairline);
+  border-radius: var(--r-pill);
+  -webkit-backdrop-filter: blur(var(--cs-panel-blur));
+  backdrop-filter: blur(var(--cs-panel-blur));
+}
+.cs-pause-pill-scene {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--cs-ice-dim);
+}
+
+/* Not enough height for the full canvas: keep the essentials. */
+@container csstage (max-width: 900px) {
+  .cs-pause-hint,
+  .cs-pause-sub {
+    display: none;
+  }
+  .cs-pause-side {
+    width: min(30%, 220px);
+  }
+  .cs-pause-card {
+    grid-template-columns: 72px minmax(0, 1fr);
+  }
+}
+
+.cs-root[data-hc] :is(.cs-pause-card, .cs-pause-pill) {
+  background: #000;
+  border: 2px solid #fff;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+.cs-root[data-hc] .cs-pause {
+  background: linear-gradient(90deg, rgb(0 0 0 / 0.92), rgb(0 0 0 / 0.7) 34%, transparent 52%, transparent 70%, rgb(0 0 0 / 0.75));
+}
+.cs-root[data-motion='reduce'] :is(.cs-pause, .cs-pause-panel, .cs-pause-side, .cs-pause-card) {
+  animation: none !important;
+  transition: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .cs-pause,
+  .cs-pause-panel,
+  .cs-pause-side,
+  .cs-pause-card {
+    animation: none;
+    transition: none;
+  }
+}
+@media (forced-colors: active) {
+  .cs-pause {
+    background: none;
+  }
+  .cs-pause-panel,
+  .cs-pause-card,
+  .cs-pause-pill {
+    background: Canvas;
+    border: 1px solid CanvasText;
+  }
+}
