@@ -20,7 +20,6 @@
 .cs-keytable th {
   font: var(--fw-semibold) var(--fs-xs)/var(--lh-snug) var(--cs-font);
   letter-spacing: var(--ls-label);
-  text-transform: uppercase;
   color: var(--cs-lavender);
 }
 /* Panel headings: compact semibold. */
@@ -165,9 +164,16 @@
 /* Selected state: never colour alone. A check mark and weight accompany the fill. */
 .cs-chip[aria-pressed='true']::before,
 .cs-choice[aria-pressed='true'] .cs-choice-main::before {
-  content: '✓';
+  content: '';
+  display: inline-block;
+  flex: none;
+  width: 14px;
+  height: 14px;
+  vertical-align: -2px;
+  background: currentColor;
+  -webkit-mask: var(--icon-check) center / contain no-repeat;
+  mask: var(--icon-check) center / contain no-repeat;
   margin-right: 6px;
-  font-weight: var(--fw-bold);
 }
 .cs-chip {
   min-height: var(--h-ctl);
@@ -413,7 +419,15 @@
   color: var(--cs-selected-bg);
 }
 .cs-switch[aria-checked='true'] .cs-switch-knob::before {
-  content: '✓';
+  content: '';
+  display: inline-block;
+  flex: none;
+  width: 12px;
+  height: 12px;
+  vertical-align: -2px;
+  background: currentColor;
+  -webkit-mask: var(--icon-check) center / contain no-repeat;
+  mask: var(--icon-check) center / contain no-repeat;
 }
 @media (hover: hover) {
   .cs-switch:hover:not(:disabled) {
@@ -484,8 +498,16 @@
   font-weight: var(--fw-bold);
 }
 .cs-form-msg[data-kind='ok']::before {
-  content: '✓ ';
-  font-weight: var(--fw-bold);
+  content: '';
+  display: inline-block;
+  flex: none;
+  width: 14px;
+  height: 14px;
+  vertical-align: -2px;
+  background: currentColor;
+  -webkit-mask: var(--icon-check) center / contain no-repeat;
+  mask: var(--icon-check) center / contain no-repeat;
+  margin-right: 4px;
 }
 .cs-fieldset,
 .cs-form fieldset {
@@ -601,10 +623,19 @@
 .cs-diag-status {
   font-size: var(--fs-xs);
   font-weight: var(--fw-bold);
-  letter-spacing: 0.04em;
+  letter-spacing: 0;
 }
 .cs-diag-row[data-status='Pass'] .cs-diag-status::before {
-  content: '✓ ';
+  content: '';
+  display: inline-block;
+  flex: none;
+  width: 12px;
+  height: 12px;
+  vertical-align: -2px;
+  background: currentColor;
+  -webkit-mask: var(--icon-check) center / contain no-repeat;
+  mask: var(--icon-check) center / contain no-repeat;
+  margin-right: 4px;
 }
 .cs-diag-row[data-status='Needs review'] .cs-diag-status::before {
   content: '! ';

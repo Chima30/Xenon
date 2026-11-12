@@ -268,7 +268,7 @@
 }
 .cs-seek-num {
   position: absolute;
-  font: 700 var(--fs-xs)/var(--lh-snug) var(--cs-font);
+  font: 600 var(--fs-xs)/var(--lh-snug) var(--cs-font);
   top: 50%;
   left: 50%;
   transform: translate(-50%, -42%);
@@ -282,7 +282,7 @@
   color: var(--cs-ink-on-citron);
   background: var(--cs-citron);
   border-color: var(--cs-citron);
-  box-shadow: 0 0 0 6px rgb(216 255 87 / 0.18);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.4);
 }
 
 .cs-seg {
@@ -442,7 +442,6 @@
   margin: 8px 10px 4px;
   font: 600 var(--fs-xs)/var(--lh-snug) var(--cs-font);
   letter-spacing: var(--ls-label);
-  text-transform: uppercase;
   color: var(--cs-lavender);
 }
 .cs-menu-group {
@@ -587,7 +586,6 @@
   padding: 6px 8px;
   font: 600 var(--fs-xs)/var(--lh-snug) var(--cs-font);
   letter-spacing: var(--ls-label);
-  text-transform: uppercase;
   color: var(--cs-lavender);
 }
 .cs-keytable td {
@@ -629,8 +627,7 @@
 }
 .cs-diag-status {
   font: 600 var(--fs-xs)/var(--lh-snug) var(--cs-font);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0;
 }
 .cs-diag-row[data-status='Pass'] .cs-diag-status {
   color: var(--cs-teal);

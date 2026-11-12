@@ -421,9 +421,8 @@
 }
 .cs-lm-label {
   flex: none;
-  font: var(--fw-semibold) 0.65625rem / 1 var(--cs-font);
-  letter-spacing: 0.32em;
-  text-transform: uppercase;
+  font: var(--fw-semibold) 0.6875rem / 1 var(--cs-font);
+  letter-spacing: 0;
   color: var(--cs-label);
 }
 .cs-lm-gauge {
@@ -476,7 +475,7 @@
   height: 19px;
   margin-left: -1px;
   background: var(--cs-citron);
-  box-shadow: 0 0 5px color-mix(in srgb, var(--cs-citron) 70%, transparent);
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 0.35);
   transition: left 1.2s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 .cs-lm-needle::before {
@@ -493,7 +492,7 @@
   min-width: 13.5em;
   font: var(--fw-semibold) 0.75rem / 1 var(--cs-font);
   font-variant-numeric: tabular-nums;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.02em;
   white-space: nowrap;
   color: var(--cs-ice);
 }
@@ -603,7 +602,6 @@
   border-color: color-mix(in srgb, #fff 82%, var(--pf-catch));
   border-radius: inherit;
   opacity: 0;
-  filter: drop-shadow(0 0 3px color-mix(in srgb, #fff 55%, var(--pf-catch)));
   -webkit-mask: conic-gradient(from calc(var(--g0) + var(--pf-gp) * 230deg - 14deg) at var(--gx) var(--gy), #000 0 28deg, transparent 28deg);
   mask: conic-gradient(from calc(var(--g0) + var(--pf-gp) * 230deg - 14deg) at var(--gx) var(--gy), #000 0 28deg, transparent 28deg);
   pointer-events: none;

@@ -138,7 +138,6 @@
   margin-top: 2px;
   font: var(--fw-semibold, 600) var(--fs-xs) / 1 var(--cs-font);
   letter-spacing: var(--ls-label);
-  text-transform: uppercase;
   color: var(--cs-label);
 }
 
@@ -167,7 +166,6 @@
   background-repeat: no-repeat;
   border-radius: 4px;
   opacity: calc(0.55 + var(--wheel-lock, 1) * 0.45 * var(--wheel-fan, 1));
-  filter: drop-shadow(0 0 calc(var(--wheel-lock, 1) * 6px) color-mix(in srgb, var(--cs-citron) 70%, transparent));
   pointer-events: none;
 }
 /* The index pointer on the ring, aimed at the gate. */
@@ -188,14 +186,12 @@
 }
 @keyframes wheel-fire {
   0% {
-    box-shadow: 0 0 0 0 color-mix(in srgb, var(--cs-citron) 60%, transparent);
     scale: 1;
   }
   35% {
     scale: 1.04;
   }
   100% {
-    box-shadow: 0 0 0 14px transparent;
     scale: 1;
   }
 }
@@ -224,7 +220,6 @@
   height: 5px;
   background: var(--cs-citron);
   border-radius: 50%;
-  box-shadow: 0 0 6px color-mix(in srgb, var(--cs-citron) 70%, transparent);
 }
 .cs-root[data-mode='explore'] .wheel[data-layout='arc'] .wheel-coupler {
   display: block;
@@ -386,8 +381,7 @@
   gap: 5px;
   padding: 3px 8px 3px 6px;
   font: var(--fw-bold, 700) var(--fs-xs) / 1 var(--cs-font);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  letter-spacing: 0;
   color: var(--cs-ink-on-citron);
   background: var(--cs-citron);
   border-radius: var(--r-pill, 9999px);
@@ -398,7 +392,6 @@
   height: 6px;
   background: currentColor;
   border-radius: 50%;
-  animation: wheel-live 1.6s ease-in-out infinite;
 }
 @keyframes wheel-live {
   50% {
@@ -500,7 +493,6 @@
   width: calc(50% - 3px);
   background: var(--cs-citron);
   border-radius: calc(var(--r-md, 12px) - 3px);
-  box-shadow: 0 0 18px color-mix(in srgb, var(--cs-citron) 30%, transparent);
   transition: translate var(--t-med, 0.28s) var(--ease-out, ease);
   animation: rail-face-a 0.32s var(--ease-out, ease);
 }
@@ -512,13 +504,11 @@
 @keyframes rail-face-a {
   40% {
     scale: 0.94 0.9;
-    box-shadow: 0 0 26px color-mix(in srgb, var(--cs-citron) 55%, transparent);
   }
 }
 @keyframes rail-face-b {
   40% {
     scale: 0.94 0.9;
-    box-shadow: 0 0 26px color-mix(in srgb, var(--cs-citron) 55%, transparent);
   }
 }
 .rail-tab {
@@ -611,7 +601,6 @@
 .rail-kicker {
   font: var(--fw-semibold, 600) var(--fs-xs) / var(--lh-snug) var(--cs-font);
   letter-spacing: var(--ls-label);
-  text-transform: uppercase;
   color: var(--cs-label);
 }
 .rail-detail[data-face] .rail-kicker {

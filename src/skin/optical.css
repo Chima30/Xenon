@@ -106,7 +106,7 @@
   background: var(--cs-anchor);
   border: 0;
   border-radius: var(--r-pill);
-  box-shadow: 0 0 14px color-mix(in srgb, var(--cs-anchor) 40%, transparent);
+  box-shadow: 0 6px 16px rgb(0 0 0 / 0.4);
   animation: cs-tether-in 0.35s var(--ease-spring) both;
 }
 .cs-root .cs-tether-chip svg {
@@ -269,8 +269,7 @@
 .cs-root {
   box-shadow:
     0 0 0 1px color-mix(in srgb, var(--cs-ice) 9%, transparent),
-    0 30px 80px rgb(0 0 0 / 0.45),
-    0 0 140px color-mix(in srgb, var(--cs-glow) 16%, transparent);
+    0 30px 80px rgb(0 0 0 / 0.45);
 }
 
 /* ---------- Preferences ---------- */

@@ -195,7 +195,6 @@
   overflow: hidden;
   font: var(--fw-semibold) var(--fs-xs) / 1 var(--cs-font);
   letter-spacing: var(--ls-label);
-  text-transform: uppercase;
   white-space: nowrap;
   text-overflow: ellipsis;
   color: var(--cs-label);
@@ -280,7 +279,6 @@
 }
 .cs-fill {
   background: linear-gradient(90deg, color-mix(in oklab, var(--cs-citron) 70%, var(--cs-base)), var(--cs-citron));
-  box-shadow: 0 0 10px color-mix(in srgb, var(--cs-citron) 45%, transparent);
 }
 /* Scene boundaries: a clean cut through the strip. */
 .cs-marker[data-kind='scene'] {
@@ -398,7 +396,7 @@
   height: 30px;
   background: var(--cs-citron);
   border-radius: 2px;
-  box-shadow: 0 0 10px var(--cs-citron);
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 0.45);
   translate: 0 -50%;
 }
 @media (hover: hover) {

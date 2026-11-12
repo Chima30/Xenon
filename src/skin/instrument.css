@@ -69,8 +69,7 @@
 .cs-subtitle {
   margin-top: 3px;
   font: var(--fw-semibold) var(--fs-xs) / var(--lh-snug) var(--cs-font);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  letter-spacing: 0;
   color: var(--cs-label);
 }
 .cs-toolbar {

@@ -141,7 +141,7 @@ export function StudioPage() {
             <ColorField label="Text on accent" hint="--media-accent-text-color" value={c.accentText} onChange={(v) => set({ accentText: v })} />
             <ColorField label="Surface" hint="--xenon-surface-color" value={c.surface} onChange={(v) => set({ surface: v })} />
             <p className="studio-check" data-ok={textRatio >= 4.5 && surfaceRatio >= 3 ? '' : undefined} role="status">
-              {textRatio >= 4.5 && surfaceRatio >= 3 ? '✓ ' : '! '}
+              {textRatio >= 4.5 && surfaceRatio >= 3 ? 'Passes: ' : 'Below target: '}
               Text on accent {textRatio.toFixed(1)}:1 (needs 4.5) · accent on surface {surfaceRatio.toFixed(1)}:1 (needs 3)
             </p>
           </fieldset>

@@ -49,7 +49,9 @@ export function App() {
       <header className="site-header">
         <a className="brand" href="#/" aria-label="XENON cinema interface, home">
           <span className="brand-mark" aria-hidden="true" />
-          <span>XENON / CINEMA INTERFACE</span>
+          <span>
+            XENON <span className="brand-sub">Cinema interface</span>
+          </span>
         </a>
         <nav aria-label="Primary">
           <a href="#/" aria-current={route.name === 'home' ? 'page' : undefined}>

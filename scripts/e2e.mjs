@@ -1083,8 +1083,9 @@ const spot = await tp2.evaluate(() => {
   const r = document.querySelector('.cs-stage').getBoundingClientRect();
   const top = document.querySelector('.cs-top')?.getBoundingClientRect();
   const slate = document.querySelector('.cs-slate')?.getBoundingClientRect();
-  const from = top ? top.bottom + 12 : r.top + r.height * 0.3;
-  const to = slate ? slate.top - 12 : r.top + r.height * 0.7;
+  // Resting controls measure as zero height, so never aim above 30% of the picture: the first tap wakes the bar.
+  const from = Math.max(top && top.height ? top.bottom + 12 : 0, r.top + r.height * 0.3);
+  const to = slate && slate.height ? slate.top - 12 : r.top + r.height * 0.7;
   return { x: r.left + r.width * 0.14, y: (from + to) / 2 };
 });
 await tp2.touchscreen.tap(spot.x, spot.y);
@@ -1330,7 +1331,7 @@ await page.waitForTimeout(1300);
 const warmRoom = await meter();
 check(
   'Lightmeter: a 40px plate under a picture that stays exactly 16:9; it reads the real frame (exposure, warmth, colour temperature) and paints the scale with its tones',
-  warmRoom.reading === 'on' && warmRoom.plateH === 40 && warmRoom.below && warmRoom.ratio === 1.778 && /^Light meter: [\u2212+]?\d\.\d EV, warm, \d{4} K$/.test(warmRoom.label ?? '') && /WARM \d{4} K/.test(warmRoom.read) && /linear-gradient/.test(warmRoom.scale) && warmRoom.needle > 0 && warmRoom.needle < 50,
+  warmRoom.reading === 'on' && warmRoom.plateH === 40 && warmRoom.below && warmRoom.ratio === 1.778 && /^Light meter: [\u2212+]?\d\.\d EV, warm, \d{4} K$/.test(warmRoom.label ?? '') && /Warm \d{4} K/.test(warmRoom.read) && /linear-gradient/.test(warmRoom.scale) && warmRoom.needle > 0 && warmRoom.needle < 50,
   JSON.stringify(warmRoom),
 );
 check('The optical corners catch the frame\u2019s key light, and the lens irises open for a dark frame', warmRoom.light !== '' && warmRoom.ap > 0.7, JSON.stringify({ light: warmRoom.light, ap: warmRoom.ap, corner: warmRoom.corner }));
@@ -1345,7 +1346,7 @@ await page.waitForTimeout(1600);
 const blueStreet = await meter();
 check(
   'A cut: one glint runs round the corner brackets, the needle glides to the new exposure and the corners turn to the new light',
-  glinted && /pf-glint/.test(atCut.glintAnim) && blueStreet.glint === null && /COOL/.test(blueStreet.read) && blueStreet.needle < warmRoom.needle && blueStreet.light !== warmRoom.light && blueStreet.corner !== warmRoom.corner,
+  glinted && /pf-glint/.test(atCut.glintAnim) && blueStreet.glint === null && /Cool/.test(blueStreet.read) && blueStreet.needle < warmRoom.needle && blueStreet.light !== warmRoom.light && blueStreet.corner !== warmRoom.corner,
   JSON.stringify({ glinted, anim: atCut.glintAnim, read: blueStreet.read, needle: [warmRoom.needle, blueStreet.needle], corner: [warmRoom.corner, blueStreet.corner] }),
 );
 await shot(page, 'lightmeter-cool');
@@ -1405,6 +1406,8 @@ for (const [film, stops] of [
   ['big-buck-bunny', ['#071c17', '#204a37', '#a47835', '#e2d78a']],
 ]) {
   await open(film);
+  // A fresh page crossfades from XENON's spectrum to the film's in 1.2 s; read the settled colours.
+  await page.waitForTimeout(1500);
   const s = await spectral();
   check(
     `Spectral gradients on ${film}: its four stops drive the layered shell, the dock and the page; the video is untouched`,

@@ -45,6 +45,7 @@
   --soft: color-mix(in oklab, var(--fg) 72%, var(--page-base));
   --line: color-mix(in oklab, var(--page-base) 72%, white);
   --accent: var(--page-accent);
+  --icon-check: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E");
   transition:
     --page-base 0.9s ease,
     --page-glow 0.9s ease,
@@ -99,7 +100,12 @@ body::before {
 }
 
 a {
-  color: var(--accent);
+  color: var(--fg);
+  text-decoration-color: color-mix(in oklab, var(--fg) 40%, transparent);
+  text-underline-offset: 3px;
+}
+a:hover {
+  text-decoration-color: currentColor;
 }
 :focus-visible {
   outline: 3px solid var(--accent);
@@ -135,16 +141,19 @@ a {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 14px clamp(16px, 4vw, 40px);
+  padding: 12px clamp(16px, 4vw, 40px);
 }
 .brand {
   display: inline-flex;
   align-items: center;
   gap: 10px;
   color: var(--fg);
-  font: 600 0.8rem var(--mono);
-  letter-spacing: var(--ls-label);
+  font: 600 0.9375rem var(--font);
   text-decoration: none;
+}
+.brand-sub {
+  font-weight: 400;
+  color: var(--soft);
 }
 .brand-mark {
   width: 18px;
@@ -181,8 +190,8 @@ main:focus {
   outline: none;
 }
 h2 {
-  margin: 36px 0 14px;
-  font: 600 1.35rem var(--display);
+  margin: 48px 0 16px;
+  font: 600 1.375rem var(--display);
 }
 .page-h {
   margin: 8px 0;
@@ -255,27 +264,26 @@ kbd {
 .hero-copy {
   position: relative;
   max-width: 600px;
-  padding: clamp(18px, 4vw, 44px);
+  padding: clamp(20px, 4vw, 48px);
 }
 .kicker {
-  margin: 0 0 6px;
-  font: 600 var(--fs-xs)/var(--lh-snug) var(--cs-font);
-  letter-spacing: var(--ls-label);
-  text-transform: uppercase;
-  color: var(--accent);
+  margin: 0 0 8px;
+  font: 500 var(--fs-sm)/var(--lh-snug) var(--cs-font);
+  color: var(--soft);
 }
 .hero h1 {
   margin: 0;
-  font: 700 clamp(2.2rem, 6vw, 3.8rem) / 1 var(--display);
+  font: 600 clamp(2.2rem, 6vw, 3.8rem) / 1 var(--display);
+  letter-spacing: -0.01em;
 }
 .hero-desc {
-  margin: 12px 0 6px;
-  font-size: 1.05rem;
+  margin: 12px 0 4px;
+  font-size: 1.0625rem;
 }
 .hero-meta {
-  margin: 0 0 18px;
+  margin: 0 0 20px;
   color: var(--soft);
-  font-size: 0.88rem;
+  font-size: 0.875rem;
 }
 .hero-actions {
   display: flex;
@@ -323,7 +331,7 @@ kbd {
   cursor: pointer;
   background: transparent;
   border: 1px solid var(--line);
-  border-radius: 9999px;
+  border-radius: 10px;
 }
 .chip[aria-pressed='true'] {
   color: #0a0e17;
@@ -344,7 +352,7 @@ kbd {
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
-  gap: 18px;
+  gap: 24px 20px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -390,8 +398,8 @@ kbd {
   background: var(--accent);
 }
 .card-title {
-  margin-top: 6px;
-  font: 600 1.05rem var(--display);
+  margin-top: 8px;
+  font: 600 1.0625rem var(--display);
 }
 .card-meta {
   color: var(--soft);
@@ -401,53 +409,76 @@ kbd {
   justify-self: start;
   min-height: 44px;
   padding: 0;
-  color: var(--accent);
+  color: var(--soft);
   font: inherit;
-  font-size: 0.85rem;
+  font-size: 0.875rem;
   cursor: pointer;
   background: none;
   border: 0;
   text-decoration: underline;
+  text-decoration-color: color-mix(in oklab, var(--soft) 50%, transparent);
+  text-underline-offset: 3px;
+}
+.link-btn:hover,
+.link-btn[aria-pressed='true'] {
+  color: var(--fg);
 }
 
 /* ---------- Tour & credits ---------- */
 
 .tour-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 16px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 24px 32px;
+  margin-top: 24px;
+}
+@media (min-width: 800px) {
+  .tour-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) minmax(0, 1fr);
+  }
 }
 .tour-grid article {
-  padding: 18px;
-  background: rgb(6 25 29 / 0.6);
-  border: 1px solid var(--line);
-  border-radius: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
 }
 .tour-grid h3,
 .tour-sub {
-  margin: 0 0 6px;
-  font: 600 1.05rem var(--display);
+  margin: 0 0 8px;
+  font: 600 1.0625rem var(--display);
 }
 .tour-grid p {
   margin: 0;
   color: var(--soft);
 }
 .tour-sub {
-  margin-top: 22px;
+  margin-top: 40px;
 }
 .keys {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 8px 20px;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
+  gap: 12px 24px;
   margin: 0;
   padding: 0;
   list-style: none;
   color: var(--soft);
 }
+/* Keycaps sit in their own column so a wrapped description lines up under itself. */
+.keys li {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+.keys kbd {
+  flex: none;
+  margin-right: 0;
+}
+.keys li > span {
+  margin-left: 4px;
+}
 .credits {
   display: grid;
-  gap: 10px;
-  padding-left: 18px;
+  gap: 8px;
+  padding-left: 20px;
   color: var(--soft);
 }
 

@@ -118,7 +118,7 @@ export function Lightmeter({ mediaKey }: { mediaKey?: string }) {
               {evText(r.ev)}
               <span className="cs-lm-k">
                 <span className="cs-lm-dot"> · </span>
-                {warmth(r.kelvin).toUpperCase()} <span className="cs-lm-dim">{kelvinText(r.kelvin)}</span>
+                {warmth(r.kelvin)} <span className="cs-lm-dim">{kelvinText(r.kelvin)}</span>
               </span>
             </>
           ) : reading === null ? (

@@ -100,7 +100,6 @@
   margin: 0;
   font: var(--fw-semibold) var(--fs-xs) / 1 var(--cs-font);
   letter-spacing: var(--ls-label);
-  text-transform: uppercase;
   color: var(--cs-label);
 }
 .cs-lens-time {
@@ -255,7 +254,7 @@
   bottom: -8px;
   width: 2px;
   background: var(--cs-citron);
-  box-shadow: 0 0 10px var(--cs-citron);
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 0.45);
   translate: -50% 0;
   transition: left var(--t-fast) var(--ease-out);
 }

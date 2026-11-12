@@ -109,7 +109,7 @@
 .cs-switch-state {
   min-width: 52px;
   padding: 6px 12px;
-  font: 700 var(--fs-sm)/var(--lh-snug) var(--cs-font);
+  font: 600 var(--fs-sm)/var(--lh-snug) var(--cs-font);
   text-align: center;
   color: var(--cs-ice-dim);
   background: var(--cs-obsidian);
@@ -137,7 +137,6 @@
   padding: 0 0 6px;
   font: 600 var(--fs-xs)/var(--lh-snug) var(--cs-font);
   letter-spacing: var(--ls-label);
-  text-transform: uppercase;
   color: var(--cs-lavender);
 }
 .cs-range {
