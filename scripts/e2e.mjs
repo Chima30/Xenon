@@ -1076,16 +1076,16 @@ await tp2.evaluate(
     }),
 );
 await tp2.waitForTimeout(600);
-// A point on the left of the picture where the bare video is under the finger (controls and the slate
-// rightly ignore gestures).
+// A point on the left of the picture that is bare video whether or not the controls are showing: below the
+// top bar's full height (the first tap wakes it) and above the pause slate. Controls and the slate rightly
+// ignore gestures, so a tap that lands on them is not a double tap.
 const spot = await tp2.evaluate(() => {
   const r = document.querySelector('.cs-stage').getBoundingClientRect();
-  for (let f = 0.3; f <= 0.75; f += 0.05) {
-    const x = r.left + r.width * 0.14;
-    const y = r.top + r.height * f;
-    if (document.elementFromPoint(x, y)?.tagName === 'VIDEO') return { x, y };
-  }
-  return { x: r.left + r.width * 0.14, y: r.top + r.height * 0.4 };
+  const top = document.querySelector('.cs-top')?.getBoundingClientRect();
+  const slate = document.querySelector('.cs-slate')?.getBoundingClientRect();
+  const from = top ? top.bottom + 12 : r.top + r.height * 0.3;
+  const to = slate ? slate.top - 12 : r.top + r.height * 0.7;
+  return { x: r.left + r.width * 0.14, y: (from + to) / 2 };
 });
 await tp2.touchscreen.tap(spot.x, spot.y);
 await tp2.waitForTimeout(90);
@@ -1501,11 +1501,12 @@ await page.waitForTimeout(200);
 const s2 = await slateAt();
 check('Pause console: drag moves it, it settles clear of the pod, top bar and dock, and the place is saved', s1.x > s0.x + 300 && s1.clear && s2.clear && !!s2.saved, JSON.stringify({ s0, s1, s2 }));
 await page.locator('.cs-slate-grip').focus();
+// Left and down: the console has just settled below the pod, and up would put it back on the pod (refused).
 await page.keyboard.press('ArrowLeft');
-await page.keyboard.press('Shift+ArrowUp');
+await page.keyboard.press('Shift+ArrowDown');
 await page.waitForTimeout(150);
 const s3 = await slateAt();
-check('Arrow keys on the grip move the console without seeking the film', s3.x < s2.x && s3.y < s2.y && Math.abs(s3.t - s2.t) < 0.01, JSON.stringify(s3));
+check('Arrow keys on the grip move the console (16 px, Shift 64 px) without seeking the film', s3.x === s2.x - 16 && s3.y > s2.y && s3.clear && Math.abs(s3.t - s2.t) < 0.01, JSON.stringify({ s2, s3 }));
 await page.reload();
 await page.waitForSelector('.cs-root');
 await page.waitForFunction(() => (document.querySelector('video')?.readyState ?? 0) >= 2, null, { timeout: 30000 });
