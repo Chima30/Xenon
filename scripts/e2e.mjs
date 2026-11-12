@@ -997,6 +997,15 @@ await page.evaluate(() => document.querySelector('video').play().catch(() => {})
 await page.waitForFunction(() => { const v = document.querySelector('video'); return !v.paused && v.readyState >= 3; }, null, { timeout: 25000 }).catch(() => {});
 await page.waitForFunction(() => document.querySelector('video').ended, null, { timeout: 20000 });
 await page.waitForTimeout(900);
+// The tail slate claps as it arrives (the stick lifts and drops back); measure once the clap has settled.
+await page
+  .waitForFunction(() => {
+    const t = document.querySelector('.cs-tail');
+    const s = t?.querySelector('.cs-slate-stick')?.getBoundingClientRect();
+    const b = t?.querySelector('.cs-slate-board')?.getBoundingClientRect();
+    return !!(s && b && s.top >= b.bottom - 1);
+  }, null, { timeout: 3000 })
+  .catch(() => {});
 const tail = await page.evaluate(() => {
   const t = document.querySelector('.cs-tail');
   const stick = t?.querySelector('.cs-slate-stick');
