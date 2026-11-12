@@ -4,6 +4,10 @@ A custom skin for the Video.js v10 player (React, TypeScript, Vite, CSS), built 
 
 **Live:** https://xenon-ruddy.vercel.app/#/ (no login). The player page plays real open films; *Skin only* shows the skin with one video and nothing else.
 
+![XENON: playing, phone, paused and Explore views](submission/xenon-visual.png)
+
+The submission visual and its four shots live in `submission/`; `submission/visual.html` is the source of the board.
+
 ## Design thinking
 
 XENON treats the player as a small cinema rather than a toolbar. The picture is the one bright thing on the page: the Photon Frame's optical corners and the Lightmeter take their light and colour from the film itself, and pausing turns the frame into a Film Slate with the scene, time and time left. Everything else (the controls, the Playback Pod, the curved Movies/Scenes wheel) stays quiet, on solid tinted backings, so it reads over a white sky or a night scene alike. It sits between Default and Neutral in personality: the film-driven colour and the wheel give it a character of its own, while the chrome uses one accent, sentence case and a single typeface (Space Grotesk) so it can sit inside someone else's site. Every control is a real Video.js v10 component or drives its store, works by keyboard with a visible focus ring, is at least 44px on touch, and calms down when reduced motion is on.
