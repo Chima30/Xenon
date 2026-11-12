@@ -144,8 +144,8 @@ export const FILMS: Film[] = [
     source: { label: 'Wikimedia Commons', url: 'https://commons.wikimedia.org/wiki/File:Big_Buck_Bunny_4K.webm' },
     chapters: [],
     downloadable: true,
-    // Woodland Cinema: deep forest green, warm cream, soft gold, a restrained lime accent.
-    palette: { accent: '#c4df7c', base: '#0e1a12', glow: '#d8b25a', ink: '#f3ebd5', secondary: '#e2bd66' },
+    // Woodland Cinema: woodland green surfaces, soft gold light, warm cream text, a green secondary.
+    palette: { accent: '#e8c56f', base: '#0f1a11', glow: '#d9b45c', ink: '#f4ecd6', secondary: '#8fbf74' },
     variants: [
       ...commonsVariants('c/c0', BBB_FILE),
       { server: 'archive', src: 'https://archive.org/download/BigBuckBunny_124/Content/big_buck_bunny_720p_surround.mp4' },

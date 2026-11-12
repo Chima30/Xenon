@@ -95,6 +95,23 @@ export function TestBench({ filmId, startTime, endTime }: { filmId?: string; sta
   const [footage, setFootage] = useState<FootageId>('default');
   const frameRef = useRef<HTMLDivElement>(null);
   const [measured, setMeasured] = useState(0);
+  // The lab is a demo tool, so it starts folded away below the player; its state is remembered for the session.
+  const [labOpen, setLabOpen] = useState(() => {
+    try {
+      return sessionStorage.getItem('xenon-lab-open') === '1';
+    } catch {
+      return false;
+    }
+  });
+  const toggleLab = () =>
+    setLabOpen((o) => {
+      try {
+        sessionStorage.setItem('xenon-lab-open', o ? '0' : '1');
+      } catch {
+        /* storage unavailable: the lab still works for this page view */
+      }
+      return !o;
+    });
 
   useEffect(() => {
     const el = frameRef.current;
@@ -109,8 +126,39 @@ export function TestBench({ filmId, startTime, endTime }: { filmId?: string; sta
   const isDefault = size === 'desktop' && footage === 'default';
 
   return (
-    <section className="bench-wrap" aria-label="Player test bench">
-      <div className="bench">
+    <div className="bench-wrap">
+      <div
+        ref={frameRef}
+        className="bench-frame"
+        data-size={size}
+        style={{ width: preset?.width ? `min(100%, ${preset.width}px)` : '100%' }}
+      >
+        <PlayerPage
+          filmId={filmId}
+          startTime={startTime}
+          endTime={endTime}
+          bench={{
+            forceHighContrast: footage === 'contrast',
+            overlay:
+              footage === 'white' || footage === 'dark' ? <div className="bench-overlay" data-footage={footage} /> : undefined,
+          }}
+        />
+      </div>
+
+      {/* XENON Test Lab: demo-page tooling only. The reusable skin knows nothing about it. */}
+      <section className="lab" aria-labelledby="lab-title" data-open={labOpen || undefined}>
+        <button type="button" className="lab-toggle" aria-expanded={labOpen} aria-controls="lab-body" onClick={toggleLab}>
+          <span className="lab-mark" aria-hidden="true" />
+          <span id="lab-title" className="lab-title">
+            XENON Test Lab
+          </span>
+          <span className="lab-summary">
+            {preset?.label} · {mode?.label}
+            {measured ? ` · ${measured} px` : ''}
+          </span>
+          <span className="lab-chevron" aria-hidden="true" />
+        </button>
+      <div id="lab-body" className="bench" hidden={!labOpen}>
         <div className="bench-group">
           <span className="bench-label">Player size</span>
           <Segmented label="Player size" value={size} options={SIZES} onChange={setSize} />
@@ -138,24 +186,7 @@ export function TestBench({ filmId, startTime, endTime }: { filmId?: string; sta
           <strong>{mode?.label}.</strong> {mode?.text}
         </p>
       </div>
-
-      <div
-        ref={frameRef}
-        className="bench-frame"
-        data-size={size}
-        style={{ width: preset?.width ? `min(100%, ${preset.width}px)` : '100%' }}
-      >
-        <PlayerPage
-          filmId={filmId}
-          startTime={startTime}
-          endTime={endTime}
-          bench={{
-            forceHighContrast: footage === 'contrast',
-            overlay:
-              footage === 'white' || footage === 'dark' ? <div className="bench-overlay" data-footage={footage} /> : undefined,
-          }}
-        />
-      </div>
-    </section>
+      </section>
+    </div>
   );
 }

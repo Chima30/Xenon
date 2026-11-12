@@ -31,22 +31,21 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
     ],
   },
   {
-    title: 'Navigation wheel',
+    title: 'XENON Optic',
     items: [
-      { keys: ['W'], action: 'Open or close the wheel (from Watch mode); focus it in Explore' },
-      { keys: ['↑', '↓', '←', '→'], action: 'Turn the wheel (does not seek or change video)' },
-      { keys: ['Home', 'End'], action: 'First or last item' },
-      { keys: ['Enter', 'Space'], action: 'Preview the film or scene in the gate; Play or Jump confirms' },
+      { keys: ['W'], action: 'Open or close the Optic (films and scenes); focus it in Explore' },
+      { keys: ['Tab'], action: 'Move between the films ring, the scenes ring and the actions' },
+      { keys: ['←', '→', '↑', '↓'], action: 'Turn the focused ring: preview a film or scene, never switches or seeks' },
+      { keys: ['Home', 'End'], action: 'First or last film or scene' },
+      { keys: ['Enter'], action: 'Play the previewed film, or jump to the previewed scene' },
     ],
   },
   {
-    title: 'Time Lens and Scene Dial',
+    title: 'Timeline, Time Tether and Journey',
     items: [
-      { keys: ['T'], action: 'Open or close the Time Lens' },
-      { keys: ['←', '→'], action: 'Move the lens one frame (Shift: one second); never seeks' },
-      { keys: ['↑', '↓'], action: 'Zoom the lens in or out' },
-      { keys: ['Enter'], action: 'Jump to the lens or dial position (leaves a return point)' },
-      { keys: ['←', '→', 'Home', 'End'], action: 'Scene dial: choose the previous, next, first or last scene' },
+      { keys: ['T'], action: 'Open the filmstrip (Time Lens); arrows aim it, Enter jumps' },
+      { keys: ['B'], action: 'Back to where you were before exploring (Time Tether)' },
+      { keys: ['↑', '↓'], action: 'Time Lens: zoom in or out' },
     ],
   },
   {

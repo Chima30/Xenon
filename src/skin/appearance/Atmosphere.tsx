@@ -6,9 +6,18 @@ import { useAppearance } from './AppearanceContext';
  */
 export function Atmosphere() {
   const { derived, appearance } = useAppearance();
-  if (!derived.active) return null;
+  // The Living Lightfield (the film's glow and secondary light, slowly drifting) is always present;
+  // the artwork layer is the viewer's choice.
+  if (!derived.active) {
+    return (
+      <div className="cs-atmosphere" data-light-only aria-hidden="true">
+        <div className="cs-atm-light" />
+      </div>
+    );
+  }
   return (
     <div className="cs-atmosphere" aria-hidden="true">
+      <div className="cs-atm-light" />
       {appearance.source === 'color' ? (
         <div className="cs-atm-color" />
       ) : derived.imageUrl ? (

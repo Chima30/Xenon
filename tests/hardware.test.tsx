@@ -1,10 +1,9 @@
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { FILMS } from '../src/data/catalog';
 import { AppearanceProvider, useAppearance } from '../src/skin/appearance/AppearanceContext';
 import { PrefsProvider, usePrefs } from '../src/skin/prefs/PrefsContext';
 import { sceneIndexAt, sceneKind, type SkinScene } from '../src/skin/scenes';
-import { TimePortal, type PortalStop } from '../src/skin/TimePortal';
 
 beforeEach(() => localStorage.clear());
 afterEach(cleanup);
@@ -118,30 +117,5 @@ describe('Dock preferences', () => {
       </PrefsProvider>,
     );
     expect(screen.getByTestId('state').textContent).toBe('floating|true|false');
-  });
-});
-
-describe('Film preview in the Time Portal', () => {
-  const films: PortalStop[] = FILMS.map((f) => ({ id: f.id, time: 0, title: f.title, kind: 'Film', facts: `${f.genre} · ${f.year}`, badge: null }));
-  it('offers Play only for films that are not already playing, and never switches by itself', () => {
-    const onJump = vi.fn();
-    const { rerender } = render(
-      <TimePortal stops={films} index={0} onIndex={vi.fn()} currentTime={0} onJump={onJump} onClose={vi.fn()} actionLabel={(s) => (s.id === 'sintel' ? null : `Play ${s.title}`)} />,
-    );
-    expect(screen.queryByRole('button', { name: /^Play / })).toBeNull();
-    expect(document.activeElement?.textContent).toBe('Keep watching');
-    rerender(
-      <TimePortal stops={films} index={1} onIndex={vi.fn()} currentTime={0} onJump={onJump} onClose={vi.fn()} actionLabel={(s) => (s.id === 'sintel' ? null : `Play ${s.title}`)} />,
-    );
-    expect(onJump).not.toHaveBeenCalled();
-    act(() => {
-      fireEvent.click(screen.getByRole('button', { name: 'Play Tears of Steel' }));
-    });
-    expect(onJump).toHaveBeenCalledWith(films[1]);
-  });
-  it('shows facts instead of a position for stops that are not in this video', () => {
-    render(<TimePortal stops={films} index={2} onIndex={vi.fn()} currentTime={300} onJump={vi.fn()} onClose={vi.fn()} />);
-    expect(screen.getByText(/Comedy animation · 2008/)).toBeTruthy();
-    expect(screen.queryByText(/ahead of you|behind you/)).toBeNull();
   });
 });

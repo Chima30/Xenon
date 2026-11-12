@@ -297,3 +297,133 @@
     border: 1px solid CanvasText;
   }
 }
+
+/* ==========================================================================
+   Memory capsules: each saved moment as a sealed capsule in its film's colours.
+   ========================================================================== */
+
+.atlas-scope {
+  display: inline-flex;
+  gap: 4px;
+  margin-right: var(--sp-2);
+}
+.atlas-list {
+  grid-auto-columns: minmax(300px, 340px);
+}
+.capsule {
+  position: relative;
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--sp-3);
+  padding: var(--sp-3);
+  scroll-snap-align: start;
+  background:
+    radial-gradient(120% 120% at 0% 0%, color-mix(in srgb, var(--film-accent) 14%, transparent), transparent 55%),
+    color-mix(in srgb, var(--film-base) 72%, var(--cs-base));
+  border: 1px solid color-mix(in srgb, var(--film-accent) 28%, var(--cs-hairline));
+  border-radius: calc(var(--r-xl) + 8px);
+  box-shadow: var(--cs-bevel), 0 10px 26px rgb(0 0 0 / 0.35);
+}
+.capsule-lens {
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  overflow: hidden;
+  font: var(--fw-bold) var(--fs-sm) / 1 var(--cs-font);
+  color: var(--film-accent);
+  background: var(--cs-steel);
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 2px var(--film-accent),
+    0 0 0 5px color-mix(in oklab, var(--film-base) 70%, black),
+    0 0 18px color-mix(in srgb, var(--film-accent) 30%, transparent);
+}
+.capsule-lens img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.capsule-body {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.capsule-body > p {
+  margin: 0;
+}
+.capsule-film {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+  font: var(--fw-semibold) var(--fs-xs) / 1.3 var(--cs-font);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--cs-label);
+}
+.capsule-scene {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--cs-ice-dim);
+}
+.capsule-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  background: var(--film-accent);
+  border-radius: 50%;
+}
+.capsule-time {
+  font: var(--fw-bold) var(--fs-lg) / 1.2 var(--cs-font);
+  font-variant-numeric: tabular-nums;
+}
+.capsule .atlas-input {
+  height: 36px;
+  padding: 0 8px;
+}
+.capsule .atlas-note {
+  grid-column: auto;
+  min-height: 36px;
+  padding: 6px 8px;
+}
+.capsule-actions {
+  display: grid;
+  gap: 6px;
+}
+.capsule .atlas-play {
+  color: #0a0e17;
+  background: var(--film-accent);
+}
+.capsule .atlas-peek {
+  color: var(--cs-ice);
+  background: color-mix(in srgb, var(--cs-glass) 80%, transparent);
+  border-color: var(--cs-hairline);
+}
+@container cs (max-width: 520px) {
+  .atlas-list {
+    grid-auto-columns: minmax(270px, 88%);
+  }
+  .capsule {
+    grid-template-columns: 56px minmax(0, 1fr) auto;
+  }
+  .capsule-lens {
+    width: 56px;
+    height: 56px;
+  }
+}
+.cs-root[data-hc] .capsule {
+  background: #000;
+  border: 2px solid #fff;
+}
+@media (forced-colors: active) {
+  .capsule {
+    border: 1px solid CanvasText;
+  }
+  .capsule-lens {
+    outline: 2px solid CanvasText;
+  }
+}

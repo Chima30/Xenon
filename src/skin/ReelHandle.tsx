@@ -24,8 +24,8 @@ export function ReelHandle({ open, onToggle, artwork, controlsId, buttonRef }: P
       className="cs-reel"
       aria-expanded={open}
       aria-controls={controlsId}
-      aria-label={open ? 'Close the navigation wheel' : 'Open the navigation wheel'}
-      data-tip={open ? 'Close wheel (W)' : 'Navigation wheel (W)'}
+      aria-label={open ? 'Close the Optic' : 'Open the Optic: films and scenes'}
+      data-tip={open ? 'Close Optic (W)' : 'Optic (W)'}
       data-tip-pos="right"
       onClick={(e) => onToggle(e.currentTarget)}
     >

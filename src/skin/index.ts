@@ -3,10 +3,9 @@
  * so `<CinemaSkin><Video src="..." /></CinemaSkin>` works for a single video with no metadata.
  */
 export { CinemaSkin, useCinemaSkin } from './CinemaSkin';
-export type { CinemaSkinProps, PortalRequest, SkinMode, SkinScene, TimelineMarker, ScenePreview, ThumbnailAt } from './CinemaSkin';
+export type { CinemaSkinProps, Journey, OpticFilm, OpticTarget, SkinMode, SkinScene, TimelineMarker, ScenePreview, ThumbnailAt } from './CinemaSkin';
 export type { ResolvedAtmosphere, SkinPalette } from './appearance/AppearanceContext';
-export { TimePortal } from './TimePortal';
-export type { PortalStop } from './TimePortal';
+export { Optic } from './optic/Optic';
 export { sceneIndexAt } from './scenes';
 export { KeymapDialog, SHORTCUTS } from './KeymapDialog';
 export { DiagnosticsDialog, DiagnosticsBody } from './DiagnosticsDialog';

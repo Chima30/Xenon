@@ -139,6 +139,18 @@ See `ACCESSIBILITY_CHECKLIST.md` for what still needs automated and manual testi
 - **My Atlas**: a strip of frames with names, notes, Play and Preview actions, and a runtime map.
 - **Skin Studio** (`#/studio`, demo only): live presets, colours, radius, panel opacity and blur, font and control size, player width, and copyable CSS.
 
+## Signature Optical Cinema (design/optical-cinema)
+
+One instrument, three ideas that work together: **look** through the Optic, **leave** a Time Tether behind you, **keep** what matters as a Memory Capsule.
+
+- **XENON Optic** replaces the Movies wheel, the Scenes wheel, the Scene Dial and the Time Portal with a single lens. The outer ring carries the films, the inner ring the scenes of the film that is playing (laid out by real time), and the centre is the lens: a real still of whatever the rings point at, read out below with one action. Turning the films ring never switches films; **Play** does, and an **Optical Iris** closes and opens over the picture as it happens. Both rings are ARIA sliders (arrows, Home/End, Enter), respond to drag, click and scroll, and **Show as list** gives a plain list of the same choices. It appears as a glass column in Explore (the film's blurred light shows through), as a drawer from the reel handle or **W** elsewhere, and as a bottom sheet under the picture on small players.
+- **Filmprint timeline.** 24 stills are sampled once per film from the permitted frame service, averaged to colours and cached; the strip carries the film's colour fingerprint and opens up when you explore it. Hover shows the still and the scene; **T** or the lens button opens the full filmstrip (Time Lens). If stills cannot be read, it is a plain timeline. The seek slider underneath is the real Video.js TimeSlider.
+- **Time Tether and Journey.** Every exploration remembers where you were: a diamond and a dashed band on the timeline, a diamond on the Optic, and a chip beside the time that takes you back in one action (or **B**). The Journey button replays the session's recent stops; it is history, not bookmarks.
+- **Pause Canvas, refined.** One small strip low on the left (under 4% of the frame), with the transport as the clear way back. Scene neighbours and Scene Insight appear only when asked for, the strip dismisses instantly, and captions stay on top.
+- **Living Lightfield.** Each film's glow and secondary light drift slowly behind the instrument, alongside its blurred artwork when that is on. Sintel is plum, ember and ivory; Tears of Steel industrial navy, cyan and silver; Big Buck Bunny woodland green, soft gold and warm cream. The video itself is never filtered.
+- **Memory Capsules.** Saved moments carry their film (in its colours), scene, time, still and note, for this film or all films; capsules from another film open it explicitly. Storage, export and import are unchanged.
+- **XENON Test Lab.** The size and footage tools now sit below the player, folded, and remain demo-page only.
+
 ## Cinematic Hardware (design/cinematic-hardware)
 
 XENON is drawn as one instrument rather than a toolbar:

@@ -1,5 +1,5 @@
-import { useRef, useState } from 'react';
-import type { Film } from '../data/catalog';
+import { useMemo, useRef, useState } from 'react';
+import { sectionsFor, type Film } from '../data/catalog';
 import {
   parseMoments,
   removeMoment,
@@ -9,35 +9,46 @@ import {
   useMoments,
   type Moment,
 } from '../data/stores';
-import { formatTime, speakTime } from '../skin/format';
 import { useCinemaSkin } from '../skin';
+import { formatTime, speakTime } from '../skin/format';
 import { BookmarkIcon, CompassIcon, PlayIcon, ReturnIcon, ShareIcon, TrashIcon } from '../skin/icons';
+import { sceneIndexAt } from '../skin/scenes';
 import './atlas.css';
 
 interface Props {
+  /** The film that is playing. */
   film: Film;
+  /** Every film, so capsules from other films keep their identity. */
+  films: Film[];
+  /** Saved moments of the playing film, in time order. */
   moments: Moment[];
   onSaveNow: () => void;
   onSaveLast: () => void;
+  /** Jump within the playing film (leaves a Time Tether). */
   onSeek: (time: number, label: string) => void;
-  /** Opens the Time Portal on a saved moment, so it can be inspected without leaving the current place. */
-  onPreview?: (id: string, opener: HTMLElement) => void;
+  /** Explicitly switch to another film at a saved moment. */
+  onOpenElsewhere: (moment: Moment) => void;
 }
 
-export function MomentAtlas({ film, moments, onSaveNow, onSaveLast, onSeek, onPreview: previewOverride }: Props) {
-  const { announce, openPortal } = useCinemaSkin();
-  // By default a moment opens in the skin's Time Portal: inspect it without leaving your place.
-  const onPreview =
-    previewOverride ??
-    ((id: string, opener: HTMLElement) =>
-      openPortal({
-        stops: moments.map((m) => ({ time: m.time, title: m.label, image: film.frameAt(m.time, 500), kind: 'Saved moment', note: m.note })),
-        index: Math.max(0, moments.findIndex((m) => m.id === id)),
-        opener,
-      }));
+type Scope = 'film' | 'all';
+
+/**
+ * My Atlas as Memory Capsules: each saved moment carries its film, its scene, its time, a still and the viewer's
+ * own note, in the colours of its film. Storage, export and import are unchanged, so older atlases keep working.
+ */
+export function MomentAtlas({ film, films, moments, onSaveNow, onSaveLast, onSeek, onOpenElsewhere }: Props) {
+  const { announce, openOptic } = useCinemaSkin();
   const all = useMoments();
   const fileRef = useRef<HTMLInputElement>(null);
-  const duration = film.duration ?? 0;
+  const [scope, setScope] = useState<Scope>('film');
+  const filmById = useMemo(() => new Map(films.map((f) => [f.id, f])), [films]);
+
+  const shown = useMemo(() => {
+    if (scope === 'film') return moments;
+    // All films: grouped by film (playing film first), each in time order.
+    const order = [film.id, ...films.map((f) => f.id).filter((id) => id !== film.id)];
+    return order.flatMap((id) => all.filter((m) => m.videoId === id).sort((a, b) => a.time - b.time));
+  }, [scope, moments, all, film.id, films]);
 
   const exportJSON = () => {
     const blob = new Blob([JSON.stringify({ version: 1, moments: all }, null, 2)], { type: 'application/json' });
@@ -53,9 +64,7 @@ export function MomentAtlas({ film, moments, onSaveNow, onSaveLast, onSeek, onPr
   const importJSON = async (file: File) => {
     try {
       const data: unknown = JSON.parse(await file.text());
-      const list = parseMoments(
-        typeof data === 'object' && data !== null && 'moments' in data ? (data as { moments: unknown }).moments : data,
-      );
+      const list = parseMoments(typeof data === 'object' && data !== null && 'moments' in data ? (data as { moments: unknown }).moments : data);
       if (!list) throw new Error('not a moment list');
       const known = new Set(all.map((m) => m.id));
       const fresh = list.filter((m) => !known.has(m.id));
@@ -66,19 +75,30 @@ export function MomentAtlas({ film, moments, onSaveNow, onSaveLast, onSeek, onPr
     }
   };
 
+  const duration = film.duration ?? 0;
+  const otherCount = all.length - moments.length;
+
   return (
     <div className="atlas">
       <div className="atlas-bar">
         <div className="atlas-heading">
-          <span className="rail-kicker">My Atlas</span>
+          <span className="rail-kicker">My Atlas · Memory capsules</span>
           <h2 className="atlas-title">
-            {film.title}
+            {scope === 'film' ? film.title : 'All films'}
             <span className="atlas-count">
-              {moments.length} {moments.length === 1 ? 'moment' : 'moments'}
+              {shown.length} {shown.length === 1 ? 'capsule' : 'capsules'}
             </span>
           </h2>
         </div>
         <div className="atlas-actions">
+          <div className="atlas-scope" role="group" aria-label="Show capsules from">
+            <button type="button" className="cs-chip" aria-pressed={scope === 'film'} onClick={() => setScope('film')}>
+              This film
+            </button>
+            <button type="button" className="cs-chip" aria-pressed={scope === 'all'} onClick={() => setScope('all')}>
+              All films{otherCount > 0 ? ` (${all.length})` : ''}
+            </button>
+          </div>
           <button type="button" className="cs-btn cs-btn-label atlas-primary" onClick={onSaveNow}>
             <BookmarkIcon />
             <span>Save this moment</span>
@@ -110,8 +130,8 @@ export function MomentAtlas({ film, moments, onSaveNow, onSaveLast, onSeek, onPr
         </div>
       </div>
 
-      {/* A map of the film: where each saved moment sits in the runtime. Decorative; the list below is the content. */}
-      {duration > 0 && moments.length > 0 ? (
+      {/* A map of the playing film: where each of its capsules sits in the runtime. Decorative; the list is the content. */}
+      {scope === 'film' && duration > 0 && moments.length > 0 ? (
         <div className="atlas-map" aria-hidden="true">
           {moments.map((m) => (
             <span key={m.id} className="atlas-pin" style={{ left: `${Math.min(100, (m.time / duration) * 100)}%` }} />
@@ -119,37 +139,50 @@ export function MomentAtlas({ film, moments, onSaveNow, onSaveLast, onSeek, onPr
         </div>
       ) : null}
 
-      {moments.length === 0 ? (
+      {shown.length === 0 ? (
         <div className="atlas-empty">
           <BookmarkIcon aria-hidden="true" />
           <p>
-            Nothing saved for {film.title} yet. <strong>Save this moment</strong> bookmarks where you are;{' '}
-            <strong>Save the last 10 s</strong> keeps what you just watched. Moments stay in this browser only.
+            No capsules {scope === 'film' ? `for ${film.title} ` : ''}yet. <strong>Save this moment</strong> seals where you are into a capsule;{' '}
+            <strong>Save the last 10 s</strong> keeps what you just watched. Capsules stay in this browser only.
           </p>
         </div>
       ) : (
-        <ol className="atlas-list" aria-label={`Saved moments in ${film.title}, in time order`}>
-          {moments.map((m, i) => (
-            <MomentCard key={m.id} index={i} film={film} moment={m} onSeek={onSeek} onPreview={onPreview} />
-          ))}
+        <ol className="atlas-list" aria-label={scope === 'film' ? `Capsules in ${film.title}, in time order` : 'Capsules from every film'}>
+          {shown.map((m) => {
+            const f = filmById.get(m.videoId);
+            if (!f) return null;
+            return (
+              <Capsule
+                key={m.id}
+                film={f}
+                here={m.videoId === film.id}
+                moment={m}
+                onPlay={() => (m.videoId === film.id ? onSeek(m.time, m.label) : onOpenElsewhere(m))}
+                onPreview={(el) =>
+                  openOptic({ moment: { time: m.time, title: m.label, note: m.note, image: f.frameAt(m.time, 500) } }, el)
+                }
+              />
+            );
+          })}
         </ol>
       )}
     </div>
   );
 }
 
-function MomentCard({
-  index,
+function Capsule({
   film,
+  here,
   moment,
-  onSeek,
+  onPlay,
   onPreview,
 }: {
-  index: number;
   film: Film;
+  here: boolean;
   moment: Moment;
-  onSeek: Props['onSeek'];
-  onPreview: Props['onPreview'];
+  onPlay: () => void;
+  onPreview: (opener: HTMLElement) => void;
 }) {
   const { announce } = useCinemaSkin();
   const [label, setLabel] = useState(moment.label);
@@ -157,6 +190,8 @@ function MomentCard({
   const [imgFailed, setImgFailed] = useState(false);
   const src = film.frameAt(moment.time, 330);
   const spoken = speakTime(moment.time);
+  const sections = useMemo(() => sectionsFor(film, film.duration ?? 0), [film]);
+  const scene = sections[sceneIndexAt(sections.map((s) => ({ start: s.start, end: s.end, title: s.title })), moment.time)];
 
   const commitLabel = () => {
     const next = label.trim() || `Moment at ${formatTime(moment.time)}`;
@@ -173,45 +208,19 @@ function MomentCard({
   const shield = (e: React.KeyboardEvent) => e.stopPropagation();
 
   return (
-    <li className="atlas-card">
-      <div className="atlas-frame">
-        {src && !imgFailed ? (
-          <img src={src} alt="" loading="lazy" decoding="async" onError={() => setImgFailed(true)} />
-        ) : (
-          <span className="atlas-fallback" aria-hidden="true">
-            {formatTime(moment.time)}
-          </span>
-        )}
-        <span className="atlas-index" aria-hidden="true">
-          {String(index + 1).padStart(2, '0')}
-        </span>
-        <span className="atlas-time" aria-hidden="true">
-          {formatTime(moment.time)}
-        </span>
-        <div className="atlas-quick">
-          <button
-            type="button"
-            className="atlas-play"
-            onClick={() => onSeek(moment.time, moment.label)}
-            aria-label={`Play from ${moment.label}, ${spoken}`}
-          >
-            <PlayIcon />
-          </button>
-          {onPreview ? (
-            <button
-              type="button"
-              className="atlas-peek"
-              onClick={(e) => onPreview(moment.id, e.currentTarget)}
-              aria-label={`Preview ${moment.label} in the Time Portal`}
-            >
-              <CompassIcon />
-            </button>
-          ) : null}
-        </div>
+    <li className="capsule" style={{ ['--film-accent' as string]: film.palette.accent, ['--film-base' as string]: film.palette.base }}>
+      <div className="capsule-lens" aria-hidden="true">
+        {src && !imgFailed ? <img src={src} alt="" loading="lazy" decoding="async" onError={() => setImgFailed(true)} /> : <span>{formatTime(moment.time)}</span>}
       </div>
-      <div className="atlas-meta">
+      <div className="capsule-body">
+        <p className="capsule-film">
+          <span className="capsule-dot" aria-hidden="true" />
+          {film.title}
+          {scene ? <span className="capsule-scene"> · {scene.title}</span> : null}
+        </p>
+        <p className="capsule-time">{formatTime(moment.time)}</p>
         <label className="cs-sr" htmlFor={`label-${moment.id}`}>
-          Name of the moment at {spoken}
+          Name of the moment in {film.title} at {spoken}
         </label>
         <input
           id={`label-${moment.id}`}
@@ -228,19 +237,8 @@ function MomentCard({
             }
           }}
         />
-        <button
-          type="button"
-          className="cs-icon-btn atlas-remove"
-          onClick={() => {
-            removeMoment(moment.id);
-            announce(`Removed ${moment.label}`);
-          }}
-          aria-label={`Remove ${moment.label} at ${spoken}`}
-        >
-          <TrashIcon />
-        </button>
         <label className="cs-sr" htmlFor={`note-${moment.id}`}>
-          Note for the moment at {spoken}
+          Note for the moment in {film.title} at {spoken}
         </label>
         <textarea
           id={`note-${moment.id}`}
@@ -253,6 +251,33 @@ function MomentCard({
           onBlur={commitNote}
           onKeyDown={shield}
         />
+      </div>
+      <div className="capsule-actions">
+        <button
+          type="button"
+          className="atlas-play"
+          onClick={onPlay}
+          aria-label={here ? `Play from ${moment.label}, ${spoken}` : `Switch to ${film.title} and play from ${moment.label}, ${spoken}`}
+          data-tip={here ? 'Play from here' : `Open in ${film.title}`}
+        >
+          <PlayIcon />
+        </button>
+        {here ? (
+          <button type="button" className="atlas-peek" onClick={(e) => onPreview(e.currentTarget)} aria-label={`Inspect ${moment.label} in the Optic`} data-tip="Inspect">
+            <CompassIcon />
+          </button>
+        ) : null}
+        <button
+          type="button"
+          className="cs-icon-btn atlas-remove"
+          onClick={() => {
+            removeMoment(moment.id);
+            announce(`Removed ${moment.label}`);
+          }}
+          aria-label={`Remove ${moment.label} from ${film.title}, ${spoken}`}
+        >
+          <TrashIcon />
+        </button>
       </div>
     </li>
   );

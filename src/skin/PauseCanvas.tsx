@@ -1,9 +1,9 @@
 import { usePlayer } from '@videojs/react/video';
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import type { ThumbnailAt } from './dock/Timeline';
 import { formatTime } from './format';
 import type { Tier } from './hooks';
-import { BookmarkIcon, ReturnIcon } from './icons';
+import { BookmarkIcon, CloseIcon, ReturnIcon } from './icons';
 import { sceneIndexAt, sceneKind, type SkinScene } from './scenes';
 import './pause.css';
 
@@ -14,17 +14,18 @@ interface Props {
   thumbnailAt?: ThumbnailAt;
   onSaveMoment?: () => void;
   returnAnchor?: { time: number; onReturn: () => void } | null;
-  /** Opens the Time Portal on a scene; never seeks by itself. */
+  /** Points the Optic at a neighbouring scene; never seeks by itself. */
   onPreviewScene: (index: number, opener: HTMLElement) => void;
   tier: Tier;
-  /** Something else (a portal, the lens, the wheel drawer) already has the viewer's attention. */
+  /** Something else (the lens, the Optic drawer, a panel) already has the viewer's attention. */
   suppressed: boolean;
 }
 
 /**
- * Pause Canvas: when the film is paused, the frame stays the centre of attention and a quiet information layer
- * appears beside it: where you are, what came before and what comes next, and the actions that matter while paused.
- * It is not a dialog: it takes no focus, resumes with Space/K or a click on the picture, and sits under captions.
+ * Pause Canvas, refined: the paused frame keeps the stage. A single quiet strip sits low on the left, under the
+ * captions and away from the centre where the subject usually is, with the transport as the clear way back.
+ * Scene neighbours and Scene Insight appear only when asked for, and the whole strip can be dismissed at once.
+ * It is not a dialog: it takes no focus, and Space/K or a click on the picture resumes.
  */
 export function PauseCanvas({ title, subtitle, scenes, thumbnailAt, onSaveMoment, returnAnchor, onPreviewScene, tier, suppressed }: Props) {
   const paused = usePlayer((s) => s.paused);
@@ -34,20 +35,30 @@ export function PauseCanvas({ title, subtitle, scenes, thumbnailAt, onSaveMoment
   const seeking = usePlayer((s) => s.seeking);
   const now = usePlayer((s) => Math.floor(s.currentTime));
   const duration = usePlayer((s) => s.duration);
+  const moreId = useId();
 
   const eligible = paused && !ended && canPlay && !error && !seeking && now >= 1 && tier !== 'micro' && !suppressed;
-  // A short delay, so a pause that is only part of a seek or a quick toggle never flashes the canvas.
   const [shown, setShown] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
+  const [more, setMore] = useState(false);
+  // A short delay, so a pause that is only part of a seek or a quick toggle never flashes the strip.
   useEffect(() => {
     if (!eligible) {
       setShown(false);
       return;
     }
-    const t = window.setTimeout(() => setShown(true), 380);
+    const t = window.setTimeout(() => setShown(true), 420);
     return () => window.clearTimeout(t);
   }, [eligible]);
+  // Every new pause starts fresh: dismissed and expanded states belong to one pause.
+  useEffect(() => {
+    if (!paused) {
+      setDismissed(false);
+      setMore(false);
+    }
+  }, [paused]);
 
-  if (!shown) return null;
+  if (!shown || dismissed) return null;
 
   const idx = sceneIndexAt(scenes, now);
   const scene = scenes[idx];
@@ -55,76 +66,67 @@ export function PauseCanvas({ title, subtitle, scenes, thumbnailAt, onSaveMoment
   const next = idx >= 0 && idx < scenes.length - 1 ? scenes[idx + 1] : idx < 0 ? scenes[0] : undefined;
   const kind = sceneKind(scenes);
   const roomy = tier === 'full';
-
-  // Smaller players: a single quiet line under the top bar. The picture keeps the room.
-  if (!roomy) {
-    return (
-      <section className="cs-pause" data-compact aria-label={`Paused${title ? `: ${title}` : ''}`}>
-        <p className="cs-pause-pill">
-          <span className="cs-pause-led" aria-hidden="true" />
-          <strong>Paused</strong>
-          <span>{formatTime(now)}</span>
-          {scene ? <span className="cs-pause-pill-scene">{scene.title}</span> : null}
-        </p>
-      </section>
-    );
-  }
+  const hasMore = roomy && Boolean(prev || next || scene?.description);
 
   return (
-    <section className="cs-pause" aria-label={`Paused${title ? `: ${title}` : ''}`} data-tier={tier}>
-      <div className="cs-pause-panel" data-interactive>
-        <p className="cs-pause-kicker">
+    <section className="cs-pause" aria-label={`Paused${title ? `: ${title}` : ''}`} data-tier={tier} data-more={more || undefined}>
+      <div className="cs-pause-strip" data-interactive>
+        <p className="cs-pause-line">
           <span className="cs-pause-led" aria-hidden="true" />
-          Paused
-        </p>
-        {title ? <h2 className="cs-pause-title">{title}</h2> : null}
-        {subtitle ? <p className="cs-pause-sub">{subtitle}</p> : null}
-
-        <p className="cs-pause-time">
-          <strong>{formatTime(now)}</strong>
-          {duration > 0 ? <span> / {formatTime(duration)}</span> : null}
-        </p>
-
-        {scene ? (
-          <p className="cs-pause-scene">
-            <span className="cs-pause-scene-kind">
-              {kind} {idx + 1} of {scenes.length}
+          <span className="cs-pause-word">Paused</span>
+          <span className="cs-pause-time">
+            <strong>{formatTime(now)}</strong>
+            {duration > 0 && roomy ? <span> / {formatTime(duration)}</span> : null}
+          </span>
+          {scene ? (
+            <span className="cs-pause-scene">
+              <span className="cs-sr">{kind} </span>
+              {scene.title}
+              {roomy ? <span className="cs-pause-of"> · {idx + 1} of {scenes.length}</span> : null}
             </span>
-            {scene.title}
-            {scene.authored ? null : ` · ${formatTime(scene.start)}–${formatTime(scene.end)}`}
-          </p>
-        ) : null}
-
-        {scene?.description ? (
-          <div className="cs-pause-insight">
-            <span className="cs-pause-scene-kind">Scene insight</span>
-            <p>{scene.description}</p>
-          </div>
-        ) : null}
-
-        <div className="cs-pause-actions">
-          {onSaveMoment ? (
-            <button type="button" className="cs-btn cs-btn-label" onClick={onSaveMoment}>
+          ) : null}
+        </p>
+        <div className="cs-pause-tools">
+          {hasMore ? (
+            <button
+              type="button"
+              className="cs-pause-btn"
+              aria-expanded={more}
+              aria-controls={moreId}
+              onClick={() => setMore((m) => !m)}
+            >
+              {more ? 'Less' : `${kind}s`}
+            </button>
+          ) : null}
+          {roomy && onSaveMoment ? (
+            <button type="button" className="cs-pause-btn" onClick={onSaveMoment} aria-label="Save this moment" data-tip="Save moment">
               <BookmarkIcon />
-              <span>Save moment</span>
             </button>
           ) : null}
           {returnAnchor ? (
-            <button type="button" className="cs-btn cs-btn-label" data-keep onClick={returnAnchor.onReturn}>
-              <ReturnIcon />
-              <span>Back to {formatTime(returnAnchor.time)}</span>
+            <button type="button" className="cs-pause-btn" onClick={returnAnchor.onReturn} aria-label={`Back to where you were, ${formatTime(returnAnchor.time)}`}>
+              <ReturnIcon /> <span>{formatTime(returnAnchor.time)}</span>
             </button>
           ) : null}
+          <button type="button" className="cs-pause-btn cs-pause-close" onClick={() => setDismissed(true)} aria-label="Hide pause information">
+            <CloseIcon />
+          </button>
         </div>
-        <p className="cs-pause-hint">
-          <kbd>Space</kbd> or <kbd>K</kbd> resumes
-        </p>
       </div>
 
-      {prev || next ? (
-        <div className="cs-pause-side" data-interactive role="group" aria-label={`Neighbouring ${kind.toLowerCase()}s`}>
-          {prev ? <Neighbour label="Previous" scene={prev} thumbnailAt={thumbnailAt} onPreview={(el) => onPreviewScene(idx - 1, el)} /> : null}
-          {next ? <Neighbour label="Next" scene={next} thumbnailAt={thumbnailAt} onPreview={(el) => onPreviewScene(scenes.indexOf(next), el)} /> : null}
+      {more && hasMore ? (
+        <div id={moreId} className="cs-pause-more" data-interactive role="group" aria-label={`${title ?? 'This film'}: neighbouring ${kind.toLowerCase()}s`}>
+          {subtitle ? <p className="cs-pause-sub">{subtitle}</p> : null}
+          {scene?.description ? (
+            <p className="cs-pause-insight">
+              <span className="cs-pause-label">Scene insight</span>
+              {scene.description}
+            </p>
+          ) : null}
+          <div className="cs-pause-cards">
+            {prev ? <Neighbour label="Previous" scene={prev} thumbnailAt={thumbnailAt} onPreview={(el) => onPreviewScene(idx - 1, el)} /> : null}
+            {next ? <Neighbour label="Next" scene={next} thumbnailAt={thumbnailAt} onPreview={(el) => onPreviewScene(scenes.indexOf(next), el)} /> : null}
+          </div>
         </div>
       ) : null}
     </section>
@@ -148,14 +150,15 @@ function Neighbour({
     <button
       type="button"
       className="cs-pause-card"
+      data-optic-opener
       onClick={(e) => onPreview(e.currentTarget)}
-      aria-label={`Preview the ${label.toLowerCase()} scene: ${scene.title}, ${formatTime(scene.start)}`}
+      aria-label={`${label} scene: ${scene.title}, ${formatTime(scene.start)}. Opens in the Optic.`}
     >
       <span className="cs-pause-still" aria-hidden="true">
         {src && !failed ? <img src={src} alt="" loading="lazy" onError={() => setFailed(true)} /> : <span>{formatTime(scene.start)}</span>}
       </span>
       <span className="cs-pause-card-text" aria-hidden="true">
-        <span className="cs-pause-card-label">{label}</span>
+        <span className="cs-pause-label">{label}</span>
         <span className="cs-pause-card-title">{scene.title}</span>
         <span className="cs-pause-card-time">{formatTime(scene.start)}</span>
       </span>

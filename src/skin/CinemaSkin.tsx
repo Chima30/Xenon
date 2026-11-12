@@ -28,7 +28,6 @@ import { AppearanceProvider, useAppearance, type ResolvedAtmosphere, type SkinPa
 import { Atmosphere } from './appearance/Atmosphere';
 import { ClipPanel, EMPTY_CLIP, type Clip } from './ClipPanel';
 import { DiagnosticsDialog, type DiagRow } from './DiagnosticsDialog';
-import { SceneDial } from './dock/SceneDial';
 import { Timeline, type ScenePreview, type ThumbnailAt, type TimelineMarker } from './dock/Timeline';
 import { TimeLens } from './dock/TimeLens';
 import { Transport } from './dock/Transport';
@@ -46,6 +45,7 @@ import {
   FullscreenIcon,
   HelpIcon,
   LensIcon,
+  ReturnIcon,
   MoreIcon,
   MuteIcon,
   PaletteIcon,
@@ -62,13 +62,15 @@ import { FloatingPanel } from './FloatingPanel';
 import { PauseCanvas } from './PauseCanvas';
 import { PrefsProvider, usePrefs, type DockLayout } from './prefs/PrefsContext';
 import { ReelHandle } from './ReelHandle';
-import { sceneIndexAt, sceneKind, type SkinScene } from './scenes';
+import { sceneIndexAt, type SkinScene } from './scenes';
 import { SettingsPanel, type ChoiceSet, type DownloadInfo, type SettingsTab, type SkipSegment } from './SettingsPanel';
 import { CaptionOverlay } from './subtitles/CaptionOverlay';
 import type { AutoSync } from './subtitles/SubtitleCards';
 import { SubtitleProvider, useSubtitles } from './subtitles/SubtitleContext';
 import { TranscriptPanel } from './subtitles/TranscriptPanel';
-import { TimePortal, type PortalStop } from './TimePortal';
+import { IrisTransition } from './IrisTransition';
+import { JourneyPanel, type Journey } from './JourneyPanel';
+import { Optic, type OpticFilm, type OpticTarget } from './optic/Optic';
 import { loadPrefs, savePrefs, SCRIM_MODES, type ScrimMode } from './storage';
 import '@fontsource-variable/space-grotesk';
 import './tokens.css';
@@ -78,22 +80,14 @@ import './appearance/appearance.css';
 import './polish.css';
 import './instrument.css';
 import './hardware.css';
+import './optical.css';
 
 export type { ScenePreview, ThumbnailAt, TimelineMarker } from './dock/Timeline';
 export type { SkinScene } from './scenes';
+export type { OpticFilm, OpticTarget } from './optic/Optic';
+export type { Journey } from './JourneyPanel';
 
 export type SkinMode = 'watch' | 'explore' | 'remember';
-
-/** A request to show stops in the Time Portal. Nothing changes until the viewer chooses the primary action. */
-export interface PortalRequest {
-  stops: PortalStop[];
-  index: number;
-  opener?: HTMLElement | null;
-  /** Label for the primary action per stop; null hides it. Defaults to "Jump here". */
-  actionLabel?: (stop: PortalStop) => string | null;
-  /** What the primary action does. Defaults to a jump that leaves a Return Anchor. */
-  onAction?: (stop: PortalStop) => void;
-}
 
 interface SkinContextValue {
   mode: SkinMode;
@@ -102,9 +96,12 @@ interface SkinContextValue {
   announce: (message: string) => void;
   /** Layout tier derived from the player's real container width. */
   tier: Tier;
-  openPortal: (request: PortalRequest) => void;
-  closePortal: () => void;
-  /** Closes the wheel drawer in Watch mode (no effect in Explore, where the wheel is a column). */
+  /**
+   * Points the Optic at a film, a scene or a saved moment and brings it into view: a column in Explore, a drawer
+   * elsewhere, a bottom sheet on small players. Nothing plays or seeks until the viewer chooses the action.
+   */
+  openOptic: (target: OpticTarget, opener?: HTMLElement | null) => void;
+  /** Closes the Optic drawer (no effect in Explore, where the Optic is a column). */
   closeNavigation: () => void;
 }
 
@@ -123,8 +120,16 @@ export interface CinemaSkinProps {
   subtitle?: string;
   /** Identifies the film for per-film storage of uploaded subtitles. Defaults to a shared key. */
   mediaKey?: string;
-  /** The navigation wheel. Shown as a column in Explore and as a drawer from the reel handle in Watch. Optional. */
+  /** Extra content under the Optic in its rail. Optional. */
   railSlot?: ReactNode;
+  /** Films for the Optic's outer ring. Omit for a single-video embed. */
+  films?: OpticFilm[];
+  /** Which film is playing. */
+  activeFilmId?: string;
+  /** Switches film. Called only from the Optic's explicit Play action; an iris transition marks the change. */
+  onPlayFilm?: (id: string) => void;
+  /** Journey Replay: the session trail of jumps, shown beside the Time Tether. */
+  journey?: Journey | null;
   /** Panel shown under the video in Remember mode (the moment atlas). Optional. */
   atlasSlot?: ReactNode;
   /** Extra buttons for the top-right toolbar. On very small players they move into the More menu. */
@@ -158,7 +163,7 @@ export interface CinemaSkinProps {
   initialClip?: Clip;
   /** Called for every intentional jump (scenes, lens, skip, transcript), so the host can keep a Return Anchor. */
   onJump?: (time: number, label: string) => void;
-  /** The Return Anchor left by the last jump, offered on the Pause Canvas, Scene Dial and Time Portal. */
+  /** The Time Tether: where the viewer was before exploring. Drawn on the timeline and the Optic, one action away. */
   returnAnchor?: { time: number; onReturn: () => void } | null;
   /** Licensed artwork for the selected film. Used only when the viewer turns Adaptive atmosphere on. */
   artwork?: string | null;
@@ -195,7 +200,7 @@ const SCRIM_LABEL: Record<ScrimMode, string> = {
   theater: 'Theater',
 };
 
-type PanelName = 'settings' | 'transcript' | 'clip' | 'more' | 'dial';
+type PanelName = 'settings' | 'transcript' | 'clip' | 'more' | 'journey';
 
 function isEditable(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
@@ -203,6 +208,7 @@ function isEditable(target: EventTarget | null): boolean {
 }
 
 const NO_SCENES: SkinScene[] = [];
+const NO_FILMS: OpticFilm[] = [];
 
 export function CinemaSkin(props: CinemaSkinProps) {
   return (
@@ -242,6 +248,11 @@ function SkinInner({
   onAtmosphere,
   scenes = NO_SCENES,
   thumbnailAt,
+  films = NO_FILMS,
+  activeFilmId,
+  onPlayFilm,
+  journey,
+  mediaKey,
   videoOverlay,
   stageSlot,
   scenePreview,
@@ -268,13 +279,17 @@ function SkinInner({
   const [clip, setClip] = useState<Clip>(initialClip ?? EMPTY_CLIP);
   const [lens, setLens] = useState<{ opener: HTMLElement | null } | null>(null);
   const [drawer, setDrawer] = useState(false);
-  const [portal, setPortal] = useState<PortalRequest | null>(null);
+  const [opticTarget, setOpticTarget] = useState<{ id: number; value: OpticTarget } | null>(null);
+  const opticSeq = useRef(0);
+  const drawerOpener = useRef<HTMLElement | null>(null);
   const clipRun = useRef(false); // true while "Play clip" is running without looping
 
-  const hasModes = Boolean(railSlot || atlasSlot);
+  const hasOptic = films.length > 0 || scenes.length > 0;
+  const hasRail = hasOptic || Boolean(railSlot);
+  const hasModes = Boolean(hasRail || atlasSlot);
   const effectiveMode: SkinMode =
-    mode === 'explore' && !railSlot ? 'watch' : mode === 'remember' && !atlasSlot ? 'watch' : mode;
-  const drawerOpen = drawer && effectiveMode === 'watch' && Boolean(railSlot);
+    mode === 'explore' && !hasRail ? 'watch' : mode === 'remember' && !atlasSlot ? 'watch' : mode;
+  const drawerOpen = drawer && effectiveMode !== 'explore' && hasRail;
 
   const setMode = useCallback((m: SkinMode) => {
     setModeState(m);
@@ -327,22 +342,20 @@ function SkinInner({
   };
 
   /* ---- wheel drawer (Watch mode) ---- */
-  const toggleDrawer = useCallback(() => setDrawer((d) => !d), []);
   const closeNavigation = useCallback(() => setDrawer(false), []);
   const drawerWasOpen = useRef(false);
   useEffect(() => {
     const rail = railRef.current;
     if (drawerOpen) {
       drawerWasOpen.current = true;
-      // Move focus onto the wheel's current frame (or the first control) once it is no longer inert.
+      // The Optic moves focus to the ring it was asked for; without a request, focus its first ring.
       requestAnimationFrame(() => {
-        const target =
-          rail?.querySelector<HTMLElement>('.wheel-item[tabindex="0"]') ?? rail?.querySelector<HTMLElement>('button, [tabindex="0"]');
-        target?.focus({ preventScroll: true });
+        if (rail?.contains(document.activeElement)) return;
+        rail?.querySelector<HTMLElement>('.optic-ring-focus, button, [tabindex="0"]')?.focus({ preventScroll: true });
       });
       const onDown = (e: PointerEvent) => {
         const t = e.target as Element | null;
-        if (!t || rail?.contains(t) || t.closest('.cs-reel, .tp, .cs-panel, dialog')) return;
+        if (!t || rail?.contains(t) || t.closest('.cs-reel, .cs-panel, dialog, [data-optic-opener]')) return;
         setDrawer(false);
       };
       document.addEventListener('pointerdown', onDown, true);
@@ -350,15 +363,27 @@ function SkinInner({
     }
     if (drawerWasOpen.current) {
       drawerWasOpen.current = false;
-      // Focus returns to the reel handle that opened it (unless the viewer has moved on to something else).
+      // Focus returns to whatever opened it (the reel handle by default), unless the viewer has moved on.
       const active = document.activeElement;
-      if (!active || active === document.body || rail?.contains(active)) reelRef.current?.focus({ preventScroll: true });
+      if (!active || active === document.body || rail?.contains(active)) {
+        const back = drawerOpener.current?.isConnected && !drawerOpener.current.closest('[inert]') ? drawerOpener.current : reelRef.current;
+        back?.focus({ preventScroll: true });
+      }
+      drawerOpener.current = null;
     }
   }, [drawerOpen]);
 
-  /* ---- Time Portal ---- */
-  const openPortal = useCallback((request: PortalRequest) => setPortal(request), []);
-  const closePortal = useCallback(() => setPortal(null), []);
+  /* ---- Optic ---- */
+  const openOptic = useCallback(
+    (target: OpticTarget, opener?: HTMLElement | null) => {
+      setOpticTarget({ id: ++opticSeq.current, value: target });
+      if (mode !== 'explore') {
+        drawerOpener.current = opener ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null);
+        setDrawer(true);
+      }
+    },
+    [mode],
+  );
 
   /* ---- clip looping: checked on a short interval, tighter than the 4 Hz timeupdate ---- */
   const clipEnd = clip.end;
@@ -414,25 +439,21 @@ function SkinInner({
     }
   };
 
-  /** Scene previews from the dial, the lens and the Pause Canvas all open the same Time Portal. */
-  const kind = sceneKind(scenes);
-  const previewScene = (index: number, opener: HTMLElement | null) =>
-    openPortal({
-      stops: scenes.map((s) => ({
-        time: s.start,
-        end: s.end,
-        title: s.title,
-        image: thumbnailAt ? thumbnailAt(s.start + 1, 500) : null,
-        kind,
-        note: s.description,
-      })),
-      index,
-      opener,
-    });
+  /** Scene previews from the dock, the lens and the Pause Canvas all go to the same instrument: the Optic. */
+  const previewScene = (index: number, opener: HTMLElement | null) => openOptic({ ring: 'scenes', index }, opener);
+
+  /** Explicit film switch from the Optic: the iris marks it, the drawer gets out of the way. */
+  const playFilm = useCallback(
+    (id: string) => {
+      onPlayFilm?.(id);
+      setDrawer(false);
+    },
+    [onPlayFilm],
+  );
 
   const onKeyDown = (e: ReactKeyboardEvent<HTMLDivElement>) => {
     if (isEditable(e.target) || e.ctrlKey || e.metaKey || e.altKey) return;
-    const inPanel = (e.target as HTMLElement).closest('.cs-panel, .cs-atlas, .tp, .cs-lens');
+    const inPanel = (e.target as HTMLElement).closest('.cs-panel, .cs-atlas, .cs-lens');
     if (e.key === 'Escape' && drawerOpen) {
       e.preventDefault();
       setDrawer(false);
@@ -442,13 +463,14 @@ function SkinInner({
     } else if ((e.key === 't' || e.key === 'T') && !inPanel) {
       e.preventDefault();
       toggleLens(document.activeElement instanceof HTMLElement ? document.activeElement : null);
-    } else if ((e.key === 'w' || e.key === 'W') && railSlot && !inPanel) {
+    } else if ((e.key === 'b' || e.key === 'B') && returnAnchor && !inPanel) {
       e.preventDefault();
-      if (effectiveMode === 'explore') railRef.current?.querySelector<HTMLElement>('.wheel-item[tabindex="0"]')?.focus();
-      else {
-        if (effectiveMode !== 'watch') setModeState('watch');
-        toggleDrawer();
-      }
+      returnAnchor.onReturn();
+    } else if ((e.key === 'w' || e.key === 'W') && hasRail && !inPanel) {
+      e.preventDefault();
+      if (effectiveMode === 'explore') railRef.current?.querySelector<HTMLElement>('.optic-ring-focus')?.focus();
+      else if (drawerOpen) setDrawer(false);
+      else openOptic({ ring: films.length > 0 ? 'films' : 'scenes' }, reelRef.current);
     } else if ((e.key === 'c' || e.key === 'C') && !(e.target as HTMLElement).closest('.cs-panel, .cs-rail, .cs-atlas')) {
       e.preventDefault();
       if (subs.tracks.length === 0) announce('No subtitles available. Open the subtitle settings to add some.');
@@ -460,14 +482,14 @@ function SkinInner({
   };
 
   const ctx = useMemo<SkinContextValue>(
-    () => ({ mode: effectiveMode, setMode, announce, tier, openPortal, closePortal, closeNavigation }),
-    [effectiveMode, setMode, announce, tier, openPortal, closePortal, closeNavigation],
+    () => ({ mode: effectiveMode, setMode, announce, tier, openOptic, closeNavigation }),
+    [effectiveMode, setMode, announce, tier, openOptic, closeNavigation],
   );
 
   const reduced = view.prefs.reducedMotion;
   const hasScenes = scenes.length > 0;
-  const tiny = tier === 'tiny' || tier === 'micro';
-  const busy = Boolean(portal || lens || drawerOpen || panel);
+  const busy = Boolean(lens || drawerOpen || panel);
+  const momentTimes = useMemo(() => (markers ?? []).filter((m) => m.kind === 'moment').map((m) => m.time), [markers]);
 
   return (
     <SkinContext.Provider value={ctx}>
@@ -476,7 +498,7 @@ function SkinInner({
         data-scrim={scrim}
         data-mode={effectiveMode}
         data-atm={look.derived.active ? 'on' : 'off'}
-        data-has-rail={railSlot ? '' : undefined}
+        data-has-rail={hasRail ? '' : undefined}
         data-rail={look.wheelCollapsed ? 'collapsed' : 'open'}
         data-drawer={drawerOpen ? 'open' : undefined}
         data-dock={layout}
@@ -492,25 +514,25 @@ function SkinInner({
       >
         <Atmosphere />
         <div className="cs-layout" onKeyDown={onKeyDown}>
-          {railSlot ? (
+          {hasRail ? (
             <section
               ref={railRef}
               id="cs-rail"
               className="cs-rail"
-              aria-label="Navigation wheel: films and scenes"
+              aria-label="XENON Optic: films and scenes"
               inert={!(effectiveMode === 'explore' || drawerOpen)}
               data-interactive
             >
               <div className="cs-rail-inner">
                 <div className="cs-rail-bar">
                   <span className="cs-rail-title" aria-hidden="true">
-                    <ReelIcon /> Navigate
+                    <ReelIcon /> Optic
                   </span>
                   {drawerOpen ? (
                     <button
                       type="button"
                       className="cs-icon-btn cs-rail-toggle"
-                      aria-label="Close the navigation wheel"
+                      aria-label="Close the Optic"
                       data-tip="Close (Esc)"
                       data-tip-align="end"
                       onClick={() => setDrawer(false)}
@@ -523,12 +545,12 @@ function SkinInner({
                       className="cs-icon-btn cs-rail-toggle"
                       aria-expanded={!look.wheelCollapsed}
                       aria-controls="cs-rail-body"
-                      aria-label={look.wheelCollapsed ? 'Expand the wheel panel' : 'Collapse the wheel panel'}
-                      data-tip={look.wheelCollapsed ? 'Expand wheel' : 'Collapse wheel'}
+                      aria-label={look.wheelCollapsed ? 'Expand the Optic' : 'Collapse the Optic'}
+                      data-tip={look.wheelCollapsed ? 'Expand' : 'Collapse'}
                       data-tip-align="end"
                       onClick={() => {
                         look.setWheelCollapsed(!look.wheelCollapsed);
-                        announce(look.wheelCollapsed ? 'Wheel panel expanded' : 'Wheel panel collapsed');
+                        announce(look.wheelCollapsed ? 'Optic expanded' : 'Optic collapsed');
                       }}
                     >
                       <ChevronLeftIcon />
@@ -537,6 +559,19 @@ function SkinInner({
                 </div>
                 {/* inert removes the hidden wheel from the tab order and the accessibility tree while collapsed. */}
                 <div id="cs-rail-body" className="cs-rail-body" inert={look.wheelCollapsed && !drawerOpen}>
+                  {hasOptic ? (
+                    <Optic
+                      films={films}
+                      activeFilmId={activeFilmId}
+                      onPlayFilm={onPlayFilm ? playFilm : undefined}
+                      scenes={scenes}
+                      thumbnailAt={thumbnailAt}
+                      onJump={jump}
+                      tether={returnAnchor}
+                      moments={momentTimes}
+                      target={opticTarget}
+                    />
+                  ) : null}
                   {railSlot}
                 </div>
               </div>
@@ -546,6 +581,7 @@ function SkinInner({
           <div ref={wrapRef} className="cs-stagewrap" data-tier={tier}>
             <div className="cs-stage">
               {children}
+              <IrisTransition trigger={mediaKey ?? ''} reduced={reduced} />
               {videoOverlay ? (
                 <div className="cs-video-overlay" aria-hidden="true">
                   {videoOverlay}
@@ -563,11 +599,11 @@ function SkinInner({
                 suppressed={!view.prefs.pauseCanvas || busy}
               />
               <CaptionOverlay />
-              {railSlot && effectiveMode === 'watch' && tier !== 'micro' ? (
+              {hasRail && effectiveMode === 'watch' && tier !== 'micro' ? (
                 <ReelHandle
                   buttonRef={reelRef}
                   open={drawerOpen}
-                  onToggle={() => toggleDrawer()}
+                  onToggle={(el) => (drawerOpen ? setDrawer(false) : openOptic({ ring: films.length > 0 ? 'films' : 'scenes' }, el))}
                   artwork={artwork ?? null}
                   controlsId="cs-rail"
                 />
@@ -582,7 +618,7 @@ function SkinInner({
                     mode={effectiveMode}
                     onMode={setMode}
                     showAtlas={Boolean(atlasSlot)}
-                    showRail={Boolean(railSlot)}
+                    showRail={hasRail}
                     scrim={scrim}
                     onScrim={cycleScrim}
                     onHelp={() => setHelpOpen(true)}
@@ -614,6 +650,11 @@ function SkinInner({
                     onSimple={toggleSimple}
                     lensOpen={Boolean(lens)}
                     onLens={toggleLens}
+                    onOptic={hasScenes ? (el) => openOptic({ ring: 'scenes' }, el) : undefined}
+                    opticOpen={drawerOpen}
+                    tether={returnAnchor}
+                    journey={journey}
+                    filmprintKey={mediaKey}
                     lens={
                       lens ? (
                         <TimeLens
@@ -670,18 +711,8 @@ function SkinInner({
               onAnnounce={announce}
               onShare={onShareClip}
             />
-            {hasScenes ? (
-              <SceneDial
-                open={panel === 'dial'}
-                onClose={closePanel}
-                returnFocusTo={panelOpener}
-                scenes={scenes}
-                thumbnailAt={thumbnailAt}
-                onJump={jump}
-                onPreview={(i, el) => previewScene(i, el)}
-                returnAnchor={returnAnchor}
-                preferList={tiny}
-              />
+            {journey && journey.stops.length > 1 ? (
+              <JourneyPanel open={panel === 'journey'} onClose={closePanel} returnFocusTo={panelOpener} journey={journey} thumbnailAt={thumbnailAt} />
             ) : null}
             <MorePanel
               open={panel === 'more'}
@@ -691,8 +722,9 @@ function SkinInner({
               onSaveMoment={onSaveMoment}
               onClip={() => openPanel('clip', panelOpener)}
               onLens={() => toggleLens(panelOpener)}
-              onDial={hasScenes ? () => openPanel('dial', panelOpener) : undefined}
-              onWheel={railSlot && effectiveMode === 'watch' ? () => setDrawer(true) : undefined}
+              onDial={hasScenes ? () => openOptic({ ring: 'scenes' }, panelOpener) : undefined}
+              onWheel={hasRail && effectiveMode !== 'explore' ? () => openOptic({ ring: films.length > 0 ? 'films' : 'scenes' }, panelOpener) : undefined}
+              onJourney={journey && journey.stops.length > 1 ? () => openPanel('journey', panelOpener) : undefined}
               onSettings={(tab) => {
                 setSettingsTab(tab);
                 openPanel('settings', panelOpener);
@@ -703,19 +735,6 @@ function SkinInner({
               onHelp={() => setHelpOpen(true)}
               extra={topActions}
             />
-            {portal ? (
-              <PortalHost
-                request={portal}
-                onIndex={(i) => setPortal((p) => (p ? { ...p, index: Math.max(0, Math.min(i, p.stops.length - 1)) } : p))}
-                onClose={closePortal}
-                onAction={(stop) => {
-                  setPortal(null);
-                  if (portal.onAction) portal.onAction(stop);
-                  else jump(stop.time, stop.title);
-                }}
-                returnAnchor={returnAnchor}
-              />
-            ) : null}
             {stageSlot}
           </div>
 
@@ -775,44 +794,6 @@ function SkinInner({
 }
 
 /* ------------------------------------------------------------------ */
-
-/** Reads the playhead once a second so the portal's "ahead / behind" stays live without re-rendering the skin. */
-function PortalHost({
-  request,
-  onIndex,
-  onClose,
-  onAction,
-  returnAnchor,
-}: {
-  request: PortalRequest;
-  onIndex: (i: number) => void;
-  onClose: () => void;
-  onAction: (stop: PortalStop) => void;
-  returnAnchor?: { time: number; onReturn: () => void } | null;
-}) {
-  const now = usePlayer((s) => Math.floor(s.currentTime));
-  return (
-    <TimePortal
-      stops={request.stops}
-      index={request.index}
-      onIndex={onIndex}
-      currentTime={now}
-      anchorTime={returnAnchor?.time ?? null}
-      onJump={onAction}
-      actionLabel={request.actionLabel}
-      onReturn={
-        returnAnchor
-          ? () => {
-              onClose();
-              returnAnchor.onReturn();
-            }
-          : undefined
-      }
-      onClose={onClose}
-      returnFocusTo={request.opener}
-    />
-  );
-}
 
 interface TopBarProps {
   title?: string;
@@ -921,7 +902,7 @@ function SkipButton({ segments, onSkip }: { segments?: SkipSegment[]; onSkip: (t
   );
 }
 
-/** Live needle for the Scene Dial button: where the playhead sits in the runtime, in 5-degree steps. */
+/** Live needle for the Optic button: where the playhead sits in the runtime, in 5-degree steps. */
 function DialButtonIcon() {
   const angle = usePlayer((s) => (s.duration > 0 ? Math.round((s.currentTime / s.duration) * 72) * 5 : 0));
   return <DialIcon angle={angle} />;
@@ -941,15 +922,22 @@ interface BottomProps {
   panel: PanelName | null;
   settingsTab: SettingsTab;
   onSettings: (tab: SettingsTab | null, opener: HTMLElement) => void;
-  onSimple: (name: 'clip' | 'transcript' | 'more' | 'dial', opener: HTMLElement) => void;
+  onSimple: (name: 'clip' | 'transcript' | 'more' | 'journey', opener: HTMLElement) => void;
   lensOpen: boolean;
   onLens: (opener: HTMLElement) => void;
   lens: ReactNode;
+  /** Opens the Optic on the scene ring. */
+  onOptic?: (opener: HTMLElement) => void;
+  opticOpen: boolean;
+  tether?: { time: number; onReturn: () => void } | null;
+  journey?: Journey | null;
+  filmprintKey?: string;
 }
 
 /**
- * The control dock, organised as an instrument: Primary (transport), Timeline (strip and time), Tools, Sound and
- * Viewing. What does not fit at the current width moves into More; play, seek, time, mute and fullscreen never do.
+ * The control dock, organised as an instrument: Primary (transport), Timeline (filmprint, time, tether), Tools,
+ * Sound and Viewing. What does not fit at the current width moves into More; play, seek, time, sound and
+ * fullscreen never do.
  */
 function BottomBar({
   tier,
@@ -968,6 +956,11 @@ function BottomBar({
   lensOpen,
   onLens,
   lens,
+  onOptic,
+  opticOpen,
+  tether,
+  journey,
+  filmprintKey,
 }: BottomProps) {
   const store = usePlayer();
   const pip = usePlayer((s) => s.pictureInPictureAvailability);
@@ -984,8 +977,36 @@ function BottomBar({
   const showMore = !roomy;
   const hasScenes = scenes.length > 0;
   const playing = usePlayer((s) => sceneIndexAt(scenes, s.currentTime));
+  const hasJourney = Boolean(journey && journey.stops.length > 1);
 
-  const timeline = <Timeline markers={markers} clip={clip} scenes={scenes} thumbnailAt={thumbnailAt} scenePreview={scenePreview} lensOpen={lensOpen} />;
+  const timeline = (
+    <div className="cs-tl-row">
+      <Timeline
+        markers={markers}
+        clip={clip}
+        scenes={scenes}
+        thumbnailAt={thumbnailAt}
+        scenePreview={scenePreview}
+        lensOpen={lensOpen}
+        tether={tether?.time ?? null}
+        filmprintKey={filmprintKey}
+      />
+      {!tiny ? (
+        <button
+          type="button"
+          className="cs-tl-expand"
+          aria-expanded={lensOpen}
+          aria-haspopup="dialog"
+          aria-label="Expand the filmstrip (Time Lens)"
+          data-tip="Expand filmstrip (T)"
+          data-tip-align="end"
+          onClick={(e) => onLens(e.currentTarget)}
+        >
+          <LensIcon />
+        </button>
+      ) : null}
+    </div>
+  );
 
   return (
     <div className="cs-bottom" data-layout={layout}>
@@ -1011,6 +1032,36 @@ function BottomBar({
             <span aria-hidden="true">/</span>
             <Time.Value type="duration" />
           </div>
+          {tether ? (
+            <button
+              type="button"
+              className="cs-tether-chip"
+              onClick={tether.onReturn}
+              aria-label={`Return to where you were, ${formatTime(tether.time)} (B)`}
+              data-tip="Back to where you were (B)"
+            >
+              <ReturnIcon />
+              <span>{formatTime(tether.time)}</span>
+            </button>
+          ) : null}
+          {hasJourney && !tiny ? (
+            <button
+              type="button"
+              className="cs-btn cs-journey-btn"
+              data-panel-toggle
+              aria-expanded={panel === 'journey'}
+              aria-haspopup="dialog"
+              aria-label={`Journey: ${journey!.stops.length} places this session`}
+              data-tip="Journey"
+              onClick={(e) => onSimple('journey', e.currentTarget)}
+            >
+              <span className="cs-journey-dots" aria-hidden="true">
+                {journey!.stops.slice(-5).map((_, i) => (
+                  <span key={i} />
+                ))}
+              </span>
+            </button>
+          ) : null}
         </div>
 
         {inlineTimeline ? <div className="cs-group cs-group-timeline">{timeline}</div> : <div className="cs-spacer" />}
@@ -1039,27 +1090,16 @@ function BottomBar({
             >
               <ClipIcon />
             </button>
-            <button
-              type="button"
-              className="cs-btn"
-              aria-expanded={lensOpen}
-              aria-haspopup="dialog"
-              aria-label="Time Lens"
-              data-tip="Time Lens (T)"
-              onClick={(e) => onLens(e.currentTarget)}
-            >
-              <LensIcon />
-            </button>
-            {hasScenes ? (
+            {hasScenes && onOptic ? (
               <button
                 type="button"
                 className="cs-btn"
-                data-panel-toggle
-                aria-expanded={panel === 'dial'}
-                aria-haspopup="dialog"
-                aria-label="Scene dial"
-                data-tip="Scene dial"
-                onClick={(e) => onSimple('dial', e.currentTarget)}
+                data-optic-opener
+                aria-expanded={opticOpen}
+                aria-controls="cs-rail"
+                aria-label="Scenes in the Optic"
+                data-tip="Scenes (W)"
+                onClick={(e) => onOptic(e.currentTarget)}
               >
                 <DialButtonIcon />
               </button>
@@ -1174,6 +1214,7 @@ function MorePanel({
   onLens,
   onDial,
   onWheel,
+  onJourney,
   onSettings,
   onScrim,
   scrim,
@@ -1190,6 +1231,7 @@ function MorePanel({
   onLens: () => void;
   onDial?: () => void;
   onWheel?: () => void;
+  onJourney?: () => void;
   onSettings: (tab: SettingsTab) => void;
   onScrim: () => void;
   scrim: ScrimMode;
@@ -1215,16 +1257,20 @@ function MorePanel({
           </button>
         ) : null}
         <button type="button" className="cs-row-btn" onClick={act(onLens)}>
-          <LensIcon /> <span>Time Lens</span>
+          <LensIcon /> <span>Time Lens (filmstrip)</span>
         </button>
-        {onDial ? (
-          <button type="button" className="cs-row-btn" onClick={act(onDial)}>
-            <DialIcon /> <span>Scene dial</span>
-          </button>
-        ) : null}
         {onWheel ? (
           <button type="button" className="cs-row-btn" onClick={act(onWheel)}>
-            <ReelIcon /> <span>Navigation wheel</span>
+            <ReelIcon /> <span>Optic: films and scenes</span>
+          </button>
+        ) : onDial ? (
+          <button type="button" className="cs-row-btn" onClick={act(onDial)}>
+            <DialIcon /> <span>Optic: scenes</span>
+          </button>
+        ) : null}
+        {onJourney ? (
+          <button type="button" className="cs-row-btn" onClick={act(onJourney)}>
+            <ReturnIcon /> <span>Journey</span>
           </button>
         ) : null}
         <button type="button" className="cs-row-btn" onClick={act(onClip)}>

@@ -4,6 +4,7 @@ import { useRef, useState } from 'react';
 import type { Clip } from '../ClipPanel';
 import { clamp, formatTime } from '../format';
 import { sceneIndexAt, type SkinScene } from '../scenes';
+import { filmprintGradient, useFilmprint } from './filmprint';
 
 export interface TimelineMarker {
   time: number;
@@ -28,6 +29,10 @@ interface Props {
   scenePreview?: (time: number) => ScenePreview | null;
   /** While the Time Lens is open, the hover preview steps aside. */
   lensOpen?: boolean;
+  /** Time Tether: where the viewer was before exploring. Drawn as a quiet band back to the playhead. */
+  tether?: number | null;
+  /** Identifies the video so its Filmprint can be cached. */
+  filmprintKey?: string;
 }
 
 /**
@@ -35,8 +40,11 @@ interface Props {
  * measured strip: one graduation per minute of runtime, scene boundaries as cuts, saved moments as lavender bars
  * and the Return Anchor as a diamond. Hovering shows a real still near that second; it never seeks.
  */
-export function Timeline({ markers, clip, scenes, thumbnailAt, scenePreview, lensOpen }: Props) {
+export function Timeline({ markers, clip, scenes, thumbnailAt, scenePreview, lensOpen, tether = null, filmprintKey }: Props) {
   const duration = usePlayer((s) => s.duration);
+  // Rounded so the tether band only re-renders a few hundred times across a whole film.
+  const nowPct = usePlayer((s) => (s.duration > 0 ? Math.round((s.currentTime / s.duration) * 400) / 4 : 0));
+  const print = useFilmprint(filmprintKey, thumbnailAt, duration);
   const ref = useRef<HTMLDivElement>(null);
   const [hover, setHover] = useState<number | null>(null);
   const [badImage, setBadImage] = useState<string | null>(null);
@@ -66,6 +74,7 @@ export function Timeline({ markers, clip, scenes, thumbnailAt, scenePreview, len
     <div
       ref={ref}
       className="cs-tl"
+      data-filmprint={print ? '' : undefined}
       style={graduation ? { ['--tl-unit' as string]: graduation } : undefined}
       onPointerMove={(e) => {
         const r = ref.current?.getBoundingClientRect();
@@ -85,7 +94,18 @@ export function Timeline({ markers, clip, scenes, thumbnailAt, scenePreview, len
       ) : null}
       <TimeSlider.Root className="cs-timeslider">
         <TimeSlider.Track className="cs-track">
+          {print ? <span className="cs-filmprint" aria-hidden="true" style={{ backgroundImage: filmprintGradient(print) }} /> : null}
           {graduation ? <span className="cs-graduation" aria-hidden="true" /> : null}
+          {tether !== null && duration > 0 ? (
+            <span
+              className="cs-tether-band"
+              aria-hidden="true"
+              style={{
+                left: `${Math.min(nowPct, clamp((tether / duration) * 100, 0, 100))}%`,
+                width: `${Math.abs(nowPct - clamp((tether / duration) * 100, 0, 100))}%`,
+              }}
+            />
+          ) : null}
           <TimeSlider.Buffer className="cs-buffer" />
           <TimeSlider.Fill className="cs-fill" />
         </TimeSlider.Track>

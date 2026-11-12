@@ -1,0 +1,507 @@
+/* ==========================================================================
+   XENON Optic: optical glass, precision metal, adaptive light.
+   ========================================================================== */
+
+@property --frot {
+  syntax: '<angle>';
+  inherits: true;
+  initial-value: 0deg;
+}
+
+.optic-wrap {
+  display: grid;
+  justify-items: center;
+  gap: var(--sp-3);
+  padding: 0 var(--sp-4) var(--sp-4);
+}
+
+.optic {
+  position: relative;
+  width: min(100%, 330px);
+  aspect-ratio: 1;
+  container-type: inline-size;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: grab;
+  transition: --frot 0.55s var(--ease-spring);
+}
+.optic:active {
+  cursor: grabbing;
+}
+.optic-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+/* Precision metal bezel, glass between the rings. */
+.optic-bezel {
+  fill: color-mix(in srgb, var(--cs-base) 55%, transparent);
+  stroke: color-mix(in srgb, var(--cs-ice) 22%, transparent);
+  stroke-width: 1;
+}
+.optic-film-track {
+  fill: none;
+  stroke: color-mix(in srgb, var(--cs-ice) 7%, transparent);
+  stroke-width: 44;
+}
+.optic-groove {
+  fill: none;
+  stroke: color-mix(in srgb, var(--cs-ice) 16%, transparent);
+  stroke-width: 1;
+}
+.optic-scene-track {
+  fill: none;
+  stroke: rgb(0 0 0 / 0.35);
+  stroke-width: 22;
+}
+.optic-glass {
+  pointer-events: none;
+}
+
+/* The inner ring: one arc per scene, laid out by real time. The hairline gaps are the true boundaries. */
+.optic-scenes {
+  transform-box: view-box;
+  transform-origin: 50% 50%;
+  transition: transform 0.6s var(--ease-spring);
+}
+.optic-arc {
+  fill: none;
+  stroke: color-mix(in srgb, var(--cs-ice) 26%, transparent);
+  stroke-width: 15;
+  transition: stroke var(--t-fast) ease;
+}
+.optic-arc[data-playing] {
+  stroke: color-mix(in srgb, var(--cs-ice) 48%, transparent);
+}
+.optic-arc[data-sel] {
+  stroke: var(--cs-citron);
+  filter: drop-shadow(0 0 7px color-mix(in srgb, var(--cs-citron) 55%, transparent));
+}
+.optic-playhead {
+  fill: var(--cs-ice);
+  stroke: var(--cs-base);
+  stroke-width: 2.5;
+}
+.optic-moment {
+  stroke: var(--cs-moment);
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+.optic-tether {
+  fill: var(--cs-anchor);
+  stroke: var(--cs-base);
+  stroke-width: 1.5;
+}
+.optic-reticle line {
+  stroke: color-mix(in srgb, var(--cs-citron) 70%, transparent);
+  stroke-width: 1.5;
+}
+.optic-reticle path {
+  fill: var(--cs-citron);
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--cs-citron) 70%, transparent));
+}
+
+/* The outer ring: films as small lenses that ride the ring; the one under the reticle is the preview. */
+.optic-films {
+  position: absolute;
+  inset: 0;
+}
+.optic-bubble {
+  --angle: calc(var(--a) + var(--frot));
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  display: grid;
+  place-items: center;
+  width: 15.5cqw;
+  height: 15.5cqw;
+  overflow: hidden;
+  color: var(--cs-ice);
+  font: var(--fw-bold) 5cqw / 1 var(--cs-font);
+  background: var(--cs-steel);
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 1.5px color-mix(in srgb, var(--cs-ice) 30%, transparent),
+    0 6px 16px rgb(0 0 0 / 0.5);
+  translate: -50% -50%;
+  transform: rotate(var(--angle)) translateY(-42.5cqw) rotate(calc(var(--angle) * -1)) scale(0.84);
+  opacity: 0.7;
+  transition:
+    opacity var(--t-med) ease,
+    box-shadow var(--t-med) ease;
+}
+.optic-bubble img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+}
+.optic-bubble[data-active] {
+  opacity: 0.9;
+  box-shadow:
+    0 0 0 2px var(--cs-ice),
+    0 6px 16px rgb(0 0 0 / 0.5);
+}
+.optic-bubble[data-sel] {
+  opacity: 1;
+  transform: rotate(var(--angle)) translateY(-42.5cqw) rotate(calc(var(--angle) * -1)) scale(1.06);
+  box-shadow:
+    0 0 0 2.5px var(--cs-citron),
+    0 0 18px color-mix(in srgb, var(--cs-citron) 45%, transparent),
+    0 8px 20px rgb(0 0 0 / 0.55);
+}
+.optic-bubble[data-far] {
+  opacity: 0.3;
+}
+.optic-bubble-progress {
+  position: absolute;
+  inset: 0;
+  rotate: -90deg;
+}
+.optic-bubble-progress circle {
+  fill: none;
+  stroke: var(--cs-citron);
+  stroke-width: 2.5;
+}
+
+/* The lens: whatever the rings point at. */
+.optic-lens {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  display: grid;
+  place-items: center;
+  width: 38.5cqw;
+  height: 38.5cqw;
+  overflow: hidden;
+  background: var(--cs-steel);
+  border-radius: 50%;
+  translate: -50% -50%;
+  box-shadow:
+    0 0 0 1px rgb(0 0 0 / 0.6),
+    0 0 0 5px color-mix(in oklab, var(--cs-base) 70%, black),
+    0 0 0 6px color-mix(in srgb, var(--cs-ice) 22%, transparent),
+    inset 0 0 22px rgb(0 0 0 / 0.65);
+  pointer-events: none;
+}
+.optic-lens img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  animation: optic-focus 0.45s ease both;
+}
+/* Glass highlight and vignette over the still. */
+.optic-lens::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(70% 50% at 30% 18%, rgb(255 255 255 / 0.22), transparent 60%),
+    radial-gradient(circle, transparent 55%, rgb(0 0 0 / 0.55) 100%);
+  border-radius: 50%;
+}
+@keyframes optic-focus {
+  from {
+    filter: blur(6px) brightness(1.3);
+    opacity: 0.6;
+  }
+}
+.optic-lens-empty {
+  padding: 12%;
+  font: var(--fw-semibold) 4cqw / 1.2 var(--cs-font);
+  text-align: center;
+  color: var(--cs-label);
+}
+.optic-lens-caption {
+  position: absolute;
+  bottom: 12%;
+  z-index: 1;
+  padding: 2px 8px;
+  font: var(--fw-bold) 3.8cqw / 1.2 var(--cs-font);
+  font-variant-numeric: tabular-nums;
+  color: var(--cs-ink-on-citron);
+  background: var(--cs-citron);
+  border-radius: var(--r-pill);
+}
+
+/* Keyboard focus: the focused ring itself lights up. */
+.optic-ring-focus {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  outline: none;
+}
+.optic-ring-focus[data-ring='films'] {
+  inset: 0;
+}
+.optic-ring-focus[data-ring='scenes'] {
+  inset: 15%;
+}
+.optic-ring-focus:focus-visible {
+  box-shadow:
+    0 0 0 3px var(--cs-focus),
+    0 0 0 7px rgb(5 7 12 / 0.85);
+}
+.optic-wrap[data-ring='films'] .optic-film-track {
+  stroke: color-mix(in srgb, var(--cs-citron) 12%, transparent);
+}
+
+/* ---------- Readout ---------- */
+
+.optic-readout {
+  display: grid;
+  gap: 3px;
+  width: 100%;
+  padding: var(--sp-3) var(--sp-4);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--cs-base) 78%, transparent), color-mix(in srgb, var(--cs-base) 62%, transparent));
+  border: 1px solid var(--cs-hairline);
+  border-radius: var(--r-lg);
+  box-shadow: var(--cs-bevel);
+}
+.optic-readout p {
+  margin: 0;
+}
+.optic-kicker {
+  font: var(--fw-semibold) var(--fs-xs) / 1.3 var(--cs-font);
+  letter-spacing: var(--ls-label);
+  text-transform: uppercase;
+  color: var(--cs-label);
+}
+.optic-title {
+  font: var(--fw-bold) var(--fs-lg) / 1.2 var(--cs-font);
+  letter-spacing: var(--ls-display);
+  overflow-wrap: anywhere;
+}
+.optic-facts {
+  font: var(--fw-medium) var(--fs-sm) / 1.4 var(--cs-font);
+  font-variant-numeric: tabular-nums;
+  color: var(--cs-ice-dim);
+}
+.optic-note {
+  margin-top: 4px !important;
+  padding-left: var(--sp-3);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-body);
+  border-left: 2px solid var(--cs-secondary);
+}
+.optic-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  width: 100%;
+}
+.optic-primary,
+.optic-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: var(--h-ctl);
+  padding: 0 var(--sp-4);
+  font: var(--fw-semibold) var(--fs-sm) / 1 var(--cs-font);
+  color: var(--cs-ice);
+  cursor: pointer;
+  background: color-mix(in srgb, var(--cs-glass) 70%, transparent);
+  border: 1px solid var(--cs-hairline);
+  border-radius: var(--r-pill);
+  transition:
+    background-color var(--t-fast) ease,
+    border-color var(--t-fast) ease,
+    transform var(--t-fast) ease;
+}
+.optic-primary {
+  flex: 1 1 auto;
+  font-weight: var(--fw-bold);
+  color: var(--cs-ink-on-citron);
+  background: var(--cs-citron);
+  border-color: var(--cs-citron);
+}
+.optic-secondary svg {
+  width: 16px;
+  height: 16px;
+}
+.optic-view {
+  margin-left: auto;
+}
+.optic-primary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.optic-primary:active:not(:disabled),
+.optic-secondary:active {
+  transform: scale(0.97);
+}
+@media (hover: hover) {
+  .optic-primary:hover:not(:disabled) {
+    background: color-mix(in oklab, var(--cs-citron) 86%, white);
+  }
+  .optic-secondary:hover {
+    background: var(--cs-steel);
+    border-color: var(--cs-accent-line);
+  }
+}
+.optic-wrap :is(button):focus-visible {
+  outline: 3px solid var(--cs-focus);
+  outline-offset: 2px;
+}
+.optic-honest {
+  margin: 0;
+  font-size: var(--fs-xs);
+  line-height: 1.45;
+  color: var(--cs-ice-dim);
+}
+
+/* ---------- List alternative ---------- */
+
+.optic-list {
+  display: grid;
+  gap: var(--sp-3);
+  width: 100%;
+}
+.optic-list ul {
+  display: grid;
+  gap: var(--sp-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.optic-list-head {
+  margin: 0 0 var(--sp-1);
+  font: var(--fw-semibold) var(--fs-xs) / 1.3 var(--cs-font);
+  letter-spacing: var(--ls-label);
+  text-transform: uppercase;
+  color: var(--cs-label);
+}
+.optic-list .cs-choice[aria-current='true']:not([aria-pressed='true']) {
+  box-shadow: inset 3px 0 0 var(--cs-ice);
+}
+
+/* ==========================================================================
+   The rail: a glass surface in the film's own light, not a charcoal sidebar.
+   ========================================================================== */
+
+.cs-root .cs-rail,
+.cs-root[data-atm='on'] .cs-rail {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--cs-base) 42%, transparent), color-mix(in srgb, var(--cs-base) 62%, transparent)),
+    radial-gradient(120% 60% at 0% 40%, color-mix(in srgb, var(--cs-glow) 16%, transparent), transparent 70%);
+  -webkit-backdrop-filter: blur(26px) saturate(1.35);
+  backdrop-filter: blur(26px) saturate(1.35);
+}
+/* Without backdrop-filter, the film's artwork is blurred into the rail itself and the tint is heavier. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .cs-root .cs-rail::before {
+    content: '';
+    position: absolute;
+    inset: -20%;
+    z-index: -1;
+    background-image: var(--cs-atm-image, none);
+    background-size: cover;
+    background-position: center;
+    filter: blur(40px) saturate(1.2);
+    opacity: 0.45;
+  }
+  .cs-root .cs-rail,
+  .cs-root[data-atm='on'] .cs-rail {
+    background: color-mix(in srgb, var(--cs-base) 86%, transparent);
+  }
+}
+.cs-root .cs-rail {
+  isolation: isolate;
+  overflow: hidden;
+}
+.cs-root[data-mode='explore'] .cs-rail {
+  box-shadow: inset -1px 0 0 color-mix(in srgb, var(--cs-ice) 12%, transparent);
+}
+.cs-rail-bar {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--cs-base) 70%, transparent) 60%, transparent);
+}
+.cs-root[data-drawer='open'] .cs-rail {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--cs-base) 62%, transparent), color-mix(in srgb, var(--cs-base) 78%, transparent)),
+    radial-gradient(120% 60% at 0% 40%, color-mix(in srgb, var(--cs-glow) 18%, transparent), transparent 70%);
+}
+
+/* Small players: the Optic becomes a bottom sheet under the picture, never over it. */
+@container cs (max-width: 760px) {
+  .cs-root .cs-rail {
+    position: static !important;
+    width: auto !important;
+    margin-top: 0;
+    border-radius: var(--r-xl) var(--r-xl) 0 0;
+    box-shadow: 0 -1px 0 color-mix(in srgb, var(--cs-ice) 14%, transparent) !important;
+    animation: none !important;
+    clip-path: none !important;
+  }
+  .cs-root .cs-rail::after {
+    content: '';
+    position: absolute;
+    top: 6px;
+    left: 50%;
+    width: 40px;
+    height: 4px;
+    background: color-mix(in srgb, var(--cs-ice) 30%, transparent);
+    border-radius: 2px;
+    translate: -50% 0;
+  }
+  .cs-root .cs-rail .optic {
+    width: min(100%, 300px);
+  }
+  .cs-root .cs-rail > .cs-rail-inner {
+    position: static;
+    overflow: visible;
+  }
+}
+
+/* ---------- Preferences ---------- */
+
+.cs-root[data-motion='reduce'] :is(.optic, .optic-scenes, .optic-bubble, .optic-lens img) {
+  transition: none !important;
+  animation: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .optic,
+  .optic-scenes,
+  .optic-bubble,
+  .optic-lens img {
+    transition: none;
+    animation: none;
+  }
+}
+.cs-root[data-hc] .optic-bezel {
+  fill: #000;
+  stroke: #fff;
+  stroke-width: 2;
+}
+.cs-root[data-hc] .optic-arc {
+  stroke: #8b95b0;
+}
+.cs-root[data-hc] .optic-arc[data-sel] {
+  stroke: var(--cs-citron);
+}
+.cs-root[data-hc] :is(.optic-readout, .cs-rail) {
+  background: #000 !important;
+  border-color: #fff;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+@media (forced-colors: active) {
+  .optic-arc[data-sel],
+  .optic-reticle path {
+    stroke: Highlight;
+    fill: Highlight;
+  }
+  .optic-bubble[data-sel] {
+    outline: 3px solid Highlight;
+  }
+  .optic-ring-focus:focus-visible {
+    outline: 3px solid Highlight;
+  }
+  .optic-readout {
+    border: 1px solid CanvasText;
+  }
+}

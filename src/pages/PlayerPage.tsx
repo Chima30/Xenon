@@ -11,9 +11,8 @@ import {
   useProgress,
 } from '../data/stores';
 import { MomentAtlas } from '../features/MomentAtlas';
-import { NavigationRail } from '../features/NavigationRail';
-import { CinemaSkin, clamp, formatTime, type DiagRow, type ResolvedAtmosphere, type SkinScene, type ThumbnailAt, type TimelineMarker } from '../skin';
-import { ChevronLeftIcon, ChevronRightIcon, ReturnIcon, ShareIcon } from '../skin/icons';
+import { CinemaSkin, clamp, formatTime, type DiagRow, type Journey, type OpticFilm, type ResolvedAtmosphere, type SkinScene, type ThumbnailAt, type TimelineMarker } from '../skin';
+import { ShareIcon } from '../skin/icons';
 
 const MuxVideo = lazy(() => import('@videojs/react/media/mux-video').then((m) => ({ default: m.MuxVideo })));
 
@@ -162,10 +161,11 @@ function PlayerBody({ initialId, initialTime, initialEnd, bench }: { initialId?:
 
   const now = () => media?.currentTime ?? 0;
 
-  const selectFilm = (id: string) => {
+  /** Explicit film switch (the Optic's Play, or opening a capsule from another film). Optionally lands on a time. */
+  const selectFilm = (id: string, at?: number) => {
     const next = findFilm(id);
     if (!next || next.id === film.id) return;
-    pending.current = resumeTime(progress[next.id]);
+    pending.current = at ?? resumeTime(progress[next.id]);
     setServerId(undefined);
     setQualityId('480p');
     setAnchor(null);
@@ -207,8 +207,9 @@ function PlayerBody({ initialId, initialTime, initialEnd, bench }: { initialId?:
     setTrailIdx(0);
   };
 
-  const stepTrail = (dir: -1 | 1) => {
-    const i = clamp(trailIdx + dir, 0, trail.length - 1);
+  /** Journey Replay: revisit a stop on the trail without adding a new one. */
+  const goJourney = (index: number) => {
+    const i = clamp(index, 0, trail.length - 1);
     const entry = trail[i];
     if (!entry) return;
     setTrailIdx(i);
@@ -260,6 +261,25 @@ function PlayerBody({ initialId, initialTime, initialEnd, bench }: { initialId?:
     (t, w) => film.frameAt(Math.max(0, Math.floor(t)), w >= 960 ? 960 : w >= 500 ? 500 : 330),
     [film],
   );
+
+  /** The Optic's outer ring: every film, with its real still, facts and how far the viewer got. */
+  const films = useMemo<OpticFilm[]>(
+    () =>
+      CATALOG.map((f) => {
+        const p = progress[f.id];
+        const r = resumeTime(p);
+        return {
+          id: f.id,
+          title: f.title,
+          meta: [f.genre, String(f.year), f.duration ? formatTime(f.duration) : null, r ? `resume at ${formatTime(r)}` : null].filter(Boolean).join(' · '),
+          description: `${f.description} ${f.creator}, ${f.license.name}.`,
+          image: f.frameAt(f.duration ? f.duration * 0.3 : 30, 330),
+          progress: p && p.duration > 0 ? p.time / p.duration : 0,
+        };
+      }),
+    [progress],
+  );
+  const journey: Journey | null = trail.length > 1 ? { stops: trail, index: trailIdx, onGo: goJourney } : null;
 
   const markers = useMemo<TimelineMarker[]>(() => {
     const list: TimelineMarker[] = moments.map((m) => ({ time: m.time, kind: 'moment' as const, label: m.label }));
@@ -331,34 +351,6 @@ function PlayerBody({ initialId, initialTime, initialEnd, bench }: { initialId?:
 
   const topActions = (
     <>
-      {trail.length > 1 ? (
-        <div className="cs-seg" role="group" aria-label="Journey trail">
-          <button
-            type="button"
-            className="cs-seg-btn"
-            onClick={() => stepTrail(-1)}
-            disabled={trailIdx <= 0}
-            aria-label="Previous stop on your journey"
-          >
-            <ChevronLeftIcon />
-          </button>
-          <button
-            type="button"
-            className="cs-seg-btn"
-            onClick={() => stepTrail(1)}
-            disabled={trailIdx >= trail.length - 1}
-            aria-label="Next stop on your journey"
-          >
-            <ChevronRightIcon />
-          </button>
-        </div>
-      ) : null}
-      {anchor ? (
-        <button type="button" className="cs-btn cs-btn-label" data-keep onClick={returnToAnchor}>
-          <ReturnIcon />
-          <span>Return to {formatTime(anchor.time)}</span>
-        </button>
-      ) : null}
       <button type="button" className="cs-icon-btn" onClick={() => void share()} data-tip="Copy link" data-tip-pos="below">
         <ShareIcon />
         <span className="cs-sr">Copy link to this moment</span>
@@ -391,16 +383,20 @@ function PlayerBody({ initialId, initialTime, initialEnd, bench }: { initialId?:
       onSaveMoment={saveNow}
       diagnosticsRows={diagnosticsRows}
       topActions={topActions}
-      railSlot={
-        <NavigationRail
-          films={CATALOG}
-          film={film}
-          progress={progress}
-          onSelectFilm={selectFilm}
-        />
-      }
+      films={films}
+      activeFilmId={film.id}
+      onPlayFilm={(id) => selectFilm(id)}
+      journey={journey}
       atlasSlot={
-        <MomentAtlas film={film} moments={moments} onSaveNow={saveNow} onSaveLast={saveLast} onSeek={jumpTo} />
+        <MomentAtlas
+          film={film}
+          films={CATALOG}
+          moments={moments}
+          onSaveNow={saveNow}
+          onSaveLast={saveLast}
+          onSeek={jumpTo}
+          onOpenElsewhere={(m) => selectFilm(m.videoId, m.time)}
+        />
       }
     >
       <FilmMedia film={film} variant={variant} />
