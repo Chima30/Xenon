@@ -18,6 +18,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -355,12 +356,15 @@ function SkinInner({
   const closeNavigation = useCallback(() => setDrawer(false), []);
   const drawerWasOpen = useRef(false);
   const closingTimer = useRef(0);
-  useEffect(() => () => window.clearTimeout(closingTimer.current), []);
-  useEffect(() => {
+  const stopClosing = useRef<() => void>(() => {});
+  useEffect(() => () => stopClosing.current(), []);
+  // A layout effect, so the closing state lands in the same paint as the close: an ordinary effect let one frame
+  // through with no drawer state, and the drawer blinked out and back before sliding away.
+  useLayoutEffect(() => {
     const rail = railRef.current;
     if (drawerOpen) {
       drawerWasOpen.current = true;
-      window.clearTimeout(closingTimer.current);
+      stopClosing.current();
       setDrawerClosing(false);
       requestAnimationFrame(() => {
         // On small players the drawer is a sheet under the picture: bring it into view.
@@ -384,7 +388,27 @@ function SkinInner({
       const still = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
       if (effectiveMode !== 'explore' && !reduced && !still) {
         setDrawerClosing(true);
-        closingTimer.current = window.setTimeout(() => setDrawerClosing(false), 200);
+        // Finish when the slide-out has actually run to the end (a timer cut it off part-way); the timer is only a
+        // fallback for a browser that never reports the animation's end.
+        stopClosing.current();
+        const onEnd = (e: AnimationEvent) => {
+          if (e.target === rail && e.animationName === 'cs-drawer-out') done();
+        };
+        const stop = () => {
+          window.clearTimeout(closingTimer.current);
+          rail?.removeEventListener('animationend', onEnd);
+        };
+        const done = () => {
+          stop();
+          setDrawerClosing(false);
+        };
+        stopClosing.current = stop;
+        rail?.addEventListener('animationend', onEnd);
+        closingTimer.current = window.setTimeout(done, 600);
+        // On small players the drawer is a sheet that closes without a slide: nothing to wait for.
+        requestAnimationFrame(() => {
+          if (rail && !getComputedStyle(rail).animationName.includes('cs-drawer-out')) done();
+        });
       }
       // Focus returns to whatever opened it (the reel handle by default), unless the viewer has moved on.
       const active = document.activeElement;

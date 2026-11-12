@@ -604,6 +604,32 @@ check(
   'The drawer close button works and focus returns to the reel handle',
   await page.evaluate(() => !document.querySelector('.cs-root').dataset.drawer && document.activeElement?.classList.contains('cs-reel')),
 );
+// Closing must go straight from open to sliding out (no frame with no drawer state, where it blinked away and back),
+// and the slide must run to the end before the drawer is removed (a timer used to cut it off part-way).
+await wake();
+await page.locator('.cs-reel').click();
+await page.waitForTimeout(600);
+await page.evaluate(() => {
+  const root = document.querySelector('.cs-root');
+  const rail = document.querySelector('.cs-rail');
+  window.__closeLog = [];
+  const t0 = performance.now();
+  const tick = () => {
+    window.__closeLog.push({ d: root.dataset.drawer ?? '-', op: +getComputedStyle(rail).opacity });
+    if (performance.now() - t0 < 600) requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+});
+await page.locator('.cs-rail-toggle[aria-label="Close navigation"]').click();
+await page.waitForTimeout(800);
+const closeLog = await page.evaluate(() => window.__closeLog);
+const states = closeLog.map((l) => l.d).filter((d, i, a) => d !== a[i - 1]);
+const lastClosing = closeLog.filter((l) => l.d === 'closing').at(-1);
+check(
+  'Closing the drawer slides it out in one movement: open → closing → gone, fully faded first',
+  states.join('>') === 'open>closing>-' && !!lastClosing && lastClosing.op < 0.1,
+  JSON.stringify({ states, lastOpacity: lastClosing?.op }),
+);
 
 /* ---------- 14. Explore: collapsed, expanded, reopened; mode switching; reload with saved preferences ---------- */
 await wake();
