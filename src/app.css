@@ -94,6 +94,14 @@ body::before {
   transition: opacity 0.9s ease;
   pointer-events: none;
 }
+/* The player's Solid background (its default) carries on as one plain film colour across the page: no gradient,
+   no artwork. Spectral, Artwork and Custom keep the layered background above. */
+:root[data-page-bg='solid'] body {
+  background: var(--page-base);
+}
+:root[data-page-bg='solid'] body::before {
+  display: none;
+}
 #root {
   position: relative;
   isolation: isolate;

@@ -88,6 +88,7 @@ function usePageAtmosphere() {
       const root = document.documentElement;
       PAGE_VARS.forEach((v) => root.style.removeProperty(v));
       delete root.dataset.film;
+      delete root.dataset.pageBg;
     },
     [],
   );
@@ -102,6 +103,7 @@ function usePageAtmosphere() {
     a.spectrum.forEach((c, i) => root.setProperty(`--page-sg-${i + 1}`, c));
     root.setProperty('--page-sg-angle', `${a.angle}deg`);
     root.setProperty('--page-sg-amb', String(a.ambient));
+    document.documentElement.dataset.pageBg = a.background;
   }, []);
 }
 

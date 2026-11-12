@@ -64,6 +64,16 @@
   background: transparent;
 }
 
+/* Solid background (the default): the shell, the page and the letterbox bars are one film colour, with no light,
+   image or gradient layer anywhere behind the picture. The video pixels themselves are untouched. */
+.cs-root[data-bg='solid'] .cs-atmosphere {
+  background: var(--cs-base);
+}
+.cs-root[data-bg='solid'] .cs-stage,
+.cs-root[data-bg='solid'] .cs-stage video {
+  background: var(--cs-base);
+}
+
 /* ---------- Panel styles (Glass / Solid / Clear per area) ---------- */
 
 .cs-root[data-atm='on'] .cs-atlas {

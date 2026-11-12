@@ -6,8 +6,9 @@ import { useAppearance } from './AppearanceContext';
  */
 export function Atmosphere() {
   const { derived, appearance } = useAppearance();
-  // The Living Lightfield (the film's glow and secondary light, slowly drifting) is always present;
-  // the artwork layer is the viewer's choice.
+  // Solid (the default): one clean film colour, nothing layered on it.
+  if (appearance.background === 'solid') return <div className="cs-atmosphere" data-solid aria-hidden="true" />;
+  // Spectral: the Living Lightfield (the film's glow and secondary light, slowly drifting) and no image.
   if (!derived.active) {
     return (
       <div className="cs-atmosphere" data-light-only aria-hidden="true">
@@ -15,6 +16,7 @@ export function Atmosphere() {
       </div>
     );
   }
+  // Artwork or Custom: the viewer's chosen image or colour, tinted and scrimmed.
   return (
     <div className="cs-atmosphere" aria-hidden="true">
       <div className="cs-atm-light" />

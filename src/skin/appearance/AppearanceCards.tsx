@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Card, Empty, Pill, Pills, SwitchRow } from '../ui';
+import { Card, Empty, Pill, Pills } from '../ui';
 import { parseHex, toHex } from './color';
 import {
   DEFAULT_APPEARANCE,
@@ -8,15 +8,16 @@ import {
   type GradientPreset,
   type GradientSettings,
   type AccentChoice,
-  type BgSource,
+  type BackgroundMode,
   type PanelArea,
   type PanelStyle,
 } from './AppearanceContext';
 
-const SOURCES: { id: BgSource; label: string }[] = [
-  { id: 'poster', label: 'Film artwork' },
-  { id: 'color', label: 'Solid colour' },
-  { id: 'custom', label: 'My image' },
+const BACKGROUNDS: { id: BackgroundMode; label: string; desc: string }[] = [
+  { id: 'solid', label: 'Solid colour', desc: 'One clean colour from the film\u2019s palette fills the player, the page and the bars around the picture. No image, no gradient.' },
+  { id: 'spectral', label: 'Spectral gradient', desc: 'The film\u2019s four-colour gradient runs through the player and the page.' },
+  { id: 'artwork', label: 'Movie artwork', desc: 'The film\u2019s licensed still, blurred and tinted behind the interface. The video itself is never tinted.' },
+  { id: 'custom', label: 'Custom', desc: 'Your own image or colour, kept in this browser only.' },
 ];
 const ACCENTS: { id: AccentChoice; label: string }[] = [
   { id: 'default', label: 'Film' },
@@ -89,6 +90,8 @@ export function AppearanceCards() {
   const [accentText, setAccentText] = useState(a.customAccent);
   const [panelText, setPanelText] = useState(a.panelColor ?? '#14161f');
   const film = ap.filmPalette;
+  const bg = BACKGROUNDS.find((b) => b.id === a.background) ?? BACKGROUNDS[0]!;
+  const showsImage = a.background === 'artwork' || (a.background === 'custom' && a.source === 'custom');
 
   const commitHex = (text: string, apply: (hex: string) => void, fail: string) => {
     const rgb = parseHex(text);
@@ -126,15 +129,113 @@ export function AppearanceCards() {
         ) : (
           <p className="cs-card-desc">{a.theme === 'fixed' ? 'Fixed: XENON obsidian with your accent choice.' : 'This video has no signature palette; colours come from its artwork when it can be read.'}</p>
         )}
-        <SwitchRow
-          label="Film artwork behind the player"
-          description={a.enabled ? 'On: a blurred, darkened still sits behind the interface. The video itself is never tinted.' : 'Off: plain surfaces only.'}
-          checked={a.enabled}
-          onChange={(v) => ap.update({ enabled: v })}
-        />
       </Card>
 
-      <SpectralCard />
+      <Card title="Background" description={bg.desc}>
+        <Pills label="Background">
+          {BACKGROUNDS.map((b) => (
+            <Pill key={b.id} selected={a.background === b.id} onClick={() => ap.update({ background: b.id })}>
+              {b.label}
+            </Pill>
+          ))}
+        </Pills>
+        {a.background === 'solid' ? (
+          <div className="cs-palette" aria-label="Background colour">
+            <span className="cs-palette-item">
+              <span className="cs-swatch-dot cs-swatch-lg" style={{ background: ap.resolved.base }} aria-hidden="true" />
+              {a.panelColor ? 'Your panel colour' : film ? 'This film\u2019s colour' : 'XENON obsidian'} <code>{ap.resolved.base}</code>
+            </span>
+          </div>
+        ) : null}
+        {a.background === 'custom' ? (
+          <Pills label="Custom background">
+            <Pill selected={a.source === 'color'} onClick={() => ap.update({ source: 'color' })}>
+              Colour
+            </Pill>
+            <Pill selected={a.source === 'custom'} onClick={() => ap.update({ source: 'custom' })}>
+              Image
+            </Pill>
+          </Pills>
+        ) : null}
+        {a.background === 'custom' && a.source === 'color' ? (
+          <div className="cs-form">
+            <Pills label="Colour swatches">
+              {COLOR_SWATCHES.map((c) => (
+                <Pill
+                  key={c.hex}
+                  selected={a.color.toLowerCase() === c.hex}
+                  onClick={() => {
+                    setHexText(c.hex);
+                    ap.update({ color: c.hex });
+                  }}
+                >
+                  <span className="cs-swatch-dot" style={{ background: c.hex }} aria-hidden="true" /> {c.name}
+                </Pill>
+              ))}
+            </Pills>
+            <label>
+              Colour (hex, for example #1f3b57)
+              <input
+                value={hexText}
+                maxLength={7}
+                onChange={(e) => {
+                  setHexText(e.target.value);
+                  const rgb = parseHex(e.target.value);
+                  if (rgb) {
+                    setMsg(null);
+                    ap.update({ color: toHex(rgb) });
+                  }
+                }}
+                onBlur={() => commitHex(hexText, (h) => ap.update({ color: h }), 'Use a hex colour like #1f3b57.')}
+              />
+            </label>
+          </div>
+        ) : null}
+        {a.background === 'custom' && a.source === 'custom' ? (
+          <div className="cs-form">
+            <Pills>
+              <button type="button" className="cs-chip" onClick={() => fileRef.current?.click()}>
+                Choose image
+              </button>
+              {a.customImage ? (
+                <button type="button" className="cs-chip" onClick={() => ap.update({ customImage: null })}>
+                  Remove image
+                </button>
+              ) : null}
+            </Pills>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              className="cs-sr"
+              tabIndex={-1}
+              aria-label="Background image file"
+              onChange={async (e) => {
+                const f = e.target.files?.[0];
+                e.target.value = '';
+                if (!f) return;
+                const err = await ap.setCustomImageFromFile(f);
+                setMsg(err ? { kind: 'error', text: err } : { kind: 'ok', text: 'Image added. It is resized and kept in this browser only.' });
+              }}
+            />
+            {!a.customImage ? <Empty>No image yet. Until you pick one, the film colour is used.</Empty> : null}
+          </div>
+        ) : null}
+        {a.enabled ? (
+          <Range
+            label={a.background === 'artwork' ? 'Artwork opacity' : a.source === 'color' ? 'Colour strength' : 'Image opacity'}
+            value={a.opacity}
+            min={0}
+            max={100}
+            unit="%"
+            onChange={(v) => ap.update({ opacity: v })}
+          />
+        ) : null}
+        {showsImage ? <Range label="Background blur" value={a.blur} min={0} max={60} unit="px" onChange={(v) => ap.update({ blur: v })} /> : null}
+        {a.enabled ? <p className="cs-card-desc">Backgrounds are always darkened enough for text to stay readable.</p> : null}
+      </Card>
+
+      {a.background !== 'solid' ? <SpectralCard /> : null}
 
       <Card title="Accent and panel colour" description="Accents always pass a 4.5:1 contrast check before they are used.">
         <Pills label="Accent colour">
@@ -197,84 +298,6 @@ export function AppearanceCards() {
 
       {a.enabled ? (
         <>
-          <Card title="Background" description="What fills the space around the video.">
-            <Pills label="Background source">
-              {SOURCES.map((s) => (
-                <Pill key={s.id} selected={a.source === s.id} onClick={() => ap.update({ source: s.id })}>
-                  {s.label}
-                </Pill>
-              ))}
-            </Pills>
-            {a.source === 'color' ? (
-              <div className="cs-form">
-                <Pills label="Colour swatches">
-                  {COLOR_SWATCHES.map((c) => (
-                    <Pill
-                      key={c.hex}
-                      selected={a.color.toLowerCase() === c.hex}
-                      onClick={() => {
-                        setHexText(c.hex);
-                        ap.update({ color: c.hex });
-                      }}
-                    >
-                      <span className="cs-swatch-dot" style={{ background: c.hex }} aria-hidden="true" /> {c.name}
-                    </Pill>
-                  ))}
-                </Pills>
-                <label>
-                  Colour (hex, for example #1f3b57)
-                  <input
-                    value={hexText}
-                    maxLength={7}
-                    onChange={(e) => {
-                      setHexText(e.target.value);
-                      const rgb = parseHex(e.target.value);
-                      if (rgb) {
-                        setMsg(null);
-                        ap.update({ color: toHex(rgb) });
-                      }
-                    }}
-                    onBlur={() => commitHex(hexText, (h) => ap.update({ color: h }), 'Use a hex colour like #1f3b57.')}
-                  />
-                </label>
-              </div>
-            ) : null}
-            {a.source === 'custom' ? (
-              <div className="cs-form">
-                <Pills>
-                  <button type="button" className="cs-chip" onClick={() => fileRef.current?.click()}>
-                    Choose image
-                  </button>
-                  {a.customImage ? (
-                    <button type="button" className="cs-chip" onClick={() => ap.update({ customImage: null })}>
-                      Remove image
-                    </button>
-                  ) : null}
-                </Pills>
-                <input
-                  ref={fileRef}
-                  type="file"
-                  accept="image/*"
-                  className="cs-sr"
-                  tabIndex={-1}
-                  aria-label="Background image file"
-                  onChange={async (e) => {
-                    const f = e.target.files?.[0];
-                    e.target.value = '';
-                    if (!f) return;
-                    const err = await ap.setCustomImageFromFile(f);
-                    setMsg(err ? { kind: 'error', text: err } : { kind: 'ok', text: 'Image added. It is resized and kept in this browser only.' });
-                  }}
-                />
-                {!a.customImage ? <Empty>No image yet. Until you pick one, a plain dark background is used.</Empty> : null}
-              </div>
-            ) : null}
-          </Card>
-
-          <Card title="Artwork opacity" description="Backgrounds are always darkened enough for text to stay readable. Blur and ambient colour are under Spectral gradients.">
-            <Range label="Artwork opacity" value={a.opacity} min={0} max={100} unit="%" onChange={(v) => ap.update({ opacity: v })} />
-          </Card>
-
           <Card title="Text contrast" description="High raises the target from 4.5:1 to 7:1.">
             <Pills label="Text contrast">
               {(['normal', 'high'] as const).map((c) => (
@@ -321,50 +344,51 @@ export function AppearanceCards() {
             {ap.artworkLabel && a.source === 'poster' ? <p className="cs-card-desc">Artwork: {ap.artworkLabel}</p> : null}
           </Card>
 
-          <Card title="Theme presets" description="Save these settings and restore them later. Presets do not include a custom image.">
-            <div className="cs-timefield">
-              <label>
-                Preset name
-                <input value={presetName} maxLength={30} onChange={(e) => setPresetName(e.target.value)} placeholder="e.g. Night mode" />
-              </label>
-              <button
-                type="button"
-                className="cs-chip"
-                onClick={() => {
-                  const err = ap.savePreset(presetName);
-                  setMsg(err ? { kind: 'error', text: err } : { kind: 'ok', text: `Saved “${presetName.trim()}”.` });
-                  if (!err) setPresetName('');
-                }}
-              >
-                Save preset
-              </button>
-            </div>
-            {ap.presets.length > 0 ? (
-              <ul className="cs-list">
-                {ap.presets.map((p) => (
-                  <li key={p.id} className="cs-list-row">
-                    <button
-                      type="button"
-                      className="cs-choice"
-                      onClick={() => {
-                        ap.applyPreset(p.id);
-                        setMsg({ kind: 'ok', text: `Applied “${p.name}”.` });
-                      }}
-                    >
-                      <span className="cs-choice-main">{p.name}</span>
-                    </button>
-                    <button type="button" className="cs-chip" onClick={() => ap.deletePreset(p.id)} aria-label={`Delete preset ${p.name}`}>
-                      Delete
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <Empty>No presets yet.</Empty>
-            )}
-          </Card>
         </>
       ) : null}
+
+      <Card title="Theme presets" description="Save these settings and restore them later. Presets do not include a custom image.">
+        <div className="cs-timefield">
+          <label>
+            Preset name
+            <input value={presetName} maxLength={30} onChange={(e) => setPresetName(e.target.value)} placeholder="e.g. Night mode" />
+          </label>
+          <button
+            type="button"
+            className="cs-chip"
+            onClick={() => {
+              const err = ap.savePreset(presetName);
+              setMsg(err ? { kind: 'error', text: err } : { kind: 'ok', text: `Saved “${presetName.trim()}”.` });
+              if (!err) setPresetName('');
+            }}
+          >
+            Save preset
+          </button>
+        </div>
+        {ap.presets.length > 0 ? (
+          <ul className="cs-list">
+            {ap.presets.map((p) => (
+              <li key={p.id} className="cs-list-row">
+                <button
+                  type="button"
+                  className="cs-choice"
+                  onClick={() => {
+                    ap.applyPreset(p.id);
+                    setMsg({ kind: 'ok', text: `Applied “${p.name}”.` });
+                  }}
+                >
+                  <span className="cs-choice-main">{p.name}</span>
+                </button>
+                <button type="button" className="cs-chip" onClick={() => ap.deletePreset(p.id)} aria-label={`Delete preset ${p.name}`}>
+                  Delete
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <Empty>No presets yet.</Empty>
+        )}
+      </Card>
 
       {msg ? (
         <p className="cs-form-msg" data-kind={msg.kind} role={msg.kind === 'error' ? 'alert' : 'status'}>
@@ -376,7 +400,7 @@ export function AppearanceCards() {
           Your browser would not save these settings; they last until you close the tab.
         </p>
       ) : null}
-      {a.enabled || a.theme !== 'adaptive' || a.accent !== 'default' || a.panelColor ? (
+      {a.background !== 'solid' || a.theme !== 'adaptive' || a.accent !== 'default' || a.panelColor ? (
         <div className="cs-chips">
           <button
             type="button"
@@ -386,7 +410,7 @@ export function AppearanceCards() {
               setHexText(DEFAULT_APPEARANCE.color);
               setAccentText(DEFAULT_APPEARANCE.customAccent);
               setPanelText('#14161f');
-              setMsg({ kind: 'ok', text: 'Appearance reset: Adaptive theme, film accent, artwork on.' });
+              setMsg({ kind: 'ok', text: 'Appearance reset: Adaptive theme, film accent, solid film-colour background.' });
             }}
           >
             Reset appearance
@@ -471,7 +495,6 @@ function SpectralCard() {
       <Range label="Gradient intensity" value={g.intensity} min={0} max={100} unit="%" onChange={(v) => set({ intensity: v })} />
       <Range label="Ambient colour" value={a.ambient} min={0} max={100} unit="%" onChange={(v) => set({}, { ambient: v })} />
       <Range label="Gradient direction" value={g.direction} min={0} max={360} unit={'\u00b0'} onChange={(v) => set({ direction: v })} />
-      <Range label="Background blur" value={a.blur} min={0} max={60} unit="px" onChange={(v) => set({}, { blur: v })} />
       <Range label="Panel transparency" value={100 - g.panelAlpha} min={0} max={60} unit="%" onChange={(v) => set({ panelAlpha: 100 - v })} />
     </Card>
   );

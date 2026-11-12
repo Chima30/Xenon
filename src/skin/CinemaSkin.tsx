@@ -618,6 +618,7 @@ function SkinInner({
         data-mode={effectiveMode}
         data-playback={playback}
         data-atm={look.derived.active ? 'on' : 'off'}
+        data-bg={look.appearance.background}
         data-has-rail={hasRail ? '' : undefined}
         data-rail={look.wheelCollapsed ? 'collapsed' : 'open'}
         data-drawer={drawerOpen ? 'open' : drawerClosing && effectiveMode !== 'explore' ? 'closing' : undefined}

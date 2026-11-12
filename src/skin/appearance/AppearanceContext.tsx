@@ -18,6 +18,13 @@ import {
 } from './color';
 
 export type BgSource = 'poster' | 'color' | 'custom';
+/**
+ * What fills the space around the video. Solid (the default) is one clean colour from the film's palette, with no
+ * image or gradient layers; Spectral is the film's gradient system; Artwork is the film's licensed still, blurred and
+ * tinted; Custom is the viewer's own image or colour.
+ */
+export type BackgroundMode = 'solid' | 'spectral' | 'artwork' | 'custom';
+export const BACKGROUND_MODES: readonly BackgroundMode[] = ['solid', 'spectral', 'artwork', 'custom'];
 export type PanelStyle = 'glass' | 'solid' | 'clear';
 export type AccentChoice = 'default' | 'citron' | 'poster' | 'lavender' | 'teal' | 'rose' | 'custom';
 
@@ -82,15 +89,19 @@ export interface ResolvedAtmosphere {
   angle: number;
   /** Ambient colour strength, 0 to 1. */
   ambient: number;
+  /** The background mode in use, so a host page can match it (a solid page for Solid, its gradient for Spectral). */
+  background: BackgroundMode;
 }
 export type PanelArea = 'header' | 'wheel' | 'controls';
 
 export interface Appearance {
   /** Adaptive follows each film's signature palette; Fixed keeps one look for every film. */
   theme: 'adaptive' | 'fixed';
+  /** The background mode. `enabled` and `source` below follow from it (see withBackground). */
+  background: BackgroundMode;
   /** Panel background colour chosen by the viewer, or null to use the film's (or XENON's) base. */
   panelColor: string | null;
-  /** Artwork layer switch. The film palette (accent and base colour) applies either way. */
+  /** Image/colour layer switch, derived from `background`: on for Artwork and Custom. */
   enabled: boolean;
   source: BgSource;
   /** Artwork visibility, 0 to 100. */
@@ -110,8 +121,9 @@ export interface Appearance {
 
 export const DEFAULT_APPEARANCE: Appearance = {
   theme: 'adaptive',
+  background: 'solid',
   panelColor: null,
-  enabled: true,
+  enabled: false,
   source: 'poster',
   opacity: 55,
   blur: 28,
@@ -144,13 +156,55 @@ const pick = <T extends string>(v: unknown, allowed: readonly T[], d: T): T => a
 const num = (v: unknown, lo: number, hi: number, d: number) => (typeof v === 'number' && Number.isFinite(v) ? clamp(v, lo, hi) : d);
 const hex = (v: unknown, d: string) => (typeof v === 'string' && parseHex(v) ? (v.startsWith('#') ? v : `#${v}`) : d);
 
-function parseAppearance(v: unknown): Appearance | null {
+/**
+ * Keeps the artwork switch and source in step with the background mode: Artwork shows the film's still, Custom
+ * shows the viewer's image (or colour, until there is an image), Solid and Spectral show no image at all.
+ */
+export function withBackground(a: Appearance): Appearance {
+  switch (a.background) {
+    case 'artwork':
+      return { ...a, enabled: true, source: 'poster' };
+    case 'custom':
+      // Keep the viewer's own pick (colour or image); coming from Artwork, use their image if they have one.
+      return { ...a, enabled: true, source: a.source === 'poster' ? (a.customImage ? 'custom' : 'color') : a.source };
+    default:
+      return { ...a, enabled: false };
+  }
+}
+
+/** How Appearance looked before background modes existed: artwork on, Cinematic gradients. */
+const LEGACY_DEFAULTS = { opacity: 55, blur: 28, ambient: 35, intensity: 60, direction: 160, panelAlpha: 90 };
+
+/**
+ * The background a saved setting from before background modes stands for. Someone who never touched the
+ * background controls gets the new Solid default; anyone who did keeps the look they chose.
+ */
+export function legacyBackground(v: Record<string, unknown>): BackgroundMode {
+  const enabled = v.enabled === true;
+  if (!enabled) return 'spectral'; // they switched the artwork off: plain surfaces with the film's gradients
+  if (v.source === 'custom' || v.source === 'color') return 'custom';
+  const g = isRecord(v.gradient) ? v.gradient : {};
+  const chose =
+    (typeof v.opacity === 'number' && v.opacity !== LEGACY_DEFAULTS.opacity) ||
+    (typeof v.blur === 'number' && v.blur !== LEGACY_DEFAULTS.blur) ||
+    (typeof v.ambient === 'number' && v.ambient !== LEGACY_DEFAULTS.ambient) ||
+    (typeof g.preset === 'string' && g.preset !== 'cinematic') ||
+    (typeof g.intensity === 'number' && g.intensity !== LEGACY_DEFAULTS.intensity) ||
+    (typeof g.direction === 'number' && g.direction !== LEGACY_DEFAULTS.direction) ||
+    (typeof g.panelAlpha === 'number' && g.panelAlpha !== LEGACY_DEFAULTS.panelAlpha) ||
+    g.paletteMode === 'custom';
+  return chose ? 'artwork' : 'solid';
+}
+
+export function parseAppearance(v: unknown): Appearance | null {
   if (!isRecord(v)) return null;
   const d = DEFAULT_APPEARANCE;
   const panels = isRecord(v.panels) ? v.panels : {};
   const styles = ['glass', 'solid', 'clear'] as const;
-  return {
+  const background = BACKGROUND_MODES.find((m) => m === v.background) ?? legacyBackground(v);
+  return withBackground({
     theme: pick(v.theme, ['adaptive', 'fixed'] as const, d.theme),
+    background,
     panelColor: typeof v.panelColor === 'string' && parseHex(v.panelColor) ? hex(v.panelColor, '#0a0e17') : null,
     enabled: v.enabled === true,
     source: pick(v.source, ['poster', 'color', 'custom'] as const, d.source),
@@ -168,7 +222,7 @@ function parseAppearance(v: unknown): Appearance | null {
       controls: pick(panels.controls, styles, d.panels.controls),
     },
     gradient: parseGradient(v.gradient),
-  };
+  });
 }
 
 function parseGradient(v: unknown): GradientSettings {
@@ -329,7 +383,7 @@ export function AppearanceProvider({
   const update = useCallback(
     (patch: Partial<Appearance>) => {
       setAppearance((prev) => {
-        const next = { ...prev, ...patch };
+        const next = withBackground({ ...prev, ...patch });
         save(next);
         return next;
       });
@@ -371,8 +425,7 @@ export function AppearanceProvider({
       if (!p) return;
       setAppearance((prev) => {
         // Keep the current custom image; a preset that wants "custom" without one falls back to the poster.
-        const next: Appearance = { ...p.appearance, customImage: prev.customImage };
-        if (next.source === 'custom' && !next.customImage) next.source = 'poster';
+        const next = withBackground({ ...p.appearance, customImage: prev.customImage });
         save(next);
         return next;
       });
@@ -393,7 +446,7 @@ export function AppearanceProvider({
       if (!file.type.startsWith('image/')) return 'Choose an image file.';
       try {
         const dataUrl = await fileToDataUrl(file);
-        update({ customImage: dataUrl, source: 'custom' });
+        update({ customImage: dataUrl, source: 'custom', background: 'custom' });
         return null;
       } catch {
         return 'That file could not be read as an image.';
@@ -539,6 +592,7 @@ export function AppearanceProvider({
       glow: v['--cs-glow'] ?? '#5a78c8',
       secondary: v['--cs-secondary'] ?? '#ada0f8',
       image: derived.active && appearance.source !== 'color' ? derived.imageUrl : null,
+      background: appearance.background,
       spectrum: spectrumIn(appearance, activeFilm),
       angle: appearance.gradient.direction,
       ambient: appearance.ambient / 100,

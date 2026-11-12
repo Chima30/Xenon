@@ -174,11 +174,13 @@ const themeOf = () =>
       ink: r.style.getPropertyValue('--cs-film-ink'),
       page: document.documentElement.style.getPropertyValue('--page-base'),
       light: !!document.querySelector('.cs-atm-light'),
+      bg: r.dataset.bg,
+      pageSolid: getComputedStyle(document.body).backgroundImage === 'none' && getComputedStyle(document.body, '::before').display === 'none',
       hash: location.hash,
     };
   });
 const sintel = await themeOf();
-check('Sintel: plum, ember and ivory light the whole player and page', sintel.base === '#1a1119' && sintel.ink === '#f6eee2' && sintel.page === '#1a1119' && sintel.light, JSON.stringify(sintel));
+check('Sintel: plum, ember and ivory colour the whole player and page, on the default solid background (no light, image or gradient layer)', sintel.base === '#1a1119' && sintel.ink === '#f6eee2' && sintel.page === '#1a1119' && sintel.bg === 'solid' && !sintel.light && sintel.pageSolid, JSON.stringify(sintel));
 await shot(page, 'theme-sintel');
 
 await wake();
@@ -471,9 +473,10 @@ await page.locator('.cs-reel').click();
 await page.waitForTimeout(300);
 const motion = await page.evaluate(() => ({
   drawer: getComputedStyle(document.querySelector('.cs-rail')).animationName,
-  light: getComputedStyle(document.querySelector('.cs-atm-light')).animationName,
+  // The Lightfield only exists on the Spectral, Artwork and Custom backgrounds; on the solid default it is absent.
+  light: document.querySelector('.cs-atm-light') ? getComputedStyle(document.querySelector('.cs-atm-light')).animationName : 'absent',
 }));
-check('Reduced motion: no drawer animation and a still Lightfield', motion.drawer === 'none' && motion.light === 'none', JSON.stringify(motion));
+check('Reduced motion: no drawer animation and a still (or absent) Lightfield', motion.drawer === 'none' && (motion.light === 'none' || motion.light === 'absent'), JSON.stringify(motion));
 await page.keyboard.press('Escape');
 await page.emulateMedia({ reducedMotion: 'no-preference' });
 
@@ -484,7 +487,7 @@ await wake();
 await page.waitForTimeout(400);
 const forced = await page.evaluate(() => {
   const btn = getComputedStyle(document.querySelector('.cs-row .cs-btn'));
-  return { border: btn.borderTopStyle, print: getComputedStyle(document.querySelector('.cs-atm-light')).display };
+  return { border: btn.borderTopStyle, print: document.querySelector('.cs-atm-light') ? getComputedStyle(document.querySelector('.cs-atm-light')).display : 'none' };
 });
 check('Forced colours: controls keep visible borders; decorative light steps aside', forced.border !== 'none' && forced.print === 'none', JSON.stringify(forced));
 await shot(page, 'forced-colors');
@@ -1464,6 +1467,10 @@ for (const [film, stops] of [
   ['big-buck-bunny', ['#071c17', '#204a37', '#a47835', '#e2d78a']],
 ]) {
   await open(film);
+  // Solid colour is the default background; this section is about the Spectral gradient choice.
+  await page.evaluate(() => localStorage.setItem('cinema-skin:v1:appearance', JSON.stringify({ background: 'spectral' })));
+  await page.reload();
+  await page.waitForSelector('.cs-root');
   // A fresh page crossfades from XENON's spectrum to the film's in 1.2 s; read the settled colours.
   await page.waitForTimeout(1500);
   const s = await spectral();
@@ -1509,8 +1516,8 @@ const kept = await page.evaluate(() => {
   return { preset: a.gradient?.preset, mode: a.gradient?.paletteMode, k: r.getPropertyValue('--sg-k'), alpha: r.getPropertyValue('--cs-panel-alpha') };
 });
 check(
-  'Appearance Studio: presets, film or own palette with four colour stops, and sliders for intensity, ambient colour, direction, blur and panel transparency, saved across a reload',
-  controls.colours === 4 && ['Gradient intensity', 'Ambient colour', 'Gradient direction', 'Background blur', 'Panel transparency'].every((n) => controls.sliders.includes(n)) && kept.mode === 'custom' && kept.k === '0.85' && kept.alpha === '0.8',
+  'Appearance Studio: presets, film or own palette with four colour stops, and sliders for intensity, ambient colour, direction and panel transparency, saved across a reload',
+  controls.colours === 4 && ['Gradient intensity', 'Ambient colour', 'Gradient direction', 'Panel transparency'].every((n) => controls.sliders.includes(n)) && kept.mode === 'custom' && kept.k === '0.85' && kept.alpha === '0.8',
   JSON.stringify({ controls, kept }),
 );
 await openLab();
