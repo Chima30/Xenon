@@ -1134,10 +1134,15 @@ const spot = await tp2.evaluate(() => {
   const to = slate && slate.height ? slate.top - 12 : r.top + r.height * 0.7;
   return { x: r.left + r.width * 0.14, y: (from + to) / 2 };
 });
-await tp2.touchscreen.tap(spot.x, spot.y);
-await tp2.waitForTimeout(90);
-await tp2.touchscreen.tap(spot.x, spot.y);
-await tp2.waitForTimeout(250);
+// Video.js counts two taps as a double tap only when they finish within 200 ms. Driven tap by tap, the automation's
+// own round trips stretched the gap past that under load, so the two taps go straight to Chrome's input pipeline,
+// 60 ms apart: a real, quick double tap, through the same touch and pointer events a finger produces.
+const tapCdp = await tapCtx.newCDPSession(tp2);
+const touch = (type) => tapCdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x: spot.x, y: spot.y }] });
+const firstTap = [touch('touchStart'), touch('touchEnd')];
+await new Promise((r) => setTimeout(r, 60));
+await Promise.all([...firstTap, touch('touchStart'), touch('touchEnd')]);
+await tp2.waitForTimeout(300);
 const dbl = await tp2.evaluate(() => ({
   dir: document.querySelector('.cs-seeklens')?.dataset.direction ?? null,
   text: document.querySelector('.cs-seeklens-text')?.textContent ?? null,
