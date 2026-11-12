@@ -19,8 +19,8 @@ import {
 
 export type BgSource = 'poster' | 'color' | 'custom';
 /**
- * What fills the space around the video. Solid (the default) is one clean colour from the film's palette, with no
- * image or gradient layers; Spectral is the film's gradient system; Artwork is the film's licensed still, blurred and
+ * What fills the space around the video. Spectral (the default) is the film's gradient system; Solid is one clean
+ * colour from the film's palette, with no image or gradient layers; Artwork is the film's licensed still, blurred and
  * tinted; Custom is the viewer's own image or colour.
  */
 export type BackgroundMode = 'solid' | 'spectral' | 'artwork' | 'custom';
@@ -121,7 +121,7 @@ export interface Appearance {
 
 export const DEFAULT_APPEARANCE: Appearance = {
   theme: 'adaptive',
-  background: 'solid',
+  background: 'spectral',
   panelColor: null,
   enabled: false,
   source: 'poster',
@@ -177,7 +177,7 @@ const LEGACY_DEFAULTS = { opacity: 55, blur: 28, ambient: 35, intensity: 60, dir
 
 /**
  * The background a saved setting from before background modes stands for. Someone who never touched the
- * background controls gets the new Solid default; anyone who did keeps the look they chose.
+ * background controls gets the Spectral default; anyone who did keeps the look they chose.
  */
 export function legacyBackground(v: Record<string, unknown>): BackgroundMode {
   const enabled = v.enabled === true;
@@ -193,7 +193,7 @@ export function legacyBackground(v: Record<string, unknown>): BackgroundMode {
     (typeof g.direction === 'number' && g.direction !== LEGACY_DEFAULTS.direction) ||
     (typeof g.panelAlpha === 'number' && g.panelAlpha !== LEGACY_DEFAULTS.panelAlpha) ||
     g.paletteMode === 'custom';
-  return chose ? 'artwork' : 'solid';
+  return chose ? 'artwork' : 'spectral';
 }
 
 export function parseAppearance(v: unknown): Appearance | null {

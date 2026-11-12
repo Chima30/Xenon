@@ -400,7 +400,7 @@ export function AppearanceCards() {
           Your browser would not save these settings; they last until you close the tab.
         </p>
       ) : null}
-      {a.background !== 'solid' || a.theme !== 'adaptive' || a.accent !== 'default' || a.panelColor ? (
+      {a.background !== DEFAULT_APPEARANCE.background || a.theme !== 'adaptive' || a.accent !== 'default' || a.panelColor ? (
         <div className="cs-chips">
           <button
             type="button"
@@ -410,7 +410,7 @@ export function AppearanceCards() {
               setHexText(DEFAULT_APPEARANCE.color);
               setAccentText(DEFAULT_APPEARANCE.customAccent);
               setPanelText('#14161f');
-              setMsg({ kind: 'ok', text: 'Appearance reset: Adaptive theme, film accent, solid film-colour background.' });
+              setMsg({ kind: 'ok', text: 'Appearance reset: Adaptive theme, film accent, spectral gradient background.' });
             }}
           >
             Reset appearance

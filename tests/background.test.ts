@@ -20,8 +20,8 @@ const legacy = {
 };
 
 describe('Background: the default for new viewers', () => {
-  it('is a solid film colour, with the artwork off', () => {
-    expect(DEFAULT_APPEARANCE.background).toBe('solid');
+  it('is the spectral gradient, with the artwork off', () => {
+    expect(DEFAULT_APPEARANCE.background).toBe('spectral');
     expect(DEFAULT_APPEARANCE.enabled).toBe(false);
   });
 
@@ -37,9 +37,9 @@ describe('Background: the default for new viewers', () => {
 });
 
 describe('Background: viewers who saved settings before background modes', () => {
-  it('get the new solid default if they never touched the background (only, say, the accent)', () => {
-    expect(legacyBackground(legacy)).toBe('solid');
-    expect(parseAppearance({ ...legacy, accent: 'rose' })).toMatchObject({ background: 'solid', enabled: false, accent: 'rose' });
+  it('get the spectral default if they never touched the background (only, say, the accent)', () => {
+    expect(legacyBackground(legacy)).toBe('spectral');
+    expect(parseAppearance({ ...legacy, accent: 'rose' })).toMatchObject({ background: 'spectral', enabled: false, accent: 'rose' });
   });
 
   it('keep the artwork if they tuned it or the gradients', () => {

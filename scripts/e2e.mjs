@@ -180,7 +180,7 @@ const themeOf = () =>
     };
   });
 const sintel = await themeOf();
-check('Sintel: plum, ember and ivory colour the whole player and page, on the default solid background (no light, image or gradient layer)', sintel.base === '#1a1119' && sintel.ink === '#f6eee2' && sintel.page === '#1a1119' && sintel.bg === 'solid' && !sintel.light && sintel.pageSolid, JSON.stringify(sintel));
+check('Sintel: plum, ember and ivory light the whole player and page, on the default spectral gradient (no artwork)', sintel.base === '#1a1119' && sintel.ink === '#f6eee2' && sintel.page === '#1a1119' && sintel.bg === 'spectral' && sintel.light && !sintel.pageSolid, JSON.stringify(sintel));
 await shot(page, 'theme-sintel');
 
 await wake();
