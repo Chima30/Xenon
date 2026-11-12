@@ -88,6 +88,7 @@ import './optical.css';
 import './rail.css';
 import './frame/frame.css';
 import './spectral.css';
+import './motion.css';
 
 export type { ScenePreview, ThumbnailAt, TimelineMarker } from './dock/Timeline';
 export type { SkinScene } from './scenes';

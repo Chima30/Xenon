@@ -1,0 +1,232 @@
+/* ==========================================================================
+   XENON motion. One timing system for the whole skin. Every animation here moves only transform, opacity or
+   clip-path, plays once per real event (never in a loop), never touches the video, and is switched off under
+   reduced motion: the system setting or the player's own Reduced motion profile.
+   ========================================================================== */
+
+.cs-root {
+  --m-quick: 160ms;
+  --m-move: 320ms;
+  --m-reveal: 700ms;
+  --m-ease: var(--ease-out, cubic-bezier(0.2, 0.8, 0.2, 1));
+}
+
+/* ---------- Controls: the console lifts in, and settles away when the film is left alone ---------- */
+
+.cs-controls > * {
+  transition:
+    opacity 0.25s ease,
+    translate var(--m-move) var(--m-ease);
+}
+.cs-controls:not([data-visible]):not(:has(:focus-visible)):not(:has([aria-expanded='true'])):not(:has(.cs-lens)) > .cs-top {
+  translate: 0 -10px;
+}
+.cs-controls:not([data-visible]):not(:has(:focus-visible)):not(:has([aria-expanded='true'])):not(:has(.cs-lens)) > .cs-bottom {
+  translate: 0 10px;
+}
+/* The Expanded console lives under the picture and never hides, so it never moves either. */
+.cs-root[data-dock='expanded'] .cs-controls > .cs-bottom {
+  translate: none;
+}
+
+/* ---------- The strip: developing, projector streak, splice light, aperture thumb ---------- */
+
+/* Develop: when a film arrives, the strip exposes left to right like film in the bath, and each scene cut appears
+   in turn. */
+.cs-tl[data-develop] .cs-track {
+  animation: cs-strip-develop var(--m-reveal) var(--m-ease) both;
+}
+.cs-tl[data-develop] .cs-marker[data-kind='scene'] {
+  animation: cs-cut-in 0.3s var(--m-ease) both;
+  animation-delay: calc(120ms + var(--i, 0) * 50ms);
+}
+@keyframes cs-strip-develop {
+  from {
+    clip-path: inset(-12px 100% -12px 0);
+  }
+  to {
+    clip-path: inset(-12px 0 -12px 0);
+  }
+}
+@keyframes cs-cut-in {
+  from {
+    opacity: 0;
+    scale: 1 0;
+  }
+}
+
+/* Projector streak: a jump runs a beam of light along the strip from where you were to where you land. */
+.cs-streak {
+  position: absolute;
+  top: -1px;
+  bottom: -1px;
+  z-index: 2;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--cs-citron) 75%, white) 72%, #fff);
+  transform-origin: left center;
+  pointer-events: none;
+  animation: cs-streak 460ms var(--m-ease) both;
+}
+.cs-streak[data-dir='back'] {
+  background: linear-gradient(270deg, transparent, color-mix(in srgb, var(--cs-citron) 75%, white) 72%, #fff);
+  transform-origin: right center;
+}
+@keyframes cs-streak {
+  0% {
+    opacity: 1;
+    transform: scaleX(0);
+  }
+  58% {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scaleX(1);
+  }
+}
+
+/* Splice light: while playing, each scene cut lights for a moment as it passes through the gate. */
+.cs-splice {
+  position: absolute;
+  top: 50%;
+  z-index: 3;
+  width: 2px;
+  height: 20px;
+  background: color-mix(in srgb, var(--cs-citron) 60%, white);
+  border-radius: 1px;
+  translate: -50% -50%;
+  pointer-events: none;
+  animation: cs-splice 700ms var(--m-ease) both;
+}
+.cs-splice::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 28px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--cs-citron) 70%, white), transparent);
+  translate: -50% -50%;
+}
+@keyframes cs-splice {
+  0% {
+    opacity: 0;
+    scale: 1 0.2;
+  }
+  22% {
+    opacity: 1;
+    scale: 1 1;
+  }
+  100% {
+    opacity: 0;
+    scale: 1.6 1.3;
+  }
+}
+
+/* Aperture thumb: four blades open round the thumb when the strip is in use (hover, focus, drag), echoing the
+   Photon Frame's iris, and close a little while dragging, like a lens tightening on its subject. */
+.cs-timeslider .cs-thumb::before {
+  content: '';
+  position: absolute;
+  inset: -7px;
+  border-radius: 50%;
+  background: conic-gradient(
+    from -40deg,
+    var(--cs-citron) 0 16%,
+    transparent 0 25%,
+    var(--cs-citron) 0 41%,
+    transparent 0 50%,
+    var(--cs-citron) 0 66%,
+    transparent 0 75%,
+    var(--cs-citron) 0 91%,
+    transparent 0
+  );
+  -webkit-mask: radial-gradient(closest-side, transparent calc(100% - 2px), #000 calc(100% - 1.5px));
+  mask: radial-gradient(closest-side, transparent calc(100% - 2px), #000 calc(100% - 1.5px));
+  opacity: 0;
+  scale: 0.5;
+  rotate: -70deg;
+  pointer-events: none;
+  transition:
+    opacity var(--m-quick) ease,
+    scale var(--m-move) var(--m-ease),
+    rotate var(--m-move) var(--m-ease);
+}
+.cs-timeslider[data-interactive] .cs-thumb::before,
+.cs-tl:hover .cs-thumb::before {
+  opacity: 0.95;
+  scale: 1;
+  rotate: 0deg;
+}
+.cs-timeslider[data-dragging] .cs-thumb::before {
+  scale: 0.84;
+  rotate: 35deg;
+}
+.cs-root[data-hc] .cs-timeslider .cs-thumb::before {
+  background: #fff;
+}
+
+/* ---------- My Atlas: a saved moment drops into place ---------- */
+
+.cs-root .capsule {
+  animation: cs-capsule-in var(--m-move) var(--m-ease) both;
+}
+.cs-root .capsule:nth-child(2) {
+  animation-delay: 40ms;
+}
+.cs-root .capsule:nth-child(3) {
+  animation-delay: 80ms;
+}
+.cs-root .capsule:nth-child(4) {
+  animation-delay: 120ms;
+}
+.cs-root .capsule:nth-child(n + 5) {
+  animation-delay: 160ms;
+}
+@keyframes cs-capsule-in {
+  from {
+    opacity: 0;
+    translate: 0 10px;
+    scale: 0.97;
+  }
+}
+
+/* ---------- Calm on request ---------- */
+
+.cs-root[data-motion='reduce'] :is(.cs-streak, .cs-splice) {
+  display: none;
+}
+.cs-root[data-motion='reduce'] :is(.cs-tl .cs-track, .cs-tl .cs-marker, .capsule) {
+  animation: none;
+}
+/* !important: the "controls resting" rule above is far more specific, and calm must always win. */
+.cs-root[data-motion='reduce'] .cs-controls > * {
+  translate: none !important;
+  transition: opacity 0.01ms;
+}
+.cs-root[data-motion='reduce'] .cs-timeslider .cs-thumb::before {
+  rotate: 0deg;
+  transition: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .cs-root :is(.cs-streak, .cs-splice) {
+    display: none;
+  }
+  .cs-root :is(.cs-tl .cs-track, .cs-tl .cs-marker, .capsule) {
+    animation: none;
+  }
+  .cs-root .cs-controls > * {
+    translate: none !important;
+    transition: opacity 0.01ms;
+  }
+  .cs-root .cs-timeslider .cs-thumb::before {
+    rotate: 0deg;
+    transition: none;
+  }
+}
+@media (forced-colors: active) {
+  .cs-root :is(.cs-streak, .cs-splice), .cs-root .cs-timeslider .cs-thumb::before {
+    display: none;
+  }
+}

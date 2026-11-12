@@ -1589,6 +1589,51 @@ const s5 = await slateAt();
 check('The place survives a reload; Home puts the console back and forgets the place', Math.abs(s4.x - s3.x) <= 1 && Math.abs(s4.y - s3.y) <= 1 && s5.x === s0.x && s5.y === s0.y && s5.saved === 'null', JSON.stringify({ s4, s5 }));
 await axeAudit(page, 'movable pause console');
 
+/* ---------- 26. Motion: the developing strip, projector streak, aperture thumb, settling console ---------- */
+await open('sintel');
+const developed = await page.waitForSelector('.cs-tl[data-develop]', { timeout: 15000 }).then(() => true).catch(() => false);
+await page.waitForTimeout(1300);
+const developDone = await page.evaluate(() => !document.querySelector('.cs-tl').hasAttribute('data-develop'));
+check('Motion: the strip develops once when the film arrives, then rests', developed && developDone, JSON.stringify({ developed, developDone }));
+await wake();
+await page.evaluate(() => { document.querySelector('video').currentTime = 300; });
+const streak = await page.waitForSelector('.cs-streak', { timeout: 3000 }).then(() => true).catch(() => false);
+await page.waitForTimeout(800);
+const streakGone = (await page.locator('.cs-streak').count()) === 0;
+check('Motion: a jump runs a projector streak from where you were to where you land, then clears', streak && streakGone, JSON.stringify({ streak, streakGone }));
+const seekThumb = await page.locator('.cs-tl .cs-thumb').boundingBox();
+await page.mouse.move(seekThumb.x + seekThumb.width / 2, seekThumb.y + seekThumb.height / 2);
+await page.waitForTimeout(450);
+const aperture = await page.evaluate(() => {
+  const s = getComputedStyle(document.querySelector('.cs-tl .cs-thumb'), '::before');
+  const vol = getComputedStyle(document.querySelector('.cs-row .cs-thumb:not(.cs-tl .cs-thumb)') ?? document.body, '::before');
+  return { opacity: Number(s.opacity), scale: s.scale, volumeBlades: vol.content !== 'none' && vol.content !== '' && vol.content !== 'normal' };
+});
+check('Motion: the seek thumb opens its aperture blades on hover (the volume thumb has none)', aperture.opacity > 0.9 && aperture.scale === '1' && !aperture.volumeBlades, JSON.stringify(aperture));
+await page.evaluate(() => document.querySelector('video').play());
+await page.mouse.move(5, 5);
+await page.waitForTimeout(4500);
+const consoleRest = await page.evaluate(() => ({ top: getComputedStyle(document.querySelector('.cs-top')).translate, bottom: getComputedStyle(document.querySelector('.cs-bottom')).translate }));
+check('Motion: left alone, the top bar lifts away and the dock settles down as they fade', consoleRest.top === '0px -10px' && consoleRest.bottom === '0px 10px', JSON.stringify(consoleRest));
+await page.evaluate(() => document.querySelector('video').pause());
+await page.emulateMedia({ reducedMotion: 'reduce' });
+await page.reload();
+await page.waitForSelector('.cs-tl');
+await page.waitForTimeout(800);
+await wake();
+const calmDevelop = await page.evaluate(() => getComputedStyle(document.querySelector('.cs-track')).animationName);
+await page.evaluate(() => { document.querySelector('video').currentTime = 120; });
+await page.waitForTimeout(150);
+const calmStreak = await page.evaluate(() => { const s = document.querySelector('.cs-streak'); return s ? getComputedStyle(s).display : 'absent'; });
+await page.evaluate(() => document.querySelector('video').play());
+await page.mouse.move(5, 5);
+await page.waitForTimeout(4500);
+const calmControls = await page.evaluate(() => getComputedStyle(document.querySelector('.cs-top')).translate);
+await page.evaluate(() => document.querySelector('video').pause());
+check('Reduced motion: no developing strip, no streak, and the console fades without moving', calmDevelop === 'none' && (calmStreak === 'none' || calmStreak === 'absent') && calmControls === 'none', JSON.stringify({ calmDevelop, calmStreak, calmControls }));
+await page.emulateMedia({ reducedMotion: 'no-preference' });
+await axeAudit(page, 'motion');
+
 check('No uncaught page errors', errors.length === 0, errors.slice(0, 3).join(' | '));
 
 await browser.close();

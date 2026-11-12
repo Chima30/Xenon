@@ -1,6 +1,6 @@
 import { TimeSlider } from '@videojs/react';
 import { usePlayer } from '@videojs/react/video';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Clip } from '../ClipPanel';
 import { clamp, formatTime } from '../format';
 import { sceneIndexAt, type SkinScene } from '../scenes';
@@ -61,6 +61,8 @@ export function Timeline({ markers, clip, scenes, thumbnailAt, scenePreview, len
   }
   const image = info?.image && info.image !== badImage ? info.image : null;
 
+  const motion = useStripMotion(nowPct, duration, scenes, filmprintKey, ref);
+
   // One graduation per minute (per five minutes on long videos): real, measurable divisions of the runtime.
   const unit = duration > 3600 ? 300 : 60;
   const graduation = duration > unit ? `${(unit / duration) * 100}%` : null;
@@ -75,6 +77,7 @@ export function Timeline({ markers, clip, scenes, thumbnailAt, scenePreview, len
       ref={ref}
       className="cs-tl"
       data-filmprint={print ? '' : undefined}
+      data-develop={motion.developing ? '' : undefined}
       style={graduation ? { ['--tl-unit' as string]: graduation } : undefined}
       onPointerMove={(e) => {
         const r = ref.current?.getBoundingClientRect();
@@ -108,6 +111,19 @@ export function Timeline({ markers, clip, scenes, thumbnailAt, scenePreview, len
           ) : null}
           <TimeSlider.Buffer className="cs-buffer" />
           <TimeSlider.Fill className="cs-fill" />
+          {motion.streak ? (
+            <span
+              key={motion.streak.n}
+              className="cs-streak"
+              aria-hidden="true"
+              data-dir={motion.streak.to >= motion.streak.from ? 'forward' : 'back'}
+              style={{ left: `${Math.min(motion.streak.from, motion.streak.to)}%`, width: `${Math.abs(motion.streak.to - motion.streak.from)}%` }}
+              onAnimationEnd={motion.clearStreak}
+            />
+          ) : null}
+          {motion.splice ? (
+            <span key={motion.splice.n} className="cs-splice" aria-hidden="true" style={{ left: `${motion.splice.at}%` }} onAnimationEnd={motion.clearSplice} />
+          ) : null}
         </TimeSlider.Track>
         <Markers markers={all} clip={clip} duration={duration} />
         <TimeSlider.Thumb className="cs-thumb" />
@@ -129,8 +145,52 @@ function Markers({ markers, clip, duration }: { markers: TimelineMarker[]; clip:
         />
       ) : null}
       {markers.map((m, i) => (
-        <span key={`${m.kind}-${m.time}-${i}`} className="cs-marker" data-kind={m.kind} style={{ left: pct(m.time) }} aria-hidden="true" />
+        <span key={`${m.kind}-${m.time}-${i}`} className="cs-marker" data-kind={m.kind} style={{ left: pct(m.time), ['--i' as string]: i }} aria-hidden="true" />
       ))}
     </>
   );
+}
+
+/**
+ * The strip's motion, all driven by real events and each played once:
+ * - Develop: when a film arrives, the strip exposes left to right and its scene cuts appear in turn.
+ * - Projector streak: a jump (seek, scene, moment, Time Lens) runs a beam of light from where you were to where you land.
+ * - Splice light: while playing, each scene cut lights as the playhead passes through it.
+ * Dragging the thumb draws no streak: the viewer is already watching the playhead move. The CSS switches it all off
+ * under reduced motion.
+ */
+function useStripMotion(nowPct: number, duration: number, scenes: SkinScene[], filmKey: string | undefined, root: React.RefObject<HTMLDivElement | null>) {
+  const prev = useRef<number | null>(null);
+  const seq = useRef(0);
+  const [streak, setStreak] = useState<{ n: number; from: number; to: number } | null>(null);
+  const [splice, setSplice] = useState<{ n: number; at: number } | null>(null);
+  const [developing, setDeveloping] = useState(false);
+  const ready = duration > 0;
+
+  // Develop once per film, as soon as its length is known.
+  useEffect(() => {
+    if (!ready) return;
+    prev.current = null;
+    setDeveloping(true);
+    const id = window.setTimeout(() => setDeveloping(false), 1100);
+    return () => window.clearTimeout(id);
+  }, [ready, filmKey]);
+
+  useEffect(() => {
+    const before = prev.current;
+    prev.current = nowPct;
+    if (before === null || !ready) return;
+    const step = nowPct - before;
+    const dragging = !!root.current?.querySelector('.cs-timeslider[data-dragging]');
+    if (Math.abs(step) >= 1.5) {
+      if (!dragging) setStreak({ n: ++seq.current, from: before, to: nowPct });
+      return;
+    }
+    if (step > 0) {
+      const cut = scenes.find((s) => s.start > 0 && (s.start / duration) * 100 > before && (s.start / duration) * 100 <= nowPct);
+      if (cut) setSplice({ n: ++seq.current, at: (cut.start / duration) * 100 });
+    }
+  }, [nowPct, ready, duration, scenes, root]);
+
+  return { streak, splice, developing, clearStreak: () => setStreak(null), clearSplice: () => setSplice(null) };
 }
