@@ -322,10 +322,12 @@ await page.locator('.cs-journey-stop').first().click();
 await page.waitForTimeout(800);
 const back = await page.evaluate(() => document.querySelector('video').currentTime);
 check('Journey lists the stops; choosing the first goes back to where you started', stops >= 3 && Math.abs(back - t0) < 2, `stops ${stops}, t ${back.toFixed(1)} vs ${t0.toFixed(1)}`);
-await page.keyboard.press('b');
+await wake();
+const hadChip = (await page.locator('.cs-tether-chip').count()) > 0;
+if (hadChip) await page.locator('.cs-tether-chip').click();
 await page.waitForTimeout(600);
 const afterB = await page.evaluate(() => ({ t: document.querySelector('video').currentTime, chip: !!document.querySelector('.cs-tether-chip') }));
-check('B returns along the Time Tether and releases it', Math.abs(afterB.t - t0) < 2 && !afterB.chip, JSON.stringify(afterB));
+check('The return chip goes back along the Time Tether and releases it', hadChip && Math.abs(afterB.t - t0) < 2 && !afterB.chip, JSON.stringify({ hadChip, ...afterB }));
 
 /* ---------- 6. Filmprint ---------- */
 await page.waitForTimeout(6000);

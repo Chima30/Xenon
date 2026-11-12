@@ -56,7 +56,7 @@ The branded interface uses **Space Grotesk** throughout, with tabular numbers fo
 - **Movies / Scenes wheel:** Browse films or sections of the current video. A selection is only a preview until you choose an action. When actual chapter metadata exists, XENON can show it; the three demo movies currently use clearly labelled, evenly timed **sections**, not invented scene titles.
 - **Time Lens:** Open a filmstrip of thumbnails and timecodes, adjust the target precisely, and choose **Jump** when you're ready. If thumbnail images aren't available, it still works as a timecode-based tool.
 - **Filmprint timeline:** The seek bar includes scene cuts, saved moments, a return marker, and colours sampled from available frame images. It remains a real Video.js seek slider.
-- **Time Tether:** After a deliberate jump, get back to where you were with one action (`B`).
+- **Time Tether:** After a deliberate jump, get back to where you were with one action.
 - **Journey:** Go back through the places you visited during that viewing session. This is separate from bookmarks.
 - **Resume and sharing:** Playback positions are remembered per movie. A shared URL can point to a specific time, or to a selected clip range.
 
@@ -98,7 +98,6 @@ Keyboard access was part of the player from the start, including its custom navi
 | `C` | Toggle captions when a track exists |
 | `W` | Open/focus the Movies/Scenes wheel |
 | `T` | Open Time Lens |
-| `B` | Return along the Time Tether |
 | `X` | Hide or show optional pause information |
 | `?` | Open the full keyboard guide |
 | `Esc` | Close an open panel or dialog |

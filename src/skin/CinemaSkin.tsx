@@ -530,9 +530,6 @@ function SkinInner({
     } else if ((e.key === 't' || e.key === 'T') && !inPanel) {
       e.preventDefault();
       toggleLens(document.activeElement instanceof HTMLElement ? document.activeElement : null);
-    } else if ((e.key === 'b' || e.key === 'B') && returnAnchor && !inPanel) {
-      e.preventDefault();
-      returnAnchor.onReturn();
     } else if ((e.key === 'w' || e.key === 'W') && hasRail && !inPanel) {
       e.preventDefault();
       if (effectiveMode === 'explore') {
@@ -1184,8 +1181,8 @@ function BottomBar({
               type="button"
               className="cs-tether-chip"
               onClick={tether.onReturn}
-              aria-label={`Return to where you were, ${formatTime(tether.time)} (B)`}
-              data-tip="Back to where you were (B)"
+              aria-label={`Return to where you were, ${formatTime(tether.time)}`}
+              data-tip="Back to where you were"
             >
               <ReturnIcon />
               <span>{formatTime(tether.time)}</span>

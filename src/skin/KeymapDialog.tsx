@@ -47,7 +47,6 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
     title: 'Timeline, Time Tether and Journey',
     items: [
       { keys: ['T'], action: 'Open the filmstrip (Time Lens); arrows aim it, Enter jumps' },
-      { keys: ['B'], action: 'Back to where you were before exploring (Time Tether)' },
       { keys: ['↑', '↓'], action: 'Time Lens: zoom in or out' },
     ],
   },
