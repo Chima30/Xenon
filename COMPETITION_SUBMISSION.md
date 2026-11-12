@@ -9,7 +9,7 @@ The look is a dark instrument: obsidian surfaces, one citron accent for what is 
 ## Fields (fill in only when true)
 
 - Live URL: https://xenon-ruddy.vercel.app/
-- Mux public playback ID: `Yfu01a6CaOBqd01OovU02DLPF2kqH4GNseuJ4q7NEfmhCs` (Sintel, played through the Video.js `MuxVideo` component; keep the asset active through judging)
+- Mux public playback ID: `i00qrt8lv2AP6foBoELFfX9yZwqxoezjmWNhJM00kJS5o` (Sintel, played through the Video.js `MuxVideo` component; keep the asset active through judging)
 - Real-site integration URL: _not deployed yet_
 
 ## Honest notes

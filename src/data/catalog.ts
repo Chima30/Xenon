@@ -84,7 +84,7 @@ const TOS_FILE = 'Tears_of_Steel_in_4k_-_Official_Blender_Foundation_release.web
  */
 export const SINTEL_MUX_PLAYBACK_ID: string =
   (import.meta.env.VITE_SINTEL_MUX_PLAYBACK_ID as string | undefined)?.trim() ||
-  'Yfu01a6CaOBqd01OovU02DLPF2kqH4GNseuJ4q7NEfmhCs';
+  'i00qrt8lv2AP6foBoELFfX9yZwqxoezjmWNhJM00kJS5o';
 
 export const FILMS: Film[] = [
   {
