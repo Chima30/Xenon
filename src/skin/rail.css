@@ -1,0 +1,466 @@
+/* ==========================================================================
+   XENON spatial layout. Loaded last; the ONLY place that places the stage, the navigation rail and the atlas.
+
+   Three states of the rail, each with its own box:
+     Explore        the rail is a grid column beside the stage: 380px, or 64px when the viewer collapsed it.
+     Watch drawer   the rail is an overlay over the stage's left edge, always at its full 380px, whatever the
+                    saved collapsed state; it never takes a column and never spans one.
+     Small players  the rail is a sheet in its own row under the stage (Explore, or the drawer opened).
+
+   Widths are set on .cs-root outside any container query. A container query can only style DESCENDANTS of
+   its container, never the container itself, so a custom property set on .cs-root inside `@container cs`
+   is silently ignored. That is what used to leave an open drawer at the collapsed 64px.
+   ========================================================================== */
+
+.cs-root {
+  --cs-rail-open-w: 380px;
+  --cs-rail-collapsed-w: 64px;
+  --cs-rail-w: var(--cs-rail-open-w);
+}
+.cs-root[data-rail='collapsed'] {
+  --cs-rail-w: var(--cs-rail-collapsed-w);
+}
+
+/* ---------- Grid ---------- */
+
+.cs-layout {
+  position: relative; /* containing block for the drawer, placed by grid area */
+  display: grid;
+  grid-template-columns: 0px minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  min-width: 0;
+  transition: grid-template-columns var(--t-slow) var(--ease-out);
+}
+.cs-root[data-mode='explore'] .cs-layout {
+  grid-template-columns: var(--cs-rail-w) minmax(0, 1fr);
+}
+.cs-stagewrap {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+/* Wide players keep one stage height in every mode and every rail state, so switching modes, opening the
+   drawer or collapsing the rail never makes the page jump. In Explore the picture gives the rail its room. */
+@container cs (min-width: 761px) {
+  .cs-stagewrap,
+  .cs-root[data-mode] .cs-stagewrap {
+    height: 56.25cqi;
+  }
+  .cs-stage,
+  .cs-root[data-mode='explore'] .cs-stage {
+    aspect-ratio: auto;
+  }
+}
+
+/* ---------- Rail: Explore column (and its hidden resting state in Watch) ---------- */
+
+.cs-rail {
+  grid-column: 1;
+  grid-row: 1;
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  isolation: isolate;
+  border-right: 0;
+  visibility: hidden;
+  transition: visibility 0s linear var(--t-slow);
+}
+.cs-root[data-mode='explore'] .cs-rail {
+  visibility: visible;
+  transition-delay: 0s;
+}
+/* The content keeps its full width while the column animates, so nothing inside reflows: the column reveals it. */
+.cs-rail > .cs-rail-inner {
+  position: absolute;
+  inset: 0 auto 0 0;
+  display: flex;
+  flex-direction: column;
+  width: var(--cs-rail-open-w);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--cs-line) transparent;
+}
+
+/* ---------- Rail: Watch drawer, over the stage's own grid area ---------- */
+
+.cs-root:is([data-drawer='open'], [data-drawer='closing']) .cs-rail {
+  grid-column: 2;
+  grid-row: 1;
+  position: absolute;
+  inset: 0 auto 0 0;
+  z-index: 26;
+  width: min(var(--cs-rail-open-w), 100%);
+  visibility: visible;
+  transition-delay: 0s;
+  box-shadow:
+    inset -1px 0 0 color-mix(in srgb, var(--cs-ice) 14%, transparent),
+    28px 0 64px rgb(0 0 0 / 0.5);
+  animation: cs-drawer-in var(--t-slow) var(--ease-out) both;
+}
+.cs-root[data-drawer='closing'] .cs-rail {
+  pointer-events: none;
+  animation: cs-drawer-out 0.2s var(--ease-in, ease-in) both;
+}
+.cs-root:is([data-drawer='open'], [data-drawer='closing']) .cs-rail > .cs-rail-inner {
+  width: 100%;
+}
+@keyframes cs-drawer-in {
+  from {
+    opacity: 0;
+    transform: translateX(-28px);
+  }
+}
+@keyframes cs-drawer-out {
+  to {
+    opacity: 0;
+    transform: translateX(-28px);
+  }
+}
+
+/* ---------- Rail surface: translucent glass in the film's own light ---------- */
+
+.cs-rail,
+.cs-root[data-atm] .cs-rail {
+  background:
+    radial-gradient(120% 55% at 0% 36%, color-mix(in srgb, var(--cs-glow) 18%, transparent), transparent 70%),
+    radial-gradient(90% 45% at 100% 100%, color-mix(in srgb, var(--cs-secondary) 12%, transparent), transparent 70%),
+    linear-gradient(180deg, color-mix(in srgb, var(--cs-base) 62%, transparent), color-mix(in srgb, var(--cs-base) 80%, transparent));
+  -webkit-backdrop-filter: blur(26px) saturate(1.35);
+  backdrop-filter: blur(26px) saturate(1.35);
+}
+.cs-root[data-mode='explore'] .cs-rail {
+  box-shadow: inset -1px 0 0 color-mix(in srgb, var(--cs-ice) 12%, transparent);
+}
+/* Over the picture the glass is a little denser, so text keeps its contrast over any frame. */
+.cs-root:is([data-drawer='open'], [data-drawer='closing']) .cs-rail {
+  background:
+    radial-gradient(120% 55% at 0% 36%, color-mix(in srgb, var(--cs-glow) 18%, transparent), transparent 70%),
+    linear-gradient(180deg, color-mix(in srgb, var(--cs-base) 70%, transparent), color-mix(in srgb, var(--cs-base) 84%, transparent));
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .cs-rail,
+  .cs-root[data-atm] .cs-rail,
+  .cs-root:is([data-drawer='open'], [data-drawer='closing']) .cs-rail {
+    background:
+      radial-gradient(120% 55% at 0% 36%, color-mix(in srgb, var(--cs-glow) 18%, transparent), transparent 70%),
+      color-mix(in srgb, var(--cs-base) 92%, transparent);
+  }
+}
+
+/* ---------- Rail chrome: title bar, collapse / close button, body ---------- */
+
+.cs-rail-bar {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-3) var(--sp-2) var(--sp-5);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--cs-base) 72%, transparent) 60%, transparent);
+}
+.cs-rail-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.cs-rail-title svg {
+  width: 16px;
+  height: 16px;
+}
+.cs-rail-toggle {
+  background: transparent;
+  border-color: transparent;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+.cs-rail-toggle svg {
+  transition: rotate 0.35s var(--ease-out);
+}
+/* The collapse button is a disclosure, not a toggle that is "on": no accent state. */
+.cs-root .cs-rail-toggle[aria-expanded='true'] {
+  color: var(--cs-ice);
+  background: transparent;
+  border-color: transparent;
+}
+.cs-root .cs-rail-toggle[aria-expanded]::before {
+  content: none;
+}
+.cs-rail-body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  transition:
+    opacity 0.25s ease,
+    visibility 0s linear 0s;
+}
+
+/* Collapsed (Explore only: the drawer is always the full instrument). The bar becomes a 64px spine. */
+.cs-root[data-rail='collapsed']:not([data-drawer]) .cs-rail > .cs-rail-inner {
+  overflow: hidden;
+}
+.cs-root[data-rail='collapsed']:not([data-drawer]) .cs-rail-bar {
+  flex-direction: column;
+  width: var(--cs-rail-collapsed-w);
+  padding: var(--sp-3) 0 0;
+}
+.cs-root[data-rail='collapsed']:not([data-drawer]) .cs-rail-title {
+  order: 2;
+  margin-top: var(--sp-2);
+  writing-mode: vertical-rl;
+  rotate: 180deg;
+}
+.cs-root[data-rail='collapsed']:not([data-drawer]) .cs-rail-toggle svg {
+  rotate: 180deg;
+}
+.cs-root[data-rail='collapsed']:not([data-drawer]) .cs-rail-body {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity 0.2s ease,
+    visibility 0s linear 0.25s;
+}
+
+/* Short rails (a drawer over a small picture): the hint goes first, then the wheel tightens its circle and the
+   card its spacing, so the gate, the card and its action share the height. The description scrolls on its own. */
+@container csrail (max-height: 600px) {
+  .rail-note {
+    display: none;
+  }
+}
+@container csrail (max-height: 560px) {
+  .cs-rail-bar {
+    padding-top: var(--sp-2);
+    padding-bottom: var(--sp-1);
+  }
+  .rail {
+    gap: var(--sp-2);
+    padding-bottom: var(--sp-3);
+  }
+  .wheel {
+    --R: 156px;
+    --step: 35deg;
+    --cx: 46px;
+    --card-w: 138px;
+    --card-h: 78px;
+    --hub: 140px;
+    min-height: 170px;
+  }
+  .wheel[data-variant='scenes'] {
+    --R: 164px;
+    --step: 27deg;
+    --card-w: 122px;
+    --card-h: 69px;
+  }
+  .wheel-readout strong {
+    font-size: 1.35rem;
+  }
+  .rail-detail {
+    min-height: 0;
+    gap: 2px;
+    padding: var(--sp-2) var(--sp-3);
+  }
+  .rail-note-body {
+    max-height: 3em;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .rail-actions {
+    margin-top: var(--sp-1);
+  }
+}
+.cs-rail > .cs-rail-inner {
+  container: csrail / size;
+}
+
+/* ---------- Atlas: rises from below, under both columns ---------- */
+
+.cs-atlas {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  display: grid;
+  grid-template-rows: 0fr;
+  min-width: 0;
+  visibility: hidden;
+  background: var(--cs-base);
+  border-top: 0;
+  transition:
+    grid-template-rows var(--t-slow) var(--ease-out),
+    visibility 0s linear var(--t-slow);
+}
+.cs-root[data-mode='remember'] .cs-atlas {
+  grid-template-rows: 1fr;
+  visibility: visible;
+  transition-delay: 0s;
+}
+.cs-atlas-inner {
+  min-height: 0;
+  overflow: hidden;
+  box-shadow: inset 0 1px 0 var(--cs-hairline);
+}
+
+/* ---------- Small players: one column; the rail is a sheet under the picture, never over it ---------- */
+
+@container cs (max-width: 760px) {
+  .cs-layout,
+  .cs-root[data-mode='explore'] .cs-layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto;
+    transition: none;
+  }
+  .cs-stagewrap {
+    grid-column: 1;
+  }
+  .cs-root .cs-rail,
+  .cs-root:is([data-drawer='open'], [data-drawer='closing']) .cs-rail {
+    grid-column: 1;
+    grid-row: 2;
+    position: relative;
+    inset: auto;
+    z-index: auto;
+    display: none;
+    width: auto;
+    border-radius: var(--r-xl) var(--r-xl) 0 0;
+    box-shadow: 0 -1px 0 color-mix(in srgb, var(--cs-ice) 14%, transparent);
+    animation: none;
+  }
+  .cs-root:is([data-mode='explore'], [data-drawer='open']) .cs-rail {
+    display: block;
+    visibility: visible;
+  }
+  /* A grab handle says "sheet". */
+  .cs-root .cs-rail::after {
+    content: '';
+    position: absolute;
+    top: 6px;
+    left: 50%;
+    width: 40px;
+    height: 4px;
+    background: color-mix(in srgb, var(--cs-ice) 30%, transparent);
+    border-radius: 2px;
+    translate: -50% 0;
+  }
+  .cs-root .cs-rail > .cs-rail-inner,
+  .cs-root:is([data-drawer='open'], [data-drawer='closing']) .cs-rail > .cs-rail-inner {
+    position: static;
+    width: auto;
+    overflow: visible;
+    container-type: normal;
+  }
+  .cs-rail-bar {
+    position: static;
+    padding-top: var(--sp-4);
+  }
+  .cs-atlas {
+    grid-row: 3;
+  }
+  /* Collapsed on a small player folds the sheet down to its title bar. */
+  .cs-rail-body {
+    max-height: 1400px;
+    transition:
+      max-height 0.38s ease,
+      opacity 0.25s ease,
+      visibility 0s linear 0s;
+  }
+  .cs-root[data-rail='collapsed']:not([data-drawer]) .cs-rail-body {
+    max-height: 0;
+    overflow: hidden;
+    transition:
+      max-height 0.3s ease,
+      opacity 0.2s ease,
+      visibility 0s linear 0.3s;
+  }
+  .cs-root[data-rail='collapsed']:not([data-drawer]) .cs-rail-bar {
+    flex-direction: row;
+    width: auto;
+    padding: var(--sp-4) var(--sp-3) var(--sp-3) var(--sp-5);
+  }
+  .cs-root[data-rail='collapsed']:not([data-drawer]) .cs-rail-title {
+    order: 0;
+    margin: 0;
+    writing-mode: horizontal-tb;
+    rotate: none;
+  }
+  .cs-rail-toggle svg {
+    rotate: 90deg;
+  }
+  .cs-root[data-rail='collapsed']:not([data-drawer]) .cs-rail-toggle svg {
+    rotate: -90deg;
+  }
+  .cs-root[data-drawer] .cs-rail-toggle svg {
+    rotate: 90deg;
+  }
+}
+
+/* ---------- Fullscreen ---------- */
+
+.cs-root:fullscreen .cs-layout {
+  height: 100%;
+  grid-template-rows: minmax(0, 1fr) auto;
+}
+.cs-root:fullscreen[data-mode] .cs-stagewrap {
+  height: 100%;
+}
+.cs-root:fullscreen .cs-stage {
+  aspect-ratio: auto;
+}
+.cs-root:fullscreen .cs-atlas-inner {
+  max-height: 46vh;
+  overflow-y: auto;
+}
+
+/* ---------- Preferences ---------- */
+
+.cs-root[data-motion='reduce'] :is(.cs-layout, .cs-rail, .cs-rail-inner, .cs-rail-body, .cs-atlas),
+.cs-root[data-motion='reduce'] .cs-rail-toggle svg {
+  transition: none !important;
+  animation: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .cs-layout,
+  .cs-rail,
+  .cs-rail > .cs-rail-inner,
+  .cs-rail-body,
+  .cs-rail-toggle svg,
+  .cs-atlas {
+    transition: none !important;
+    animation: none !important;
+  }
+  /* Host pages often shorten every transition to ~0 rather than removing it; inherited visibility would then
+     still pass through one hidden frame when the rail opens. Nothing inside the rail transitions at all. */
+  .cs-rail * {
+    transition-property: none !important;
+  }
+}
+.cs-root[data-motion='reduce'] .cs-rail * {
+  transition-property: none !important;
+}
+.cs-root[data-hc] .cs-rail,
+.cs-root[data-hc]:is([data-drawer='open'], [data-drawer='closing']) .cs-rail {
+  background: #000;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  box-shadow: inset -2px 0 0 #fff;
+}
+.cs-root[data-hc] .cs-rail-bar {
+  background: #000;
+}
+@media (forced-colors: active) {
+  .cs-rail {
+    background: Canvas;
+    border-right: 1px solid CanvasText;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  .cs-rail-bar {
+    background: Canvas;
+  }
+}

@@ -3,9 +3,11 @@
  * so `<CinemaSkin><Video src="..." /></CinemaSkin>` works for a single video with no metadata.
  */
 export { CinemaSkin, useCinemaSkin } from './CinemaSkin';
-export type { CinemaSkinProps, Journey, OpticFilm, OpticTarget, SkinMode, SkinScene, TimelineMarker, ScenePreview, ThumbnailAt } from './CinemaSkin';
+export type { CinemaSkinProps, Journey, NavFilm, NavTarget, SkinMode, SkinScene, TimelineMarker, ScenePreview, ThumbnailAt } from './CinemaSkin';
 export type { ResolvedAtmosphere, SkinPalette } from './appearance/AppearanceContext';
-export { Optic } from './optic/Optic';
+export { NavigationRail } from './wheel/NavigationRail';
+export { NavigationWheel } from './wheel/NavigationWheel';
+export type { WheelItem, WheelSet, WheelVariant } from './wheel/NavigationWheel';
 export { sceneIndexAt } from './scenes';
 export { KeymapDialog, SHORTCUTS } from './KeymapDialog';
 export { DiagnosticsDialog, DiagnosticsBody } from './DiagnosticsDialog';

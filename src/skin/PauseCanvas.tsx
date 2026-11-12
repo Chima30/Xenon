@@ -14,10 +14,10 @@ interface Props {
   thumbnailAt?: ThumbnailAt;
   onSaveMoment?: () => void;
   returnAnchor?: { time: number; onReturn: () => void } | null;
-  /** Points the Optic at a neighbouring scene; never seeks by itself. */
+  /** Turns the navigation wheel to a neighbouring scene; never seeks by itself. */
   onPreviewScene: (index: number, opener: HTMLElement) => void;
   tier: Tier;
-  /** Something else (the lens, the Optic drawer, a panel) already has the viewer's attention. */
+  /** Something else (the lens, the navigation drawer, a panel) already has the viewer's attention. */
   suppressed: boolean;
 }
 
@@ -150,9 +150,9 @@ function Neighbour({
     <button
       type="button"
       className="cs-pause-card"
-      data-optic-opener
+      data-nav-opener
       onClick={(e) => onPreview(e.currentTarget)}
-      aria-label={`${label} scene: ${scene.title}, ${formatTime(scene.start)}. Opens in the Optic.`}
+      aria-label={`${label} scene: ${scene.title}, ${formatTime(scene.start)}. Opens on the navigation wheel.`}
     >
       <span className="cs-pause-still" aria-hidden="true">
         {src && !failed ? <img src={src} alt="" loading="lazy" onError={() => setFailed(true)} /> : <span>{formatTime(scene.start)}</span>}

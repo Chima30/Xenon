@@ -246,18 +246,6 @@
   }
 }
 
-/* ---------- Optic drawer: over the picture's row only, in every mode but Explore ---------- */
-
-@container cs (min-width: 761px) {
-  .cs-root[data-drawer='open'] .cs-rail {
-    grid-column: 1 / -1;
-    grid-row: 1;
-  }
-}
-.cs-rail-body .optic-wrap {
-  padding-top: var(--sp-2);
-}
-
 /* ---------- Living Lightfield: the film's light, alive behind the instrument ---------- */
 
 .cs-atm-light {

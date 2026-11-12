@@ -22,10 +22,6 @@
     0 0 120px color-mix(in srgb, var(--cs-glow) 12%, transparent);
 }
 
-.cs-layout {
-  position: relative;
-}
-
 /* ---------- Screen-reader status announcer: in the accessibility tree, never in the layout ---------- */
 
 .cs-root .cs-announcer {
@@ -45,214 +41,14 @@
 }
 
 /* ==========================================================================
-   Transport
+   Transport: see dock/pod.css (the Precision Playback Pod)
    ========================================================================== */
 
-.cs-transport {
-  --play: 78px;
-  --wing-w: 68px;
-  --wing-h: 54px;
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  isolation: isolate;
-}
-/* The plate the wings are cut from. */
-.cs-transport[data-placement='stage']::before {
-  content: '';
-  position: absolute;
-  inset: calc((var(--play) - var(--wing-h)) / 2) 0;
-  z-index: -1;
-  background: var(--cs-metal);
-  border: 1px solid var(--cs-hairline);
-  border-radius: var(--r-pill);
-  box-shadow:
-    var(--cs-bevel),
-    0 16px 40px rgb(0 0 0 / 0.5);
-  -webkit-backdrop-filter: blur(var(--cs-panel-blur));
-  backdrop-filter: blur(var(--cs-panel-blur));
-  opacity: 0.94;
-}
-.cs-root .cs-transport .cs-btn.cs-wing {
-  position: relative;
-  width: var(--wing-w);
-  min-width: var(--wing-w);
-  height: var(--wing-h);
-  padding: 0;
-  color: var(--cs-ice);
-  background: transparent;
-  border: 0;
-  border-radius: var(--r-pill);
-  -webkit-backdrop-filter: none;
-  backdrop-filter: none;
-}
-/* Wings sit flush against the lens: one plate, no overlapping hit areas. */
-.cs-root .cs-transport .cs-wing[data-side='back'] {
-  border-radius: var(--r-pill) 0 0 var(--r-pill);
-}
-.cs-root .cs-transport .cs-wing[data-side='forward'] {
-  border-radius: 0 var(--r-pill) var(--r-pill) 0;
-}
-.cs-root .cs-transport .cs-wing svg {
-  width: 24px;
-  height: 24px;
-}
-.cs-root .cs-transport .cs-wing .cs-seek-num {
-  left: calc(50% + (var(--side, 0px)));
-}
-.cs-root .cs-transport .cs-wing[data-side='back'] .cs-seek-num {
-  --side: -5px;
-}
-.cs-root .cs-transport .cs-wing[data-side='forward'] .cs-seek-num {
-  --side: 5px;
-}
-@media (hover: hover) {
-  .cs-root .cs-transport .cs-btn.cs-wing:hover {
-    color: var(--cs-citron);
-    background: color-mix(in srgb, var(--cs-ice) 7%, transparent);
-  }
-}
-
-/* The lens: a solid accent disc with an engraved bezel and a lit index notch. */
-.cs-root .cs-transport .cs-btn.cs-btn-play {
-  position: relative;
-  z-index: 1;
-  width: var(--play);
-  min-width: var(--play);
-  height: var(--play);
-  padding: 0;
-  overflow: visible;
-  color: var(--cs-ink-on-citron);
-  background: radial-gradient(
-    120% 120% at 32% 22%,
-    color-mix(in oklab, var(--cs-citron) 70%, white) 0%,
-    var(--cs-citron) 48%,
-    color-mix(in oklab, var(--cs-citron) 78%, black) 100%
-  );
-  border: 0;
-  border-radius: 50%;
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.5),
-    inset 0 -3px 6px rgb(0 0 0 / 0.25),
-    0 0 0 5px color-mix(in oklab, var(--cs-base) 70%, black),
-    0 0 0 6px var(--cs-hairline),
-    0 14px 34px rgb(0 0 0 / 0.55),
-    0 0 46px color-mix(in srgb, var(--cs-glow) 30%, transparent);
-  -webkit-backdrop-filter: none;
-  backdrop-filter: none;
-}
-.cs-root .cs-transport .cs-btn.cs-btn-play svg {
-  position: relative;
-  width: calc(var(--play) * 0.36);
-  height: calc(var(--play) * 0.36);
-}
-.cs-bezel {
-  position: absolute;
-  inset: -13px;
-  border-radius: 50%;
-  background: repeating-conic-gradient(from -2deg, color-mix(in srgb, var(--cs-ice) 55%, transparent) 0 1.4deg, transparent 1.4deg 15deg);
-  -webkit-mask: radial-gradient(circle, transparent 0 calc(50% - 6px), #000 calc(50% - 5px) calc(50% - 1px), transparent 50%);
-  mask: radial-gradient(circle, transparent 0 calc(50% - 6px), #000 calc(50% - 5px) calc(50% - 1px), transparent 50%);
-  transform: rotate(0deg);
-  transition: transform 0.6s var(--ease-spring);
-  pointer-events: none;
-}
-.cs-transport[data-paused] .cs-bezel {
-  transform: rotate(-30deg);
-}
-.cs-transport[data-buffering] .cs-bezel {
-  background: conic-gradient(from 0deg, var(--cs-ice) 0 70deg, transparent 70deg);
-  animation: cs-spin 0.9s linear infinite;
-}
-.cs-root .cs-transport .cs-btn.cs-btn-play::before {
-  content: '';
-  position: absolute;
-  top: -15px;
-  left: 50%;
-  width: 3px;
-  height: 7px;
-  background: var(--cs-citron);
-  border-radius: 2px;
-  box-shadow: 0 0 8px var(--cs-citron);
-  translate: -50% 0;
-}
-@media (hover: hover) {
-  .cs-root .cs-transport .cs-btn.cs-btn-play:hover {
-    background: radial-gradient(
-      120% 120% at 32% 22%,
-      color-mix(in oklab, var(--cs-citron) 55%, white) 0%,
-      color-mix(in oklab, var(--cs-citron) 92%, white) 48%,
-      color-mix(in oklab, var(--cs-citron) 82%, black) 100%
-    );
-  }
-}
-.cs-root .cs-transport .cs-btn.cs-btn-play:active {
-  transform: scale(0.96);
-}
-/* Mid-play buffering spins the bezel instead of covering the button with a second spinner. */
+/* Mid-play buffering spins the pod's ring instead of covering the button with a second spinner. */
 .cs-root[data-dock='floating'] .cs-buffering:not([data-initial]) .cs-spinner {
   display: none;
 }
 
-/* Dock placement: the same unit, smaller, without the plate. */
-.cs-transport[data-placement='dock'] {
-  --play: 46px;
-  --wing-w: 42px;
-  --wing-h: 40px;
-  padding: 0 6px 0 2px;
-}
-.cs-transport[data-placement='dock'] .cs-bezel {
-  inset: -6px;
-  -webkit-mask: radial-gradient(circle, transparent 0 calc(50% - 4px), #000 calc(50% - 3px) calc(50% - 1px), transparent 50%);
-  mask: radial-gradient(circle, transparent 0 calc(50% - 4px), #000 calc(50% - 3px) calc(50% - 1px), transparent 50%);
-}
-.cs-root .cs-transport[data-placement='dock'] .cs-btn.cs-btn-play {
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.45),
-    inset 0 -2px 4px rgb(0 0 0 / 0.25),
-    0 4px 12px rgb(0 0 0 / 0.45);
-}
-.cs-root .cs-transport[data-placement='dock'] .cs-btn.cs-btn-play::before {
-  top: -9px;
-  height: 4px;
-}
-.cs-root .cs-transport[data-placement='dock'] .cs-wing[data-side='back'],
-.cs-root .cs-transport[data-placement='dock'] .cs-wing[data-side='forward'] {
-  margin: 0;
-  padding: 0;
-}
-.cs-root .cs-transport[data-placement='dock'] .cs-wing svg {
-  width: 20px;
-  height: 20px;
-}
-.cs-root .cs-transport[data-placement='dock'] .cs-wing .cs-seek-num {
-  --side: 0px;
-}
-
-/* Sizes */
-.cs-stagewrap[data-tier='compact'] .cs-transport[data-placement='stage'] {
-  --play: 66px;
-  --wing-w: 58px;
-  --wing-h: 46px;
-}
-.cs-stagewrap:is([data-tier='tiny'], [data-tier='micro']) .cs-transport[data-placement='stage'] {
-  --play: 56px;
-  --wing-w: 50px;
-  --wing-h: 44px;
-}
-.cs-stagewrap:is([data-tier='tiny'], [data-tier='micro']) .cs-transport[data-placement='dock'] .cs-wing {
-  display: none;
-}
-.cs-root[data-large] .cs-transport[data-placement='stage'] {
-  --play: 88px;
-  --wing-w: 74px;
-  --wing-h: 60px;
-}
-.cs-root[data-large] .cs-transport[data-placement='dock'] {
-  --play: 52px;
-  --wing-w: 52px;
-  --wing-h: 52px;
-}
 .cs-center {
   gap: 0;
 }
@@ -640,76 +436,6 @@
 }
 
 /* ==========================================================================
-   Wheel drawer (Watch mode): the reel unrolls into the full instrument over the left of the picture
-   ========================================================================== */
-
-.cs-rail-title {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-.cs-rail-title svg {
-  width: 16px;
-  height: 16px;
-}
-@container cs (min-width: 761px) {
-  .cs-root[data-drawer='open'] {
-    --cs-rail-w: 380px;
-  }
-  .cs-root[data-drawer='open'] .cs-rail {
-    position: absolute;
-    left: 0;
-    top: 0;
-    bottom: 0;
-    z-index: 26;
-    width: var(--cs-rail-w);
-    visibility: visible;
-    background: linear-gradient(180deg, color-mix(in oklab, var(--cs-base) 92%, white), var(--cs-base) 70%);
-    border-radius: var(--r-xl) 0 0 var(--r-xl);
-    box-shadow:
-      inset -1px 0 0 var(--cs-hairline),
-      30px 0 70px rgb(0 0 0 / 0.55);
-    transform-origin: left center;
-    animation: cs-drawer-in var(--t-slow) var(--ease-spring) both;
-  }
-}
-@keyframes cs-drawer-in {
-  from {
-    opacity: 0;
-    clip-path: inset(0 85% 0 0 round 0 50% 50% 0);
-  }
-  to {
-    opacity: 1;
-    clip-path: inset(0 0 0 0 round 0);
-  }
-}
-.cs-root[data-drawer='open'] .cs-rail-body {
-  opacity: 1;
-  visibility: visible;
-  pointer-events: auto;
-  max-height: none;
-}
-.cs-root[data-drawer='open'] .cs-rail-bar {
-  flex-direction: row;
-  padding: var(--sp-3) var(--sp-3) 0 var(--sp-5);
-}
-.cs-root[data-drawer='open'] .cs-rail-title {
-  writing-mode: horizontal-tb;
-  rotate: none;
-  order: 0;
-  margin: 0;
-}
-.cs-root[data-drawer='open'] .cs-rail-toggle svg {
-  rotate: none;
-}
-@container cs (max-width: 760px) {
-  .cs-root[data-drawer='open'] .cs-rail {
-    display: block;
-    visibility: visible;
-  }
-}
-
-/* ==========================================================================
    States
    ========================================================================== */
 
@@ -735,17 +461,12 @@
 
 /* ---------- High contrast ---------- */
 
-.cs-root[data-hc] .cs-transport[data-placement='stage']::before,
 .cs-root[data-hc] .cs-reel-body,
 .cs-root[data-hc][data-dock='expanded'] .cs-bottom {
   background: #000;
   border: 2px solid #fff;
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
-}
-.cs-root[data-hc] .cs-transport .cs-btn.cs-btn-play {
-  background: var(--cs-citron);
-  box-shadow: 0 0 0 3px #000, 0 0 0 5px #fff;
 }
 .cs-root[data-hc] .cs-group[data-group='time'] .cs-time {
   background: #000;
@@ -758,39 +479,26 @@
 
 /* ---------- Motion ---------- */
 
-.cs-root[data-motion='reduce'] :is(.cs-bezel, .cs-reel, .cs-rail, .cs-graduation) {
+.cs-root[data-motion='reduce'] :is(.cs-reel, .cs-graduation) {
   transition: none !important;
   animation: none !important;
 }
 @media (prefers-reduced-motion: reduce) {
-  .cs-bezel,
   .cs-reel,
-  .cs-graduation,
-  .cs-root[data-drawer='open'] .cs-rail {
+  .cs-graduation {
     transition: none !important;
     animation: none !important;
   }
 }
 
 @media (forced-colors: active) {
-  .cs-transport[data-placement='stage']::before,
   .cs-reel-body {
     border: 1px solid CanvasText;
     background: Canvas;
   }
-  .cs-reel-led,
-  .cs-bezel {
+  .cs-reel-led {
     background: Highlight;
   }
-}
-
-/* The wheel's title bar (and its close button) stays in view while the rail scrolls. */
-.cs-rail-bar {
-  position: sticky;
-  top: 0;
-  z-index: 3;
-  padding-bottom: var(--sp-2);
-  background: linear-gradient(180deg, color-mix(in oklab, var(--cs-base) 92%, white) 70%, transparent);
 }
 
 /* Primary chips (Jump, Play) keep their accent fill on every theme surface. */
@@ -804,12 +512,6 @@
   .cs-root[data-atm] .cs-chip.cs-chip-primary:not(:disabled):hover {
     background: color-mix(in oklab, var(--cs-citron) 86%, white);
   }
-}
-
-/* Thin, themed scrollbars inside the wheel rail. */
-.cs-rail > .cs-rail-inner {
-  scrollbar-width: thin;
-  scrollbar-color: var(--cs-line) transparent;
 }
 
 /* Touch screens: every control in the top bar gets a full 44px target. */
@@ -834,9 +536,6 @@
   padding: 0 6px;
   background: none;
   box-shadow: none;
-}
-.cs-stagewrap:is([data-tier='tiny'], [data-tier='micro']) .cs-transport[data-placement='dock'] {
-  padding: 0 2px;
 }
 .cs-root[data-dock='compact'] .cs-stagewrap:is([data-tier='tiny'], [data-tier='micro']) .cs-bottom,
 .cs-root[data-dock='expanded'] .cs-stagewrap:is([data-tier='tiny'], [data-tier='micro']) .cs-bottom {

@@ -66,7 +66,6 @@
 
 /* ---------- Panel styles (Glass / Solid / Clear per area) ---------- */
 
-.cs-root[data-atm='on'] .cs-rail,
 .cs-root[data-atm='on'] .cs-atlas {
   background: var(--cs-surf-wheel);
   -webkit-backdrop-filter: blur(var(--cs-blur-wheel));
@@ -84,104 +83,7 @@
   backdrop-filter: blur(var(--cs-blur-controls));
 }
 
-/* ---------- Collapsible wheel ---------- */
-
-.cs-rail-inner {
-  display: flex;
-  flex-direction: column;
-}
-.cs-rail-bar {
-  display: flex;
-  flex: none;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 10px 12px 0 16px;
-}
-.cs-rail-title {
-  font: 600 var(--fs-xs)/var(--lh-snug) var(--cs-font);
-  letter-spacing: var(--ls-label);
-  text-transform: uppercase;
-  color: var(--cs-lavender);
-}
-.cs-rail-toggle svg {
-  transition: rotate 0.35s ease;
-}
-.cs-rail-body {
-  display: flex;
-  flex: 1 1 auto;
-  flex-direction: column;
-  min-width: 0;
-  transition: opacity 0.25s ease, visibility 0s linear 0s;
-}
-.cs-rail-body > .rail {
-  flex: 1 1 auto;
-  height: auto;
-}
-
-.cs-root[data-mode='explore'] .cs-layout {
-  transition: grid-template-columns 0.38s cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-.cs-root[data-rail='collapsed'] {
-  --cs-rail-w: 64px;
-}
-.cs-root[data-rail='collapsed'] .cs-rail {
-  min-height: 0;
-}
-.cs-root[data-rail='collapsed'] .cs-rail-body {
-  opacity: 0;
-  visibility: hidden;
-  pointer-events: none;
-  transition: opacity 0.2s ease, visibility 0s linear 0.25s;
-}
-.cs-root[data-rail='collapsed'] .cs-rail-bar {
-  flex-direction: column;
-  padding: 10px 0 0;
-}
-.cs-root[data-rail='collapsed'] .cs-rail-title {
-  writing-mode: vertical-rl;
-  rotate: 180deg;
-  order: 2;
-  margin-top: 8px;
-}
-.cs-root[data-rail='collapsed'] .cs-rail-toggle svg {
-  rotate: 180deg;
-}
-
-@container cs (max-width: 760px) {
-  /* Under the video the rail collapses vertically. */
-  .cs-root[data-rail='collapsed'] {
-    --cs-rail-w: 100%;
-  }
-  .cs-rail-inner {
-    position: static;
-  }
-  .cs-rail-body {
-    max-height: 1400px;
-    transition: max-height 0.38s ease, opacity 0.25s ease, visibility 0s linear 0s;
-  }
-  .cs-root[data-rail='collapsed'] .cs-rail-body {
-    max-height: 0;
-    overflow: hidden;
-    transition: max-height 0.3s ease, opacity 0.2s ease, visibility 0s linear 0.3s;
-  }
-  .cs-root[data-rail='collapsed'] .cs-rail-bar {
-    flex-direction: row;
-    padding: 10px 12px 10px 16px;
-  }
-  .cs-root[data-rail='collapsed'] .cs-rail-title {
-    writing-mode: horizontal-tb;
-    rotate: none;
-    order: 0;
-    margin: 0;
-  }
-  .cs-rail-toggle svg {
-    rotate: 90deg;
-  }
-  .cs-root[data-rail='collapsed'] .cs-rail-toggle svg {
-    rotate: -90deg;
-  }
-}
+/* ---------- Collapsible wheel: see rail.css ---------- */
 
 /* ---------- Appearance studio ---------- */
 
@@ -284,12 +186,6 @@
   .cs-atm-color {
     animation: none;
   }
-  .cs-root[data-mode='explore'] .cs-layout,
-  .cs-rail-body,
-  .cs-rail-toggle svg,
-  .cs-root[data-rail='collapsed'] .cs-rail-body {
-    transition: none !important;
-  }
 }
 
 @media (forced-colors: active) {
@@ -309,6 +205,3 @@
   }
 }
 
-.cs-root[data-rail='collapsed'] .cs-rail-inner {
-  overflow: hidden;
-}

@@ -5,7 +5,8 @@
  *   node scripts/e2e.mjs [baseUrl] [screenshotDir]
  *
  * It exercises every dock layout at every bench size, film switching and the film-reactive theme, the Pause Canvas,
- * the Time Lens, the Scene Dial, the wheel drawer, keyboard focus, Escape handling and the status announcer.
+ * the Time Lens, the navigation wheel (drawer, Explore column, sheet), the Precision Playback Pod, keyboard focus,
+ * Escape handling and the status announcer.
  * Exit code 1 when any check fails.
  */
 import { chromium } from 'playwright-core';
@@ -94,7 +95,7 @@ const audit = () =>
       const cs = getComputedStyle(b);
       return b.offsetParent && cs.display !== 'none' && cs.visibility !== 'hidden';
     };
-    const btns = [...r.querySelectorAll('.cs-bottom button, .cs-transport button, .cs-top button, .cs-reel')].filter(visible);
+    const btns = [...r.querySelectorAll('.cs-bottom button, .cs-pod button, .cs-top button, .cs-reel')].filter(visible);
     const name = (b) => b.getAttribute('aria-label') || b.textContent.trim();
     const outside = btns
       .filter((b) => {
@@ -114,7 +115,7 @@ const audit = () =>
       }
     const names = btns.map(name);
     const has = (re) => names.some((n) => re.test(n));
-    const playButtons = r.querySelectorAll('.cs-btn-play').length;
+    const playButtons = r.querySelectorAll('.cs-pod-play').length;
     return {
       tier: r.dataset.tier,
       width: Math.round(stage.width),
@@ -159,7 +160,7 @@ const lab = await page.evaluate(() => {
 });
 check('XENON Test Lab sits below the player, folded, outside the skin', lab.below && lab.folded && !lab.inSkin, JSON.stringify(lab));
 
-/* ---------- 3. Film-reactive light; switching films through the Optic ---------- */
+/* ---------- 3. Film-reactive light; switching films through the navigation wheel ---------- */
 const themeOf = () =>
   page.evaluate(() => {
     const r = document.querySelector('.cs-root');
@@ -186,25 +187,40 @@ const drawer = await page.evaluate(() => {
     open: document.querySelector('.cs-root').dataset.drawer === 'open',
     focus: document.activeElement?.getAttribute('aria-label') ?? '',
     glass: (cs.backdropFilter || cs.webkitBackdropFilter || '').includes('blur'),
+    wheel: !!rail.querySelector('.wheel[data-layout="arc"] .wheel-gate'),
+    heading: rail.querySelector('.cs-rail-title')?.textContent.trim(),
+    face: rail.querySelector('.rail-tab[aria-pressed="true"]')?.textContent.trim(),
   };
 });
-check('Reel handle opens the Optic as a glass drawer with focus on the films ring', drawer.open && /Films ring/.test(drawer.focus) && drawer.glass, JSON.stringify(drawer));
-await page.keyboard.press('ArrowRight');
-await page.waitForTimeout(500);
+check(
+  'Reel handle opens the curved Movies wheel as a glass drawer, focus on the film in the gate',
+  drawer.open && /^Sintel.*Now showing/.test(drawer.focus) && drawer.glass && drawer.wheel && drawer.heading === 'Navigate' && /^Movies/.test(drawer.face ?? ''),
+  JSON.stringify(drawer),
+);
+await page.keyboard.press('ArrowDown');
+await page.waitForTimeout(600);
 const preview = await page.evaluate(() => ({
-  title: document.querySelector('.optic-title')?.textContent,
-  primary: document.querySelector('.optic-primary')?.textContent,
+  title: document.querySelector('.rail-detail h2')?.textContent,
+  primary: document.querySelector('.rail-primary')?.textContent,
+  pos: getComputedStyle(document.querySelector('.wheel')).getPropertyValue('--wheel-h').trim(),
   hash: location.hash,
 }));
-check('Turning the films ring previews Tears of Steel without switching', preview.title === 'Tears of Steel' && preview.primary === 'Play Tears of Steel' && preview.hash === '#/watch/sintel', JSON.stringify(preview));
-await shot(page, 'optic-film-preview');
+check(
+  'Turning the wheel brings Tears of Steel into the gate and describes it, without switching',
+  preview.title === 'Tears of Steel' && preview.primary === 'Play Tears of Steel' && preview.hash === '#/watch/sintel' && Number(preview.pos) === 1,
+  JSON.stringify(preview),
+);
+await shot(page, 'wheel-film-preview');
+await page.keyboard.press('Enter');
+await page.waitForTimeout(150);
+check('Enter on the frame hands focus to the card action', await page.evaluate(() => document.activeElement?.textContent === 'Play Tears of Steel'));
 await page.keyboard.press('Enter');
 await page.waitForTimeout(150);
 const iris = await page.evaluate(() => !!document.querySelector('.cs-iris'));
 await shot(page, 'iris');
 await page.waitForTimeout(1600);
 const tears = await themeOf();
-check('Enter plays it: the Optical Iris runs and the light becomes Cyber Steel', iris && tears.hash === '#/watch/tears-of-steel' && tears.base === '#0a1322' && tears.ink === '#e7eef6', JSON.stringify({ iris, ...tears }));
+check('Enter again plays it: the Optical Iris runs and the light becomes Cyber Steel', iris && tears.hash === '#/watch/tears-of-steel' && tears.base === '#0a1322' && tears.ink === '#e7eef6', JSON.stringify({ iris, ...tears }));
 check(
   'The iris is gone afterwards and focus is back on the reel handle',
   await page.evaluate(() => !document.querySelector('.cs-iris') && !document.querySelector('.cs-root').dataset.drawer && document.activeElement?.classList.contains('cs-reel')),
@@ -212,10 +228,12 @@ check(
 await shot(page, 'theme-tears');
 
 /* ---------- 4. Playback, Pause Canvas strip, status announcer ---------- */
-await page.locator('.cs-btn-play').first().click();
+await page.locator('.cs-pod-play').first().click();
 await page.waitForTimeout(3500);
 const playing = await page.evaluate(() => ({ t: document.querySelector('video').currentTime, paused: document.querySelector('video').paused }));
 check('Play starts real playback', !playing.paused && playing.t > 0.5, JSON.stringify(playing));
+// The Pause Canvas waits for a second of real playback; streams can be slow to start.
+await page.waitForFunction(() => document.querySelector('video').currentTime > 1.5, null, { timeout: 20000 }).catch(() => {});
 await page.keyboard.press('k');
 await page.waitForTimeout(900);
 const paused = await page.evaluate(() => {
@@ -246,21 +264,29 @@ await page.locator('.cs-pause-close').click();
 await page.waitForTimeout(200);
 check('The strip can be dismissed at once', (await page.locator('.cs-pause').count()) === 0);
 
-/* ---------- 5. Optic scene ring, Time Tether, Journey ---------- */
+/* ---------- 5. Scenes face of the wheel, Time Tether, Journey ---------- */
 const t0 = await page.evaluate(() => document.querySelector('video').currentTime);
 await wake();
-await page.locator('button[aria-label="Scenes in the Optic"]').click();
-await page.waitForTimeout(600);
+await page.locator('button[aria-label="Scenes on the navigation wheel"]').click();
+await page.waitForTimeout(800);
 const sceneFocus = await page.evaluate(() => document.activeElement?.getAttribute('aria-label') ?? '');
-await page.keyboard.press('ArrowRight');
-await page.keyboard.press('ArrowRight');
-await page.waitForTimeout(400);
+await page.keyboard.press('ArrowDown');
+await page.keyboard.press('ArrowDown');
+await page.waitForTimeout(600);
 const aimed = await page.evaluate(() => ({
-  text: document.activeElement?.getAttribute('aria-valuetext'),
+  text: document.querySelector('.rail-detail h2')?.textContent,
+  action: document.querySelector('.rail-primary')?.textContent,
+  face: document.querySelector('.wheel')?.dataset.variant,
   t: document.querySelector('video').currentTime,
 }));
-check('Scenes button opens the Optic on the scene ring; arrows aim without seeking', /Sections ring/.test(sceneFocus) && /^Section 3/.test(aimed.text ?? '') && Math.abs(aimed.t - t0) < 0.5, JSON.stringify({ sceneFocus, ...aimed }));
-await shot(page, 'optic-scenes');
+check(
+  'Scenes button opens the wheel on its Scenes face; arrows aim without seeking',
+  /^Section 1 .*Now$/.test(sceneFocus) && aimed.face === 'scenes' && aimed.text === 'Section 3' && /^Jump to /.test(aimed.action ?? '') && Math.abs(aimed.t - t0) < 0.5,
+  JSON.stringify({ sceneFocus, ...aimed }),
+);
+await shot(page, 'wheel-scenes');
+await page.keyboard.press('Enter');
+await page.waitForTimeout(150);
 await page.keyboard.press('Enter');
 await page.waitForTimeout(900);
 const tether = await page.evaluate(() => ({
@@ -273,7 +299,7 @@ check('Enter jumps; the Time Tether appears as a band, a diamond and a one-actio
 await page.keyboard.press('Escape');
 await page.waitForTimeout(300);
 // A second exploration through the lens, so the journey has three stops.
-await page.locator('.cs-btn-play').first().focus();
+await page.locator('.cs-pod-play').first().focus();
 await page.keyboard.press('t');
 await page.waitForTimeout(300);
 for (let i = 0; i < 6; i++) await page.keyboard.press('ArrowRight');
@@ -311,7 +337,7 @@ await shot(page, 'filmprint');
 
 /* ---------- 7. Keyboard: every visible control is reachable and shows focus ---------- */
 await open('big-buck-bunny');
-await page.locator('.cs-btn-play').first().focus();
+await page.locator('.cs-pod-play').first().focus();
 const seen = new Set();
 const noRing = [];
 for (let i = 0; i < 40; i++) {
@@ -335,14 +361,14 @@ check(
   'Settings closes with Escape and focus returns to its button',
   await page.evaluate(() => !document.querySelector('.cs-panel') && document.activeElement?.getAttribute('aria-label') === 'Settings'),
 );
-await page.locator('.cs-btn-play').first().focus();
+await page.locator('.cs-pod-play').first().focus();
 await page.keyboard.press('w');
 await page.waitForTimeout(400);
 await page.keyboard.press('Escape');
 await page.waitForTimeout(300);
-check('W opens the Optic, Escape closes it, focus returns', await page.evaluate(() => !document.querySelector('.cs-root').dataset.drawer && document.activeElement?.closest('.cs-root') !== null));
+check('W opens the navigation wheel, Escape closes it, focus returns', await page.evaluate(() => !document.querySelector('.cs-root').dataset.drawer && document.activeElement?.closest('.cs-root') !== null));
 
-/* ---------- 8. Explore: the glass Optic column; small screens: a bottom sheet ---------- */
+/* ---------- 8. Explore: the glass wheel column; small screens: a bottom sheet ---------- */
 await wake();
 await page.locator('.cs-seg-btn', { hasText: 'Explore' }).click();
 await page.waitForTimeout(800);
@@ -355,10 +381,10 @@ const explore = await page.evaluate(() => {
     glass: (cs.backdropFilter || '').includes('blur'),
     opaque: /rgb\(\d+, \d+, \d+\)$/.test(cs.backgroundColor) && cs.backgroundColor !== 'rgba(0, 0, 0, 0)',
     beside: r.right <= stage.left + 1,
-    optic: !!rail.querySelector('.optic'),
+    wheel: !!rail.querySelector('.wheel'),
   };
 });
-check('Explore: the Optic sits beside the picture on glass, not a solid sidebar', explore.glass && !explore.opaque && explore.beside && explore.optic, JSON.stringify(explore));
+check('Explore: the wheel sits beside the picture on glass, not a solid sidebar', explore.glass && !explore.opaque && explore.beside && explore.wheel, JSON.stringify(explore));
 await shot(page, 'explore-desktop');
 await setSize('Phone');
 await page.waitForTimeout(600);
@@ -368,7 +394,7 @@ const sheet = await page.evaluate(() => {
   const root = document.querySelector('.cs-root');
   return { below: r.top >= stage.bottom - 1, overflowX: root.scrollWidth - root.clientWidth };
 });
-check('Phone: the Optic becomes a bottom sheet under the picture, never over it', sheet.below && sheet.overflowX <= 0, JSON.stringify(sheet));
+check('Phone: the wheel becomes a sheet under the picture, never over it', sheet.below && sheet.overflowX <= 0, JSON.stringify(sheet));
 await shot(page, 'explore-phone');
 await setSize('Desktop');
 
@@ -389,11 +415,11 @@ await shot(page, 'capsules');
 await page.locator('.atlas-scope .cs-chip', { hasText: 'This film' }).click();
 await page.locator('.atlas-peek').first().click();
 await page.waitForTimeout(600);
-check('Inspecting a capsule opens it in the Optic lens', await page.evaluate(() => document.querySelector('.optic-kicker')?.textContent === 'Saved moment'));
+check('Inspecting a capsule opens it on the wheel, described in the card', await page.evaluate(() => document.querySelector('.rail-detail .rail-kicker')?.textContent === 'Saved moment'));
 await page.keyboard.press('Escape');
 await page.locator('.cs-seg-btn', { hasText: 'Watch' }).click();
 
-/* ---------- 10. Layout audit with the Optic open on a phone ---------- */
+/* ---------- 10. Layout audit with the wheel open on a phone ---------- */
 await setSize('Phone');
 await page.mouse.move(200, 400);
 await page.locator('.cs-reel').click();
@@ -403,7 +429,7 @@ const phoneDrawer = await page.evaluate(() => {
   const r = document.querySelector('.cs-rail').getBoundingClientRect();
   return { below: r.top >= stage.bottom - 1 };
 });
-check('Phone: opening the Optic from the reel never covers the video or controls', phoneDrawer.below, JSON.stringify(phoneDrawer));
+check('Phone: opening the wheel from the reel never covers the video or controls', phoneDrawer.below, JSON.stringify(phoneDrawer));
 await page.keyboard.press('Escape');
 await setSize('Desktop');
 
@@ -467,16 +493,403 @@ await page.goto(`${BASE}/#/skin`);
 await page.waitForSelector('.cs-root');
 const embed = await page.evaluate(() => ({
   reel: !!document.querySelector('.cs-reel'),
-  optic: !!document.querySelector('.optic'),
+  wheel: !!document.querySelector('.wheel'),
   base: document.querySelector('.cs-root').style.getPropertyValue('--cs-base'),
 }));
-check('Skin-only embed: no Optic without films or scenes, default palette', !embed.reel && !embed.optic && embed.base === '', JSON.stringify(embed));
+check('Skin-only embed: no wheel without films or scenes, default palette', !embed.reel && !embed.wheel && embed.base === '', JSON.stringify(embed));
 await page.goto(`${BASE}/#/studio`);
 await page.waitForSelector('.cs-root');
 await page.locator('.studio-preset', { hasText: 'Hologram' }).click();
 await page.waitForTimeout(1200);
 const studio = await page.evaluate(() => getComputedStyle(document.querySelector('.cs-root')).getPropertyValue('--cs-citron'));
 check('Skin Studio themes the live player through --media-accent-color', ['rgb(111, 214, 255)', '#6fd6ff'].includes(studio.trim().toLowerCase()), studio);
+
+/* ---------- 13. Navigation drawer: always the full instrument, never under the picture ---------- */
+/** Open a film with chosen saved preferences (the reload-with-preferences path). */
+async function openWith(film, storage) {
+  await page.goto(`${BASE}/#/`);
+  await page.evaluate((st) => {
+    localStorage.clear();
+    sessionStorage.clear();
+    for (const [k, v] of Object.entries(st)) localStorage.setItem(k, v);
+  }, storage);
+  await page.goto(`${BASE}/#/watch/${film}`);
+  await page.waitForSelector('.cs-root');
+  await page.addStyleTag({ content: '.bench-frame{transition:none!important}' });
+  await page.waitForTimeout(800);
+}
+/** Where the rail and stage are, and whether the rail's title, card, gate frame and button are really on top. */
+const railState = () =>
+  page.evaluate(() => {
+    const root = document.querySelector('.cs-root');
+    const rail = document.querySelector('.cs-rail');
+    if (root.dataset.drawer === 'open' || root.dataset.mode === 'explore') rail.scrollIntoView({ block: 'nearest' });
+    const r = rail.getBoundingClientRect();
+    const s = document.querySelector('.cs-stagewrap').getBoundingClientRect();
+    /** Painted on top where it sits: reachable in the rail's own scroll, and not under the picture or anything else. */
+    const on = (sel) => {
+      const el = rail.querySelector(sel);
+      if (!el) return null;
+      if (getComputedStyle(el).visibility === 'hidden') return false;
+      el.scrollIntoView({ block: 'nearest' });
+      const b = el.getBoundingClientRect();
+      if (!b.width || !b.height) return false;
+      const hit = document.elementFromPoint(b.left + Math.min(16, b.width / 2), b.top + Math.min(b.height / 2, 12));
+      return !!hit && (el === hit || el.contains(hit));
+    };
+    const cs = getComputedStyle(rail);
+    return {
+      mode: root.dataset.mode,
+      drawer: root.dataset.drawer ?? null,
+      collapsed: root.dataset.rail === 'collapsed',
+      railW: Math.round(r.width),
+      railL: Math.round(r.left),
+      railR: Math.round(r.right),
+      railTop: Math.round(r.top),
+      stageL: Math.round(s.left),
+      stageW: Math.round(s.width),
+      stageH: Math.round(s.height),
+      stageBottom: Math.round(s.bottom),
+      col: `${cs.gridColumnStart}/${cs.gridColumnEnd}`,
+      pos: cs.position,
+      title: on('.cs-rail-title'),
+      card: on('.rail-detail h2'),
+      gate: on('.wheel-item[data-highlight]'),
+      button: on('.cs-rail-toggle'),
+      overflowX: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    };
+  });
+const focusPod = () => page.locator('.cs-pod-play').first().focus();
+
+await openWith('sintel', { 'cinema-skin:v1:wheel-collapsed': 'true' });
+for (const size of ['Desktop', 'Tablet', 'Phone', 'Tiny']) {
+  await setSize(size);
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await wake();
+  const before = await railState();
+  await focusPod();
+  await page.keyboard.press('w');
+  await page.waitForTimeout(700);
+  const d = await railState();
+  const wide = d.stageW >= 761 || d.railTop < d.stageBottom - 1;
+  const ok = wide
+    ? d.drawer === 'open' && d.railW >= 370 && d.pos === 'absolute' && d.col === '2/auto' && d.railL === d.stageL && d.title && d.card && d.gate && d.button && d.stageW === before.stageW && d.stageH === before.stageH
+    : d.drawer === 'open' && d.railTop >= d.stageBottom - 1 && d.railW >= d.stageW - 2 && d.title && d.card && d.button;
+  check(
+    `Drawer @ ${size} with the rail saved collapsed: ${wide ? 'full 380px overlay over the stage, title, card and frames on top, stage unmoved' : 'a sheet under the picture, title and card readable'}`,
+    ok && d.overflowX <= 0,
+    JSON.stringify(d),
+  );
+  await shot(page, `drawer-${size.toLowerCase()}`);
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(450);
+  const after = await page.evaluate(() => ({
+    drawer: document.querySelector('.cs-root').dataset.drawer ?? null,
+    focus: document.activeElement?.className ?? '',
+    inert: document.querySelector('.cs-rail').inert,
+  }));
+  check(`Drawer @ ${size}: Escape closes it, the rail goes inert and focus returns to its opener`, !after.drawer && after.inert && /cs-pod-play/.test(after.focus), JSON.stringify(after));
+}
+await setSize('Desktop');
+await wake();
+await page.locator('.cs-reel').click();
+await page.waitForTimeout(600);
+await page.locator('.cs-rail-toggle[aria-label="Close navigation"]').click();
+await page.waitForTimeout(450);
+check(
+  'The drawer close button works and focus returns to the reel handle',
+  await page.evaluate(() => !document.querySelector('.cs-root').dataset.drawer && document.activeElement?.classList.contains('cs-reel')),
+);
+
+/* ---------- 14. Explore: collapsed, expanded, reopened; mode switching; reload with saved preferences ---------- */
+await wake();
+const watchH = (await railState()).stageH;
+await page.locator('.cs-seg-btn', { hasText: 'Explore' }).click();
+await page.waitForTimeout(800);
+const ex1 = await railState();
+check(
+  'Explore, saved collapsed: a 64px spine in its own column; the picture starts where it ends',
+  ex1.railW === 64 && ex1.stageL === ex1.railR && ex1.title && ex1.card === false && ex1.pos === 'relative',
+  JSON.stringify(ex1),
+);
+await page.locator('.cs-rail-toggle[aria-label="Expand navigation"]').click();
+await page.waitForTimeout(800);
+const ex2 = await railState();
+check('Explore, expanded: 380px column beside the picture, title, wheel and card all visible', ex2.railW === 380 && ex2.stageL === ex2.railR && ex2.title && ex2.card && ex2.gate, JSON.stringify(ex2));
+await shot(page, 'explore-expanded');
+await page.locator('.cs-rail-toggle[aria-label="Collapse navigation"]').click();
+await page.waitForTimeout(800);
+const ex3 = await railState();
+await page.locator('.cs-rail-toggle[aria-label="Expand navigation"]').click();
+await page.waitForTimeout(800);
+const ex4 = await railState();
+check('Explore: collapse and reopen move between exactly 64px and 380px, never overlapping the picture', ex3.railW === 64 && ex4.railW === 380 && ex3.stageL === ex3.railR && ex4.stageL === ex4.railR, `${ex3.railW} → ${ex4.railW}`);
+check('Wide players keep the same stage height in Watch and Explore (no jump)', ex1.stageH === watchH && ex2.stageH === watchH, `${watchH} / ${ex1.stageH} / ${ex2.stageH}`);
+const stored = await page.evaluate(() => localStorage.getItem('cinema-skin:v1:wheel-collapsed'));
+check('The expanded choice is saved', stored === 'false', String(stored));
+
+let switching = true;
+const trail = [];
+for (let i = 0; i < 3; i++) {
+  await page.locator('.cs-seg-btn', { hasText: 'Watch' }).click();
+  await page.waitForTimeout(650);
+  const w = await railState();
+  await focusPod();
+  await page.keyboard.press('w');
+  await page.waitForTimeout(500);
+  const dw = await railState();
+  await page.locator('.cs-seg-btn', { hasText: 'Explore' }).click();
+  await page.waitForTimeout(650);
+  const e = await railState();
+  trail.push(`${w.railW}/${dw.railW}/${e.railW}`);
+  switching &&= w.railW === 0 && w.stageH === watchH && dw.drawer === 'open' && dw.railW >= 370 && e.drawer === null && e.railW === 380 && e.stageL === e.railR && e.stageH === watchH && e.overflowX <= 0;
+}
+check('Repeated Watch → drawer → Explore switching always lands in a valid layout', switching, trail.join(' | '));
+
+await page.locator('.cs-rail-toggle[aria-label="Collapse navigation"]').click();
+await page.waitForTimeout(500);
+await page.reload();
+await page.waitForSelector('.cs-root');
+await page.waitForTimeout(900);
+await wake();
+await page.locator('.cs-seg-btn', { hasText: 'Explore' }).click();
+await page.waitForTimeout(800);
+const re1 = await railState();
+await page.locator('.cs-seg-btn', { hasText: 'Watch' }).click();
+await page.waitForTimeout(650);
+await focusPod();
+await page.keyboard.press('w');
+await page.waitForTimeout(600);
+const re2 = await railState();
+check('After a reload the saved collapsed rail is restored, and the drawer still opens at full width', re1.collapsed && re1.railW === 64 && re2.railW >= 370 && re2.card && re2.title, `${re1.railW} / ${re2.railW}`);
+await page.keyboard.press('Escape');
+
+await open('tears-of-steel');
+await wake();
+await page.locator('.cs-reel').click();
+await page.waitForTimeout(600);
+check(
+  'After switching films the wheel opens on the new film in the gate',
+  await page.evaluate(() => /^Tears of Steel.*Now showing/.test(document.activeElement?.getAttribute('aria-label') ?? '') && document.querySelector('.rail-detail h2')?.textContent === 'Tears of Steel'),
+);
+await page.keyboard.press('Escape');
+
+/* ---------- 15. Wheel motion in a real browser: scroll, drag, inertia, snapping, reduced motion ---------- */
+await open('sintel');
+await wake();
+await page.locator('.cs-reel').click();
+await page.waitForTimeout(600);
+const wheelBox = await page.locator('.wheel').boundingBox();
+const wheelH = () => page.evaluate(() => Number(getComputedStyle(document.querySelector('.wheel')).getPropertyValue('--wheel-h')));
+await page.mouse.move(wheelBox.x + wheelBox.width * 0.6, wheelBox.y + wheelBox.height / 2);
+await page.mouse.wheel(0, 100);
+await page.waitForTimeout(900);
+const scrolled = { h: await wheelH(), title: await page.locator('.rail-detail h2').textContent() };
+check('Scroll wheel turns one frame per notch and snaps exactly onto it', scrolled.h === 1 && scrolled.title === 'Tears of Steel', JSON.stringify(scrolled));
+const gx = wheelBox.x + wheelBox.width * 0.7;
+const gy = wheelBox.y + wheelBox.height / 2;
+await page.mouse.move(gx, gy);
+await page.mouse.down();
+for (let i = 1; i <= 4; i++) await page.mouse.move(gx, gy + i * 11);
+const mid = await wheelH();
+await page.waitForTimeout(40);
+for (let i = 5; i <= 12; i++) await page.mouse.move(gx, gy + i * 11, { steps: 1 });
+await page.mouse.up();
+const coasting = await wheelH();
+await page.waitForTimeout(1100);
+const settled = { h: await wheelH(), title: await page.locator('.rail-detail h2').textContent() };
+check(
+  'Drag follows the pointer continuously, then the wheel decelerates and snaps to the nearest frame',
+  mid > 0.2 && mid < 0.9 && !Number.isInteger(coasting) && Number.isInteger(settled.h) && settled.h === 0 && settled.title === 'Sintel',
+  JSON.stringify({ mid: mid.toFixed(3), coasting: coasting.toFixed(3), ...settled }),
+);
+await page.locator('.rail-tab', { hasText: 'Scenes' }).click();
+await page.waitForTimeout(80);
+const folding = await page.evaluate(() => Number(getComputedStyle(document.querySelector('.wheel')).getPropertyValue('--wheel-fan')));
+await page.waitForTimeout(700);
+const face = await page.evaluate(() => ({
+  variant: document.querySelector('.wheel').dataset.variant,
+  fan: Number(getComputedStyle(document.querySelector('.wheel')).getPropertyValue('--wheel-fan')),
+  index: getComputedStyle(document.querySelector('.rail-tabs'), '::before').animationName,
+}));
+check('Movies → Scenes folds the frames into the hub and fans the scenes out, with feedback on the switch', folding < 1 && face.variant === 'scenes' && face.fan === 1 && /rail-face/.test(face.index), JSON.stringify({ folding, ...face }));
+await shot(page, 'wheel-scenes-face');
+await page.keyboard.press('Escape');
+
+await page.emulateMedia({ reducedMotion: 'reduce' });
+await page.reload();
+await page.waitForSelector('.cs-root');
+await page.waitForTimeout(800);
+await wake();
+await page.locator('.cs-reel').click();
+await page.waitForTimeout(400);
+await page.keyboard.press('End');
+await page.waitForTimeout(40);
+const still = { h: await wheelH(), drawerAnim: await page.evaluate(() => getComputedStyle(document.querySelector('.cs-rail')).animationName) };
+check('Reduced motion: selection is immediate (no spin) and the drawer does not slide', still.h === 2 && still.drawerAnim === 'none', JSON.stringify(still));
+await page.keyboard.press('Escape');
+await page.emulateMedia({ reducedMotion: 'no-preference' });
+
+/* ---------- 16. Precision Playback Pod ---------- */
+const media = () =>
+  page.evaluate(() => {
+    const v = document.querySelector('video');
+    return { t: Math.round(v.currentTime * 1000) / 1000, d: v.duration, paused: v.paused };
+  });
+async function seekTo(t) {
+  await page.evaluate(
+    (t) =>
+      new Promise((res) => {
+        const v = document.querySelector('video');
+        v.pause();
+        v.addEventListener('seeked', () => res(), { once: true });
+        v.currentTime = t;
+      }),
+    t,
+  );
+  await page.waitForTimeout(150);
+}
+await open('sintel');
+await page.waitForFunction(() => document.querySelector('video').readyState >= 1 && document.querySelector('video').duration > 0, null, { timeout: 30000 });
+await wake();
+const podInfo = await page.evaluate(() => {
+  const g = document.querySelector('.cs-pod');
+  const btns = [...g.querySelectorAll('button')];
+  const play = g.querySelector('.cs-pod-play').getBoundingClientRect();
+  const [a, , c] = btns.map((b) => b.getBoundingClientRect());
+  return {
+    pods: document.querySelectorAll('.cs-pod').length,
+    names: btns.map((b) => b.getAttribute('aria-label')),
+    disc: Math.round(play.width),
+    symmetric: Math.abs(a.width - c.width) < 1 && Math.abs(play.left - a.right - (c.left - play.right)) < 1,
+    targets: btns.every((b) => b.getBoundingClientRect().width >= 44 && b.getBoundingClientRect().height >= 44),
+    dial: !!document.querySelector('.cs-bezel, .cs-graduation-dial'),
+    accent: getComputedStyle(g.querySelector('.cs-pod-play')).backgroundImage.includes('rgb(255, 159, 90)'),
+  };
+});
+check(
+  'Pod: one capsule (Rewind 10 seconds | Play | Forward 10 seconds), a 60–68px disc, symmetrical, 44px+ targets, no dial',
+  podInfo.pods === 1 && podInfo.names[0] === 'Rewind 10 seconds' && podInfo.names[1] === 'Play' && podInfo.names[2] === 'Forward 10 seconds' && podInfo.disc >= 60 && podInfo.disc <= 68 && podInfo.symmetric && podInfo.targets && !podInfo.dial,
+  JSON.stringify(podInfo),
+);
+check('Pod wears Sintel’s ember accent', podInfo.accent);
+await shot(page, 'pod-sintel-paused');
+
+await seekTo(100);
+await page.locator('button[aria-label="Rewind 10 seconds"]').click();
+await page.waitForTimeout(400);
+const rw = { ...(await media()), chip: await page.locator('.cs-pod-confirm').textContent().catch(() => null) };
+check('Rewind seeks exactly −10 s on the real video and confirms "−10 s"', Math.abs(rw.t - 90) < 0.05 && rw.chip === '−10 s', JSON.stringify(rw));
+await shot(page, 'pod-rewind-feedback');
+await page.locator('button[aria-label="Forward 10 seconds"]').focus();
+await page.keyboard.press('Enter');
+await page.waitForTimeout(400);
+const fEnter = await media();
+await page.keyboard.press('Space');
+await page.waitForTimeout(400);
+const fSpace = await media();
+check('Keyboard: Enter and Space on Forward each seek exactly +10 s, once', Math.abs(fEnter.t - 100) < 0.05 && Math.abs(fSpace.t - 110) < 0.05 && fSpace.paused, `${fEnter.t} → ${fSpace.t}`);
+const ring = await page.evaluate(() => {
+  const cs = getComputedStyle(document.activeElement);
+  return cs.outlineStyle !== 'none' && parseFloat(cs.outlineWidth) >= 2;
+});
+check('Pod buttons show a visible focus ring', ring);
+await seekTo(4);
+await page.locator('button[aria-label="Rewind 10 seconds"]').click();
+await page.waitForTimeout(400);
+const clampStart = { ...(await media()), chip: await page.locator('.cs-pod-confirm').textContent().catch(() => null) };
+check('Rewind near the start is clamped to 0:00 and says "Start"', clampStart.t === 0 && clampStart.chip === 'Start', JSON.stringify(clampStart));
+const dur = (await media()).d;
+await seekTo(dur - 3);
+await page.locator('button[aria-label="Forward 10 seconds"]').click();
+await page.waitForTimeout(600);
+const clampEnd = { ...(await media()), chip: await page.locator('.cs-pod-confirm').textContent().catch(() => null) };
+check('Forward near the end is clamped to the end and says "End"', Math.abs(clampEnd.t - dur) < 0.3 && clampEnd.chip === 'End', JSON.stringify(clampEnd));
+
+await seekTo(30);
+await wake();
+await page.locator('.cs-pod-play').click();
+await page.waitForTimeout(60);
+const lit = await page.evaluate(() => ({
+  state: document.querySelector('.cs-pod').dataset.state,
+  sweep: getComputedStyle(document.querySelector('.cs-pod-sweep')).animationName,
+  label: document.querySelector('.cs-pod-play').getAttribute('aria-label'),
+}));
+await page.waitForTimeout(1500);
+const playingNow = await media();
+check('Play: playback starts at once, the ring lights once, the label becomes Pause', lit.state === 'playing' && lit.sweep === 'pod-sweep' && lit.label === 'Pause' && !playingNow.paused && playingNow.t > 30.5, JSON.stringify({ ...lit, ...playingNow }));
+await page.mouse.move(5, 5);
+await page.waitForTimeout(4500);
+const idle = await page.evaluate(() => {
+  const b = document.querySelector('.cs-pod-play').getBoundingClientRect();
+  const hit = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2);
+  return { onPod: !!hit?.closest('.cs-pod'), opacity: getComputedStyle(document.querySelector('.cs-center')).opacity };
+});
+check('While playing and idle the pod fades out and never blocks a click on the picture', !idle.onPod && Number(idle.opacity) < 0.05, JSON.stringify(idle));
+await wake();
+await page.locator('.cs-pod-play').click();
+await page.waitForTimeout(300);
+check('Pause: the label returns to Play', await page.evaluate(() => document.querySelector('.cs-pod-play').getAttribute('aria-label') === 'Play' && document.querySelector('video').paused));
+
+for (const [film, rgb] of [
+  ['tears-of-steel', 'rgb(92, 211, 255)'],
+  ['big-buck-bunny', 'rgb(232, 197, 111)'],
+]) {
+  await open(film);
+  await wake();
+  const bg = await page.evaluate(() => getComputedStyle(document.querySelector('.cs-pod-play')).backgroundImage);
+  check(`Pod follows ${film}’s palette`, bg.includes(rgb), bg.slice(0, 80));
+  await shot(page, `pod-${film}`);
+}
+
+for (const size of ['Desktop', 'Tablet', 'Phone', 'Tiny']) {
+  await setSize(size);
+  await wake();
+  const p = await page.evaluate(() => {
+    const g = document.querySelector('.cs-pod');
+    const stage = document.querySelector('.cs-stage').getBoundingClientRect();
+    const r = g.getBoundingClientRect();
+    return {
+      inside: r.left >= stage.left && r.right <= stage.right && r.top >= stage.top && r.bottom <= stage.bottom,
+      disc: Math.round(g.querySelector('.cs-pod-play').getBoundingClientRect().width),
+      targets: [...g.querySelectorAll('button')].every((b) => b.getBoundingClientRect().width >= 44 && b.getBoundingClientRect().height >= 44),
+    };
+  });
+  check(`Pod @ ${size}: inside the picture, 44px+ targets`, p.inside && p.targets, JSON.stringify(p));
+  await shot(page, `pod-${size.toLowerCase()}`);
+}
+await setSize('Desktop');
+
+// Touch: a phone-sized context with a touch screen.
+const touchCtx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
+const tp = await touchCtx.newPage();
+tp.on('pageerror', (e) => errors.push(String(e)));
+await tp.goto(`${BASE}/#/`);
+await tp.evaluate(() => {
+  localStorage.clear();
+  sessionStorage.clear();
+});
+await tp.goto(`${BASE}/#/watch/big-buck-bunny`);
+await tp.waitForSelector('.cs-root');
+await tp.waitForFunction(() => document.querySelector('video').readyState >= 1 && document.querySelector('video').duration > 0, null, { timeout: 30000 });
+await tp.evaluate(
+  () =>
+    new Promise((res) => {
+      const v = document.querySelector('video');
+      v.pause();
+      v.addEventListener('seeked', () => res(), { once: true });
+      v.currentTime = 60;
+    }),
+);
+await tp.locator('.cs-stage').tap({ position: { x: 20, y: 20 } });
+await tp.waitForTimeout(300);
+await tp.locator('button[aria-label="Forward 10 seconds"]').tap();
+await tp.waitForTimeout(500);
+const tapT = await tp.evaluate(() => Math.round(document.querySelector('video').currentTime * 1000) / 1000);
+const tapTargets = await tp.evaluate(() => [...document.querySelectorAll('.cs-pod button')].map((b) => `${Math.round(b.getBoundingClientRect().width)}x${Math.round(b.getBoundingClientRect().height)}`));
+check('Touch: tapping Forward seeks exactly +10 s; every pod target is at least 44px', Math.abs(tapT - 70) < 0.05 && tapTargets.every((s) => s.split('x').every((n) => Number(n) >= 44)), `${tapT}; ${tapTargets.join(', ')}`);
+if (SHOTS) await tp.screenshot({ path: join(SHOTS, 'pod-touch-phone.png') });
+await touchCtx.close();
 
 check('No uncaught page errors', errors.length === 0, errors.slice(0, 3).join(' | '));
 

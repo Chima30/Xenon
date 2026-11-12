@@ -37,7 +37,7 @@ type Scope = 'film' | 'all';
  * own note, in the colours of its film. Storage, export and import are unchanged, so older atlases keep working.
  */
 export function MomentAtlas({ film, films, moments, onSaveNow, onSaveLast, onSeek, onOpenElsewhere }: Props) {
-  const { announce, openOptic } = useCinemaSkin();
+  const { announce, openNavigation } = useCinemaSkin();
   const all = useMoments();
   const fileRef = useRef<HTMLInputElement>(null);
   const [scope, setScope] = useState<Scope>('film');
@@ -160,7 +160,7 @@ export function MomentAtlas({ film, films, moments, onSaveNow, onSaveLast, onSee
                 moment={m}
                 onPlay={() => (m.videoId === film.id ? onSeek(m.time, m.label) : onOpenElsewhere(m))}
                 onPreview={(el) =>
-                  openOptic({ moment: { time: m.time, title: m.label, note: m.note, image: f.frameAt(m.time, 500) } }, el)
+                  openNavigation({ moment: { time: m.time, title: m.label, note: m.note, image: f.frameAt(m.time, 500) } }, el)
                 }
               />
             );
@@ -263,7 +263,7 @@ function Capsule({
           <PlayIcon />
         </button>
         {here ? (
-          <button type="button" className="atlas-peek" onClick={(e) => onPreview(e.currentTarget)} aria-label={`Inspect ${moment.label} in the Optic`} data-tip="Inspect">
+          <button type="button" className="atlas-peek" onClick={(e) => onPreview(e.currentTarget)} aria-label={`Inspect ${moment.label} on the navigation wheel`} data-tip="Inspect">
             <CompassIcon />
           </button>
         ) : null}

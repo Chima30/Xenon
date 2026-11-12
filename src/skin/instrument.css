@@ -8,7 +8,6 @@
 
 .cs-root,
 .cs-root[data-atm='on'] {
-  --cs-rail-w: 380px;
   --cs-panel-bg: color-mix(in srgb, var(--cs-glass) calc(var(--cs-panel-alpha) * 100%), transparent);
   --cs-card-bg: color-mix(in srgb, var(--cs-base) 70%, transparent);
   background: var(--cs-base);
@@ -21,9 +20,6 @@
   --cs-panel-bg: #000;
   --cs-card-bg: #000;
 }
-.cs-root[data-rail='collapsed'] {
-  --cs-rail-w: 64px;
-}
 
 /* The announcer is positioned at the root's corner so it can never add height or show as stray text. */
 .cs-root .cs-announcer {
@@ -32,117 +28,7 @@
   pointer-events: none;
 }
 
-/* ---------- Spatial layout: the rail slides in from the left, the atlas rises from below ---------- */
-
-.cs-layout {
-  grid-template-columns: 0px minmax(0, 1fr);
-  grid-template-rows: auto auto;
-  transition: grid-template-columns var(--t-slow) var(--ease-out);
-}
-.cs-root[data-mode='explore'] .cs-layout {
-  grid-template-columns: var(--cs-rail-w) minmax(0, 1fr);
-}
-.cs-stagewrap {
-  grid-column: 2;
-  grid-row: 1;
-}
-.cs-rail {
-  grid-column: 1;
-  grid-row: 1;
-  min-height: 0;
-  border-right: 0;
-  visibility: hidden;
-  background: linear-gradient(180deg, color-mix(in oklab, var(--cs-base) 93%, white), var(--cs-base) 70%);
-  transition: visibility 0s linear var(--t-slow);
-}
-.cs-root[data-mode='explore'] .cs-rail {
-  visibility: visible;
-  box-shadow: inset -1px 0 0 var(--cs-hairline);
-  transition-delay: 0s;
-}
-.cs-rail > .cs-rail-inner {
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: var(--cs-rail-w);
-  transition: width var(--t-slow) var(--ease-out);
-}
-.cs-atlas {
-  grid-column: 1 / -1;
-  grid-row: 2;
-  display: grid;
-  grid-template-rows: 0fr;
-  visibility: hidden;
-  background: var(--cs-base);
-  border-top: 0;
-  transition:
-    grid-template-rows var(--t-slow) var(--ease-out),
-    visibility 0s linear var(--t-slow);
-}
-.cs-root[data-mode='remember'] .cs-atlas {
-  grid-template-rows: 1fr;
-  visibility: visible;
-  transition-delay: 0s;
-}
-.cs-atlas-inner {
-  min-height: 0;
-  overflow: hidden;
-  box-shadow: inset 0 1px 0 var(--cs-hairline);
-}
-
-/* Wide players keep one stage height in every mode, so switching modes never makes the page jump:
-   in Explore the video simply gives the rail its room. */
-@container cs (min-width: 761px) {
-  .cs-stagewrap {
-    height: 56.25cqi;
-  }
-  .cs-root[data-mode='explore'] .cs-stagewrap {
-    height: max(56.25cqi, 580px);
-  }
-  .cs-stage,
-  .cs-root[data-mode='explore'] .cs-stage {
-    aspect-ratio: auto;
-  }
-}
-
-/* Narrow players: one column. The rail is a panel under the video and exists only in Explore. */
-@container cs (max-width: 760px) {
-  .cs-layout,
-  .cs-root[data-mode='explore'] .cs-layout {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto;
-  }
-  .cs-stagewrap {
-    grid-column: 1;
-  }
-  .cs-rail {
-    grid-column: 1;
-    grid-row: 2;
-    display: none;
-    box-shadow: inset 0 1px 0 var(--cs-hairline);
-  }
-  .cs-root[data-mode='explore'] .cs-rail {
-    display: block;
-    box-shadow: inset 0 1px 0 var(--cs-hairline);
-  }
-  .cs-rail > .cs-rail-inner {
-    position: static;
-    width: auto;
-  }
-  .cs-atlas {
-    grid-row: 3;
-  }
-}
-
-.cs-root:fullscreen[data-mode] .cs-stagewrap {
-  height: 100%;
-}
-.cs-root:fullscreen .cs-layout {
-  grid-template-rows: minmax(0, 1fr) auto;
-}
-.cs-root:fullscreen .cs-atlas-inner {
-  max-height: 46vh;
-  overflow-y: auto;
-}
+/* ---------- Spatial layout: see rail.css, the one place that places the stage, the rail and the atlas ---------- */
 
 /* ---------- Top bar ---------- */
 
@@ -627,15 +513,6 @@
 
 /* ---------- Rail chrome ---------- */
 
-.cs-rail-bar {
-  padding: var(--sp-3) var(--sp-3) 0 var(--sp-5);
-}
-.cs-rail-toggle {
-  background: transparent;
-  border-color: transparent;
-  -webkit-backdrop-filter: none;
-  backdrop-filter: none;
-}
 
 /* ---------- Small players ---------- */
 
@@ -708,17 +585,6 @@
 
 /* ---------- Motion preferences ---------- */
 
-.cs-root[data-motion='reduce'] :is(.cs-layout, .cs-rail, .cs-atlas, .cs-rail-inner) {
-  transition: none !important;
-}
-@media (prefers-reduced-motion: reduce) {
-  .cs-layout,
-  .cs-rail,
-  .cs-atlas,
-  .cs-rail > .cs-rail-inner {
-    transition: none !important;
-  }
-}
 
 @media (forced-colors: active) {
   .cs-row,
@@ -739,15 +605,6 @@
   }
 }
 
-/* The rail's collapse button is a disclosure, not a toggle that is "on": no accent state. */
-.cs-root .cs-rail-toggle[aria-expanded='true'] {
-  color: var(--cs-ice);
-  background: transparent;
-  border-color: transparent;
-}
-.cs-root .cs-rail-toggle[aria-expanded]::before {
-  content: none;
-}
 
 /* Tiny and micro players: the top bar, centre cluster and dock must all fit inside a 4:3 stage of ~225px. */
 .cs-stagewrap:is([data-tier='tiny'], [data-tier='micro']) .cs-top {

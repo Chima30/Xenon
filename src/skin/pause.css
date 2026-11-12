@@ -233,17 +233,6 @@
   outline-offset: 2px;
 }
 
-/* The play action carries the paused state: a brighter halo, nothing else competes with it. */
-.cs-root .cs-transport[data-paused] .cs-btn.cs-btn-play {
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.5),
-    inset 0 -3px 6px rgb(0 0 0 / 0.25),
-    0 0 0 5px color-mix(in oklab, var(--cs-base) 70%, black),
-    0 0 0 6px var(--cs-accent-line),
-    0 14px 34px rgb(0 0 0 / 0.55),
-    0 0 70px color-mix(in srgb, var(--cs-citron) 38%, transparent);
-}
-
 .cs-root[data-hc] :is(.cs-pause-strip, .cs-pause-more, .cs-pause-card) {
   background: #000;
   border: 2px solid #fff;

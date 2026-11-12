@@ -1,0 +1,470 @@
+/* ==========================================================================
+   XENON Precision Playback Pod: Rewind 10 s | Play / Pause | Forward 10 s, one capsule.
+   Every colour comes from the film's palette tokens, so the same instrument reads plum and ember on Sintel,
+   blue and cyan on Tears of Steel, forest green with warm gold on Big Buck Bunny:
+     --cs-citron    the film's accent: the play disc
+     --cs-glow      the film's light: the disc's depth and halo
+     --cs-secondary the film's second colour: the capsule's tint and the ring's third stop
+   ========================================================================== */
+
+.cs-pod {
+  --pod-play: 64px; /* the central disc */
+  --pod-h: 52px; /* the capsule */
+  --pod-seek-w: 62px;
+  --pod-ring-gap: 5px;
+  position: relative;
+  display: inline-grid;
+  grid-template-columns: var(--pod-seek-w) var(--pod-play) var(--pod-seek-w);
+  align-items: center;
+  isolation: isolate;
+  transition: opacity 0.3s ease;
+}
+
+/* The capsule: one body behind all three parts, translucent over the picture. */
+.cs-pod::before {
+  content: '';
+  position: absolute;
+  inset: calc((var(--pod-play) - var(--pod-h)) / 2) 0;
+  z-index: -1;
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 0.08), transparent 48%),
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, color-mix(in oklab, var(--cs-secondary) 30%, var(--cs-base)) 84%, transparent),
+      color-mix(in srgb, var(--cs-base) 80%, transparent) 50%,
+      color-mix(in srgb, color-mix(in oklab, var(--cs-secondary) 30%, var(--cs-base)) 84%, transparent)
+    );
+  border: 1px solid color-mix(in srgb, var(--cs-ice) 14%, transparent);
+  border-radius: var(--r-pill);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.08),
+    inset 0 -1px 0 rgb(0 0 0 / 0.4),
+    0 14px 36px rgb(0 0 0 / 0.45);
+  -webkit-backdrop-filter: blur(14px) saturate(1.3);
+  backdrop-filter: blur(14px) saturate(1.3);
+}
+.cs-pod[data-placement='dock']::before {
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.06),
+    inset 0 -1px 0 rgb(0 0 0 / 0.35);
+}
+
+/* While the film plays the pod steps back a little; pointing at it or focusing it brings it forward at once. */
+.cs-pod[data-placement='stage'][data-state='playing'] {
+  opacity: 0.86;
+}
+.cs-pod[data-placement='stage']:is(:hover, :focus-within) {
+  opacity: 1;
+}
+
+.cs-root .cs-pod-btn {
+  position: relative;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  padding: 0;
+  cursor: pointer;
+  border: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ---------- Rewind / Forward ---------- */
+
+.cs-root .cs-pod-seek {
+  width: var(--pod-seek-w);
+  height: var(--pod-h);
+  color: var(--cs-ice);
+  background: transparent;
+  transition:
+    color var(--t-fast) ease,
+    background-color var(--t-fast) ease;
+}
+.cs-root .cs-pod-seek[data-side='back'] {
+  border-radius: var(--r-pill) 0 0 var(--r-pill);
+}
+.cs-root .cs-pod-seek[data-side='forward'] {
+  border-radius: 0 var(--r-pill) var(--r-pill) 0;
+}
+.cs-pod-glyph {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+}
+.cs-pod-arc {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.cs-pod-num {
+  position: relative;
+  font: 700 11px / 1 var(--cs-font);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  translate: 0 1px;
+}
+@media (hover: hover) {
+  .cs-root .cs-pod-seek:hover {
+    color: var(--cs-citron);
+    background: color-mix(in srgb, var(--cs-ice) 8%, transparent);
+  }
+}
+.cs-root .cs-pod-seek:active .cs-pod-glyph {
+  scale: 0.92;
+}
+/* Directional feedback: the arrow nudges the way it seeks. Two names, so a second press replays it. */
+.cs-pod-seek[data-side='back'][data-nudge='0'] .cs-pod-glyph {
+  animation: pod-nudge-back-a 0.22s var(--ease-out) both;
+}
+.cs-pod-seek[data-side='back'][data-nudge='1'] .cs-pod-glyph {
+  animation: pod-nudge-back-b 0.22s var(--ease-out) both;
+}
+.cs-pod-seek[data-side='forward'][data-nudge='0'] .cs-pod-glyph {
+  animation: pod-nudge-fwd-a 0.22s var(--ease-out) both;
+}
+.cs-pod-seek[data-side='forward'][data-nudge='1'] .cs-pod-glyph {
+  animation: pod-nudge-fwd-b 0.22s var(--ease-out) both;
+}
+@keyframes pod-nudge-back-a {
+  40% {
+    transform: translateX(-4px) rotate(-26deg);
+    color: var(--cs-citron);
+  }
+}
+@keyframes pod-nudge-back-b {
+  40% {
+    transform: translateX(-4px) rotate(-26deg);
+    color: var(--cs-citron);
+  }
+}
+@keyframes pod-nudge-fwd-a {
+  40% {
+    transform: translateX(4px) rotate(26deg);
+    color: var(--cs-citron);
+  }
+}
+@keyframes pod-nudge-fwd-b {
+  40% {
+    transform: translateX(4px) rotate(26deg);
+    color: var(--cs-citron);
+  }
+}
+
+/* The confirmation: "−10 s" / "+10 s" (or "Start" / "End" when the seek was clamped) above the button pressed. */
+.cs-pod-confirm {
+  position: absolute;
+  bottom: calc(50% + var(--pod-h) / 2 + 8px);
+  z-index: 2;
+  padding: 5px 10px;
+  font: 700 var(--fs-xs) / 1 var(--cs-font);
+  font-variant-numeric: tabular-nums;
+  color: var(--cs-ink-on-citron);
+  white-space: nowrap;
+  background: var(--cs-citron);
+  border-radius: var(--r-pill);
+  box-shadow:
+    0 6px 16px rgb(0 0 0 / 0.4),
+    0 0 18px color-mix(in srgb, var(--cs-glow) 40%, transparent);
+  pointer-events: none;
+  translate: -50% 0;
+  animation: pod-confirm 0.9s var(--ease-out) both;
+}
+.cs-pod-confirm[data-side='back'] {
+  left: calc(var(--pod-seek-w) / 2);
+  --pod-dx: -6px;
+}
+.cs-pod-confirm[data-side='forward'] {
+  left: calc(100% - var(--pod-seek-w) / 2);
+  --pod-dx: 6px;
+}
+@keyframes pod-confirm {
+  0% {
+    opacity: 0;
+    transform: translate(0, 6px) scale(0.9);
+  }
+  22% {
+    opacity: 1;
+    transform: translate(var(--pod-dx), 0) scale(1);
+  }
+  75% {
+    opacity: 1;
+    transform: translate(var(--pod-dx), 0);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--pod-dx), -4px);
+  }
+}
+
+/* While a confirmation shows, the pod's tooltips step aside: the confirmation is the answer to the press. */
+.cs-root .cs-pod:has(.cs-pod-confirm) [data-tip]::after {
+  opacity: 0 !important;
+}
+
+/* ---------- Play / Pause: the dominant disc ---------- */
+
+.cs-root .cs-pod-play {
+  z-index: 1;
+  width: var(--pod-play);
+  height: var(--pod-play);
+  color: var(--cs-ink-on-citron);
+  background: radial-gradient(
+    120% 120% at 30% 22%,
+    color-mix(in oklab, var(--cs-citron) 70%, white) 0%,
+    var(--cs-citron) 46%,
+    color-mix(in oklab, var(--cs-citron) 62%, var(--cs-glow)) 100%
+  );
+  border-radius: 50%;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.45),
+    inset 0 -4px 8px rgb(0 0 0 / 0.22),
+    0 10px 26px rgb(0 0 0 / 0.5),
+    0 0 34px color-mix(in srgb, var(--cs-glow) 32%, transparent);
+  transition:
+    transform 0.18s var(--ease-out),
+    box-shadow 0.25s ease,
+    filter 0.2s ease;
+}
+@media (hover: hover) {
+  .cs-root .cs-pod-play:hover {
+    filter: brightness(1.07);
+  }
+}
+.cs-root .cs-pod-play:active {
+  transform: scale(0.95);
+}
+
+/* The refined outer ring: a hairline in the film's three colours, never a dial. */
+.cs-pod-ring,
+.cs-pod-sweep {
+  position: absolute;
+  inset: calc(var(--pod-ring-gap) * -1);
+  border-radius: 50%;
+  -webkit-mask: radial-gradient(closest-side, transparent calc(100% - 2.5px), #000 calc(100% - 2px));
+  mask: radial-gradient(closest-side, transparent calc(100% - 2.5px), #000 calc(100% - 2px));
+  pointer-events: none;
+}
+.cs-pod-ring {
+  background: conic-gradient(from 210deg, var(--cs-citron), var(--cs-glow), var(--cs-secondary), var(--cs-citron));
+  opacity: 0.38;
+  transition: opacity 0.25s ease;
+}
+/* Paused: the ring holds a restrained outline in the film's colour; the disc is the clear way back in. */
+.cs-pod:is([data-state='paused'], [data-state='ended']) .cs-pod-ring {
+  opacity: 0.95;
+}
+.cs-pod:is([data-state='paused'], [data-state='ended']) .cs-pod-play {
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.45),
+    inset 0 -4px 8px rgb(0 0 0 / 0.22),
+    0 10px 26px rgb(0 0 0 / 0.5),
+    0 0 48px color-mix(in srgb, var(--cs-glow) 42%, transparent);
+}
+/* Play: one sweep of light runs round the ring. */
+.cs-pod-sweep {
+  background: conic-gradient(from 0deg, transparent 0 62%, color-mix(in srgb, white 80%, var(--cs-citron)) 86%, transparent 100%);
+  opacity: 0;
+}
+.cs-pod[data-state='playing'] .cs-pod-sweep {
+  animation: pod-sweep 0.26s var(--ease-out) both;
+}
+@keyframes pod-sweep {
+  from {
+    opacity: 1;
+    transform: rotate(-120deg);
+  }
+  to {
+    opacity: 0;
+    transform: rotate(240deg);
+  }
+}
+.cs-pod[data-state='playing'] .cs-pod-play {
+  animation: pod-lit 0.24s ease-out;
+}
+@keyframes pod-lit {
+  from {
+    filter: brightness(1.22);
+  }
+}
+/* Mid-play buffering: a single arc travels the ring. */
+.cs-pod[data-buffering] .cs-pod-ring {
+  background: conic-gradient(from 0deg, var(--cs-citron) 0 22%, transparent 22%);
+  opacity: 1;
+  animation: pod-spin 0.9s linear infinite;
+}
+@keyframes pod-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Icons: all three are drawn; the state picks one, and they cross-fade. */
+.cs-pod-icons {
+  position: relative;
+  width: 46%;
+  aspect-ratio: 1;
+}
+.cs-pod-icons svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  transform: scale(0.55) rotate(-24deg);
+  transition:
+    opacity 0.16s ease,
+    transform 0.22s var(--ease-out);
+}
+.cs-pod[data-state='paused'] [data-icon='play'],
+.cs-pod[data-state='playing'] [data-icon='pause'],
+.cs-pod[data-state='ended'] [data-icon='replay'] {
+  opacity: 1;
+  transform: none;
+}
+
+/* Focus: visible on every footage, outside the ring for the disc. */
+.cs-root .cs-pod-btn:focus-visible {
+  outline: 3px solid var(--cs-focus, var(--cs-citron));
+  outline-offset: 2px;
+}
+.cs-root .cs-pod-play:focus-visible {
+  outline-color: var(--cs-ice);
+  outline-offset: calc(var(--pod-ring-gap) + 3px);
+}
+
+/* ---------- Placements and sizes ---------- */
+
+.cs-pod[data-placement='dock'] {
+  --pod-play: 48px;
+  --pod-h: 42px;
+  --pod-seek-w: 46px;
+  --pod-ring-gap: 3px;
+  margin: 0 var(--sp-1);
+}
+.cs-pod[data-placement='dock'] .cs-pod-glyph {
+  width: 28px;
+  height: 28px;
+}
+.cs-pod[data-placement='dock'] .cs-pod-num {
+  font-size: 10px;
+}
+.cs-stagewrap[data-tier='compact'] .cs-pod[data-placement='stage'] {
+  --pod-play: 62px;
+  --pod-h: 50px;
+  --pod-seek-w: 58px;
+}
+.cs-stagewrap:is([data-tier='tiny'], [data-tier='micro']) .cs-pod[data-placement='stage'] {
+  --pod-play: 58px;
+  --pod-h: 48px;
+  --pod-seek-w: 52px;
+}
+.cs-stagewrap:is([data-tier='tiny'], [data-tier='micro']) .cs-pod[data-placement='dock'] {
+  --pod-play: 44px;
+  --pod-h: 40px;
+  --pod-seek-w: 44px;
+  margin: 0;
+}
+/* Very small docks keep every essential on one line: the disc stays; Rewind and Forward remain one key (J, L,
+   the arrow keys) or a double tap on either side of the picture away. The Floating pod keeps all three parts. */
+.cs-stagewrap:is([data-tier='tiny'], [data-tier='micro']) .cs-pod[data-placement='dock'] {
+  grid-template-columns: var(--pod-play);
+}
+.cs-stagewrap:is([data-tier='tiny'], [data-tier='micro']) .cs-pod[data-placement='dock'] :is(.cs-pod-seek, .cs-pod-confirm),
+.cs-stagewrap:is([data-tier='tiny'], [data-tier='micro']) .cs-pod[data-placement='dock']::before {
+  display: none;
+}
+
+/* Touch: the docked pod's seek buttons grow to a comfortable target (the stage pod is already larger). */
+@media (pointer: coarse) {
+  .cs-pod[data-placement='dock'],
+  .cs-stagewrap:is([data-tier='tiny'], [data-tier='micro']) .cs-pod[data-placement='dock'] {
+    --pod-seek-w: 48px;
+    --pod-h: 44px;
+  }
+}
+.cs-root[data-large] .cs-pod[data-placement='stage'] {
+  --pod-play: 76px;
+  --pod-h: 60px;
+  --pod-seek-w: 72px;
+}
+.cs-root[data-large] .cs-pod[data-placement='dock'] {
+  --pod-play: 54px;
+  --pod-h: 50px;
+  --pod-seek-w: 54px;
+}
+
+/* ---------- Preferences ---------- */
+
+.cs-root[data-motion='reduce'] :is(.cs-pod, .cs-pod-btn, .cs-pod-glyph, .cs-pod-ring, .cs-pod-sweep, .cs-pod-icons svg) {
+  transition: none !important;
+  animation: none !important;
+}
+.cs-root[data-motion='reduce'] .cs-pod-confirm {
+  animation: pod-confirm-still 0.9s linear both !important;
+}
+@keyframes pod-confirm-still {
+  0%,
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cs-pod,
+  .cs-pod-btn,
+  .cs-pod-glyph,
+  .cs-pod-ring,
+  .cs-pod-sweep,
+  .cs-pod-icons svg {
+    transition: none !important;
+    animation: none !important;
+  }
+  .cs-pod-confirm {
+    animation: pod-confirm-still 0.9s linear both;
+  }
+}
+.cs-root[data-hc] .cs-pod::before {
+  background: #000;
+  border: 2px solid #fff;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+.cs-root[data-hc] .cs-pod-play {
+  background: var(--cs-citron);
+  box-shadow:
+    0 0 0 3px #000,
+    0 0 0 5px #fff;
+}
+.cs-root[data-hc] .cs-pod-ring {
+  display: none;
+}
+.cs-root[data-hc] .cs-pod-confirm {
+  color: #fff;
+  background: #000;
+  box-shadow: 0 0 0 2px #fff;
+}
+.cs-root[data-hc] .cs-pod[data-placement='stage'] {
+  opacity: 1;
+}
+@media (forced-colors: active) {
+  .cs-pod::before {
+    background: Canvas;
+    border: 1px solid CanvasText;
+  }
+  .cs-root .cs-pod-play {
+    color: HighlightText;
+    background: Highlight;
+    forced-color-adjust: none;
+  }
+  .cs-pod-ring,
+  .cs-pod-sweep {
+    display: none;
+  }
+  .cs-pod-confirm {
+    border: 1px solid CanvasText;
+  }
+}

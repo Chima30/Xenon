@@ -30,7 +30,7 @@ import { ClipPanel, EMPTY_CLIP, type Clip } from './ClipPanel';
 import { DiagnosticsDialog, type DiagRow } from './DiagnosticsDialog';
 import { Timeline, type ScenePreview, type ThumbnailAt, type TimelineMarker } from './dock/Timeline';
 import { TimeLens } from './dock/TimeLens';
-import { Transport } from './dock/Transport';
+import { PlaybackPod } from './dock/PlaybackPod';
 import { formatTime } from './format';
 import { useWidthTier, type Tier } from './hooks';
 import {
@@ -70,7 +70,7 @@ import { SubtitleProvider, useSubtitles } from './subtitles/SubtitleContext';
 import { TranscriptPanel } from './subtitles/TranscriptPanel';
 import { IrisTransition } from './IrisTransition';
 import { JourneyPanel, type Journey } from './JourneyPanel';
-import { Optic, type OpticFilm, type OpticTarget } from './optic/Optic';
+import { NavigationRail, type NavFilm, type NavTarget } from './wheel/NavigationRail';
 import { loadPrefs, savePrefs, SCRIM_MODES, type ScrimMode } from './storage';
 import '@fontsource-variable/space-grotesk';
 import './tokens.css';
@@ -81,10 +81,11 @@ import './polish.css';
 import './instrument.css';
 import './hardware.css';
 import './optical.css';
+import './rail.css';
 
 export type { ScenePreview, ThumbnailAt, TimelineMarker } from './dock/Timeline';
 export type { SkinScene } from './scenes';
-export type { OpticFilm, OpticTarget } from './optic/Optic';
+export type { NavFilm, NavTarget } from './wheel/NavigationRail';
 export type { Journey } from './JourneyPanel';
 
 export type SkinMode = 'watch' | 'explore' | 'remember';
@@ -97,11 +98,12 @@ interface SkinContextValue {
   /** Layout tier derived from the player's real container width. */
   tier: Tier;
   /**
-   * Points the Optic at a film, a scene or a saved moment and brings it into view: a column in Explore, a drawer
-   * elsewhere, a bottom sheet on small players. Nothing plays or seeks until the viewer chooses the action.
+   * Turns the navigation wheel to a film, a scene or a saved moment and brings it into view: a column in Explore,
+   * a drawer elsewhere, a sheet under the picture on small players. Nothing plays or seeks until the viewer
+   * chooses the action in the wheel's detail card.
    */
-  openOptic: (target: OpticTarget, opener?: HTMLElement | null) => void;
-  /** Closes the Optic drawer (no effect in Explore, where the Optic is a column). */
+  openNavigation: (target: NavTarget, opener?: HTMLElement | null) => void;
+  /** Closes the navigation drawer (no effect in Explore, where the wheel is a column). */
   closeNavigation: () => void;
 }
 
@@ -120,13 +122,13 @@ export interface CinemaSkinProps {
   subtitle?: string;
   /** Identifies the film for per-film storage of uploaded subtitles. Defaults to a shared key. */
   mediaKey?: string;
-  /** Extra content under the Optic in its rail. Optional. */
+  /** Extra content under the wheel in its rail. Optional. */
   railSlot?: ReactNode;
-  /** Films for the Optic's outer ring. Omit for a single-video embed. */
-  films?: OpticFilm[];
+  /** Films for the wheel's Movies face. Omit for a single-video embed. */
+  films?: NavFilm[];
   /** Which film is playing. */
   activeFilmId?: string;
-  /** Switches film. Called only from the Optic's explicit Play action; an iris transition marks the change. */
+  /** Switches film. Called only from the wheel's explicit Play action; an iris transition marks the change. */
   onPlayFilm?: (id: string) => void;
   /** Journey Replay: the session trail of jumps, shown beside the Time Tether. */
   journey?: Journey | null;
@@ -163,7 +165,7 @@ export interface CinemaSkinProps {
   initialClip?: Clip;
   /** Called for every intentional jump (scenes, lens, skip, transcript), so the host can keep a Return Anchor. */
   onJump?: (time: number, label: string) => void;
-  /** The Time Tether: where the viewer was before exploring. Drawn on the timeline and the Optic, one action away. */
+  /** The Time Tether: where the viewer was before exploring. Drawn on the timeline and in the wheel's card, one action away. */
   returnAnchor?: { time: number; onReturn: () => void } | null;
   /** Licensed artwork for the selected film. Used only when the viewer turns Adaptive atmosphere on. */
   artwork?: string | null;
@@ -208,7 +210,7 @@ function isEditable(target: EventTarget | null): boolean {
 }
 
 const NO_SCENES: SkinScene[] = [];
-const NO_FILMS: OpticFilm[] = [];
+const NO_FILMS: NavFilm[] = [];
 
 export function CinemaSkin(props: CinemaSkinProps) {
   return (
@@ -279,17 +281,19 @@ function SkinInner({
   const [clip, setClip] = useState<Clip>(initialClip ?? EMPTY_CLIP);
   const [lens, setLens] = useState<{ opener: HTMLElement | null } | null>(null);
   const [drawer, setDrawer] = useState(false);
-  const [opticTarget, setOpticTarget] = useState<{ id: number; value: OpticTarget } | null>(null);
-  const opticSeq = useRef(0);
+  const [drawerClosing, setDrawerClosing] = useState(false);
+  const [navTarget, setNavTarget] = useState<{ id: number; value: NavTarget } | null>(null);
+  const navSeq = useRef(0);
   const drawerOpener = useRef<HTMLElement | null>(null);
   const clipRun = useRef(false); // true while "Play clip" is running without looping
 
-  const hasOptic = films.length > 0 || scenes.length > 0;
-  const hasRail = hasOptic || Boolean(railSlot);
+  const hasNav = films.length > 0 || scenes.length > 0;
+  const hasRail = hasNav || Boolean(railSlot);
   const hasModes = Boolean(hasRail || atlasSlot);
   const effectiveMode: SkinMode =
     mode === 'explore' && !hasRail ? 'watch' : mode === 'remember' && !atlasSlot ? 'watch' : mode;
   const drawerOpen = drawer && effectiveMode !== 'explore' && hasRail;
+  const reduced = view.prefs.reducedMotion;
 
   const setMode = useCallback((m: SkinMode) => {
     setModeState(m);
@@ -341,21 +345,28 @@ function SkinInner({
     }
   };
 
-  /* ---- wheel drawer (Watch mode) ---- */
+  /* ---- navigation drawer (Watch and My Atlas) ---- */
   const closeNavigation = useCallback(() => setDrawer(false), []);
   const drawerWasOpen = useRef(false);
+  const closingTimer = useRef(0);
+  useEffect(() => () => window.clearTimeout(closingTimer.current), []);
   useEffect(() => {
     const rail = railRef.current;
     if (drawerOpen) {
       drawerWasOpen.current = true;
-      // The Optic moves focus to the ring it was asked for; without a request, focus its first ring.
+      window.clearTimeout(closingTimer.current);
+      setDrawerClosing(false);
       requestAnimationFrame(() => {
+        // On small players the drawer is a sheet under the picture: bring it into view.
+        if (rail && rail.getBoundingClientRect().top > window.innerHeight - 80) rail.scrollIntoView({ block: 'nearest' });
+        // The wheel focuses the frame it was asked for; without a request, focus the frame in the gate.
         if (rail?.contains(document.activeElement)) return;
-        rail?.querySelector<HTMLElement>('.optic-ring-focus, button, [tabindex="0"]')?.focus({ preventScroll: true });
+        const first = ['.wheel-item[tabindex="0"]', '.rail-tab[aria-pressed="true"]', '.cs-rail-body button'].map((q) => rail?.querySelector<HTMLElement>(q)).find(Boolean);
+        first?.focus({ preventScroll: true });
       });
       const onDown = (e: PointerEvent) => {
         const t = e.target as Element | null;
-        if (!t || rail?.contains(t) || t.closest('.cs-reel, .cs-panel, dialog, [data-optic-opener]')) return;
+        if (!t || rail?.contains(t) || t.closest('.cs-reel, .cs-panel, dialog, [data-nav-opener]')) return;
         setDrawer(false);
       };
       document.addEventListener('pointerdown', onDown, true);
@@ -363,6 +374,12 @@ function SkinInner({
     }
     if (drawerWasOpen.current) {
       drawerWasOpen.current = false;
+      // Slide out over the picture, unless the viewer moved to Explore (the rail becomes a column at once).
+      const still = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (effectiveMode !== 'explore' && !reduced && !still) {
+        setDrawerClosing(true);
+        closingTimer.current = window.setTimeout(() => setDrawerClosing(false), 200);
+      }
       // Focus returns to whatever opened it (the reel handle by default), unless the viewer has moved on.
       const active = document.activeElement;
       if (!active || active === document.body || rail?.contains(active)) {
@@ -371,19 +388,23 @@ function SkinInner({
       }
       drawerOpener.current = null;
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [drawerOpen]);
 
-  /* ---- Optic ---- */
-  const openOptic = useCallback(
-    (target: OpticTarget, opener?: HTMLElement | null) => {
-      setOpticTarget({ id: ++opticSeq.current, value: target });
+  /* ---- navigation wheel ---- */
+  const openNavigation = useCallback(
+    (target: NavTarget, opener?: HTMLElement | null) => {
+      setNavTarget({ id: ++navSeq.current, value: target });
       if (mode !== 'explore') {
         drawerOpener.current = opener ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null);
         setDrawer(true);
+      } else if (look.wheelCollapsed) {
+        look.setWheelCollapsed(false);
       }
     },
-    [mode],
+    [mode, look],
   );
+  const filmsFace = films.length > 0 ? 'movies' : 'scenes';
 
   /* ---- clip looping: checked on a short interval, tighter than the 4 Hz timeupdate ---- */
   const clipEnd = clip.end;
@@ -439,10 +460,10 @@ function SkinInner({
     }
   };
 
-  /** Scene previews from the dock, the lens and the Pause Canvas all go to the same instrument: the Optic. */
-  const previewScene = (index: number, opener: HTMLElement | null) => openOptic({ ring: 'scenes', index }, opener);
+  /** Scene previews from the dock, the lens and the Pause Canvas all go to the same instrument: the wheel. */
+  const previewScene = (index: number, opener: HTMLElement | null) => openNavigation({ face: 'scenes', index }, opener);
 
-  /** Explicit film switch from the Optic: the iris marks it, the drawer gets out of the way. */
+  /** Explicit film switch from the wheel: the iris marks it, the drawer gets out of the way. */
   const playFilm = useCallback(
     (id: string) => {
       onPlayFilm?.(id);
@@ -468,9 +489,17 @@ function SkinInner({
       returnAnchor.onReturn();
     } else if ((e.key === 'w' || e.key === 'W') && hasRail && !inPanel) {
       e.preventDefault();
-      if (effectiveMode === 'explore') railRef.current?.querySelector<HTMLElement>('.optic-ring-focus')?.focus();
-      else if (drawerOpen) setDrawer(false);
-      else openOptic({ ring: films.length > 0 ? 'films' : 'scenes' }, reelRef.current);
+      if (effectiveMode === 'explore') {
+        if (look.wheelCollapsed) look.setWheelCollapsed(false);
+        requestAnimationFrame(() =>
+          (railRef.current?.querySelector<HTMLElement>('.wheel-item[tabindex="0"]') ?? railRef.current?.querySelector<HTMLElement>('.rail-tab'))?.focus(),
+        );
+      } else if (drawerOpen) setDrawer(false);
+      else {
+        // Focus comes back to where W was pressed; the reel handle when that was nowhere in particular.
+        const here = document.activeElement instanceof HTMLElement && document.activeElement !== document.body ? document.activeElement : reelRef.current;
+        openNavigation({ face: filmsFace }, here);
+      }
     } else if ((e.key === 'c' || e.key === 'C') && !(e.target as HTMLElement).closest('.cs-panel, .cs-rail, .cs-atlas')) {
       e.preventDefault();
       if (subs.tracks.length === 0) announce('No subtitles available. Open the subtitle settings to add some.');
@@ -482,14 +511,12 @@ function SkinInner({
   };
 
   const ctx = useMemo<SkinContextValue>(
-    () => ({ mode: effectiveMode, setMode, announce, tier, openOptic, closeNavigation }),
-    [effectiveMode, setMode, announce, tier, openOptic, closeNavigation],
+    () => ({ mode: effectiveMode, setMode, announce, tier, openNavigation, closeNavigation }),
+    [effectiveMode, setMode, announce, tier, openNavigation, closeNavigation],
   );
 
-  const reduced = view.prefs.reducedMotion;
   const hasScenes = scenes.length > 0;
   const busy = Boolean(lens || drawerOpen || panel);
-  const momentTimes = useMemo(() => (markers ?? []).filter((m) => m.kind === 'moment').map((m) => m.time), [markers]);
 
   return (
     <SkinContext.Provider value={ctx}>
@@ -500,7 +527,7 @@ function SkinInner({
         data-atm={look.derived.active ? 'on' : 'off'}
         data-has-rail={hasRail ? '' : undefined}
         data-rail={look.wheelCollapsed ? 'collapsed' : 'open'}
-        data-drawer={drawerOpen ? 'open' : undefined}
+        data-drawer={drawerOpen ? 'open' : drawerClosing && effectiveMode !== 'explore' ? 'closing' : undefined}
         data-dock={layout}
         data-lens={lens ? 'open' : undefined}
         data-tier={tier}
@@ -519,20 +546,20 @@ function SkinInner({
               ref={railRef}
               id="cs-rail"
               className="cs-rail"
-              aria-label="XENON Optic: films and scenes"
+              aria-label="Navigate films and scenes"
               inert={!(effectiveMode === 'explore' || drawerOpen)}
               data-interactive
             >
               <div className="cs-rail-inner">
                 <div className="cs-rail-bar">
                   <span className="cs-rail-title" aria-hidden="true">
-                    <ReelIcon /> Optic
+                    <ReelIcon /> Navigate
                   </span>
                   {drawerOpen ? (
                     <button
                       type="button"
                       className="cs-icon-btn cs-rail-toggle"
-                      aria-label="Close the Optic"
+                      aria-label="Close navigation"
                       data-tip="Close (Esc)"
                       data-tip-align="end"
                       onClick={() => setDrawer(false)}
@@ -545,12 +572,12 @@ function SkinInner({
                       className="cs-icon-btn cs-rail-toggle"
                       aria-expanded={!look.wheelCollapsed}
                       aria-controls="cs-rail-body"
-                      aria-label={look.wheelCollapsed ? 'Expand the Optic' : 'Collapse the Optic'}
+                      aria-label={look.wheelCollapsed ? 'Expand navigation' : 'Collapse navigation'}
                       data-tip={look.wheelCollapsed ? 'Expand' : 'Collapse'}
                       data-tip-align="end"
                       onClick={() => {
                         look.setWheelCollapsed(!look.wheelCollapsed);
-                        announce(look.wheelCollapsed ? 'Optic expanded' : 'Optic collapsed');
+                        announce(look.wheelCollapsed ? 'Navigation expanded' : 'Navigation collapsed');
                       }}
                     >
                       <ChevronLeftIcon />
@@ -559,17 +586,20 @@ function SkinInner({
                 </div>
                 {/* inert removes the hidden wheel from the tab order and the accessibility tree while collapsed. */}
                 <div id="cs-rail-body" className="cs-rail-body" inert={look.wheelCollapsed && !drawerOpen}>
-                  {hasOptic ? (
-                    <Optic
+                  {hasNav ? (
+                    <NavigationRail
                       films={films}
                       activeFilmId={activeFilmId}
                       onPlayFilm={onPlayFilm ? playFilm : undefined}
                       scenes={scenes}
                       thumbnailAt={thumbnailAt}
-                      onJump={jump}
+                      onJump={(t, label) => {
+                        jump(t, label);
+                        // Going somewhere from the drawer: it gets out of the way, as Play does.
+                        if (drawerOpen) setDrawer(false);
+                      }}
                       tether={returnAnchor}
-                      moments={momentTimes}
-                      target={opticTarget}
+                      target={navTarget}
                     />
                   ) : null}
                   {railSlot}
@@ -596,14 +626,15 @@ function SkinInner({
                 returnAnchor={returnAnchor}
                 onPreviewScene={previewScene}
                 tier={tier}
-                suppressed={!view.prefs.pauseCanvas || busy}
+                // Below full size the floating pod holds the centre of a short picture and the strip would sit on it.
+                suppressed={!view.prefs.pauseCanvas || busy || (layout === 'floating' && tier !== 'full')}
               />
               <CaptionOverlay />
               {hasRail && effectiveMode === 'watch' && tier !== 'micro' ? (
                 <ReelHandle
                   buttonRef={reelRef}
                   open={drawerOpen}
-                  onToggle={(el) => (drawerOpen ? setDrawer(false) : openOptic({ ring: films.length > 0 ? 'films' : 'scenes' }, el))}
+                  onToggle={(el) => (drawerOpen ? setDrawer(false) : openNavigation({ face: filmsFace }, el))}
                   artwork={artwork ?? null}
                   controlsId="cs-rail"
                 />
@@ -629,7 +660,7 @@ function SkinInner({
                   />
                   {layout === 'floating' ? (
                     <div className="cs-center">
-                      <Transport placement="stage" />
+                      <PlaybackPod placement="stage" />
                     </div>
                   ) : (
                     <div className="cs-center" aria-hidden="true" />
@@ -650,8 +681,8 @@ function SkinInner({
                     onSimple={toggleSimple}
                     lensOpen={Boolean(lens)}
                     onLens={toggleLens}
-                    onOptic={hasScenes ? (el) => openOptic({ ring: 'scenes' }, el) : undefined}
-                    opticOpen={drawerOpen}
+                    onScenes={hasScenes ? (el) => openNavigation({ face: 'scenes' }, el) : undefined}
+                    navOpen={drawerOpen}
                     tether={returnAnchor}
                     journey={journey}
                     filmprintKey={mediaKey}
@@ -722,8 +753,8 @@ function SkinInner({
               onSaveMoment={onSaveMoment}
               onClip={() => openPanel('clip', panelOpener)}
               onLens={() => toggleLens(panelOpener)}
-              onDial={hasScenes ? () => openOptic({ ring: 'scenes' }, panelOpener) : undefined}
-              onWheel={hasRail && effectiveMode !== 'explore' ? () => openOptic({ ring: films.length > 0 ? 'films' : 'scenes' }, panelOpener) : undefined}
+              onDial={hasScenes ? () => openNavigation({ face: 'scenes' }, panelOpener) : undefined}
+              onWheel={hasRail && effectiveMode !== 'explore' ? () => openNavigation({ face: filmsFace }, panelOpener) : undefined}
               onJourney={journey && journey.stops.length > 1 ? () => openPanel('journey', panelOpener) : undefined}
               onSettings={(tab) => {
                 setSettingsTab(tab);
@@ -902,7 +933,7 @@ function SkipButton({ segments, onSkip }: { segments?: SkipSegment[]; onSkip: (t
   );
 }
 
-/** Live needle for the Optic button: where the playhead sits in the runtime, in 5-degree steps. */
+/** Live needle for the Scenes button: where the playhead sits in the runtime, in 5-degree steps. */
 function DialButtonIcon() {
   const angle = usePlayer((s) => (s.duration > 0 ? Math.round((s.currentTime / s.duration) * 72) * 5 : 0));
   return <DialIcon angle={angle} />;
@@ -926,9 +957,9 @@ interface BottomProps {
   lensOpen: boolean;
   onLens: (opener: HTMLElement) => void;
   lens: ReactNode;
-  /** Opens the Optic on the scene ring. */
-  onOptic?: (opener: HTMLElement) => void;
-  opticOpen: boolean;
+  /** Opens the navigation wheel on its Scenes face. */
+  onScenes?: (opener: HTMLElement) => void;
+  navOpen: boolean;
   tether?: { time: number; onReturn: () => void } | null;
   journey?: Journey | null;
   filmprintKey?: string;
@@ -956,8 +987,8 @@ function BottomBar({
   lensOpen,
   onLens,
   lens,
-  onOptic,
-  opticOpen,
+  onScenes,
+  navOpen,
   tether,
   journey,
   filmprintKey,
@@ -1019,7 +1050,7 @@ function BottomBar({
             <span className="cs-group-cap" aria-hidden="true">
               Play
             </span>
-            <Transport placement="dock" />
+            <PlaybackPod placement="dock" />
           </div>
         ) : null}
 
@@ -1090,16 +1121,16 @@ function BottomBar({
             >
               <ClipIcon />
             </button>
-            {hasScenes && onOptic ? (
+            {hasScenes && onScenes ? (
               <button
                 type="button"
                 className="cs-btn"
-                data-optic-opener
-                aria-expanded={opticOpen}
+                data-nav-opener
+                aria-expanded={navOpen}
                 aria-controls="cs-rail"
-                aria-label="Scenes in the Optic"
-                data-tip="Scenes (W)"
-                onClick={(e) => onOptic(e.currentTarget)}
+                aria-label="Scenes on the navigation wheel"
+                data-tip="Scenes"
+                onClick={(e) => onScenes(e.currentTarget)}
               >
                 <DialButtonIcon />
               </button>
@@ -1261,11 +1292,11 @@ function MorePanel({
         </button>
         {onWheel ? (
           <button type="button" className="cs-row-btn" onClick={act(onWheel)}>
-            <ReelIcon /> <span>Optic: films and scenes</span>
+            <ReelIcon /> <span>Navigate: films and scenes</span>
           </button>
         ) : onDial ? (
           <button type="button" className="cs-row-btn" onClick={act(onDial)}>
-            <DialIcon /> <span>Optic: scenes</span>
+            <DialIcon /> <span>Navigate: scenes</span>
           </button>
         ) : null}
         {onJourney ? (

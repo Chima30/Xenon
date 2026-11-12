@@ -20,7 +20,7 @@ Node 20+ (22 LTS recommended).
 | Path | What |
 | --- | --- |
 | `src/skin/` | **The reusable skin.** `CinemaSkin`, keyboard-shortcut dialog, player-health dialog, icons, CSS. Imports nothing from the demo. |
-| `src/features/` | Optional slots: `NavigationWheel` / `NavigationRail` (Movies + Scenes) and `MomentAtlas`. |
+| `src/features/` | Optional slots: `MomentAtlas`. The Movies/Scenes `NavigationWheel` and `NavigationRail` live in `src/skin/wheel/`. |
 | `src/data/` | Demo catalog and localStorage stores (moments, resume positions, My List). |
 | `src/pages/` | Home (dark teal), Player (skin + all features), Skin-only workbench. |
 
@@ -139,11 +139,18 @@ See `ACCESSIBILITY_CHECKLIST.md` for what still needs automated and manual testi
 - **My Atlas**: a strip of frames with names, notes, Play and Preview actions, and a runtime map.
 - **Skin Studio** (`#/studio`, demo only): live presets, colours, radius, panel opacity and blur, font and control size, player width, and copyable CSS.
 
+## Navigation Wheel restored, Precision Playback Pod (fix/wheel-overlap-playback-pod)
+
+- **Drawer overlap fixed.** An open navigation drawer is always the full 380px instrument, whatever the saved collapsed state, and it overlays only the picture's own grid area; it no longer spans grid columns. Explore gives the rail its own column (380px, or a 64px spine when collapsed) and the picture starts where it ends. Small players get a sheet under the picture. All placement lives in one stylesheet, `src/skin/rail.css`.
+  *Root cause:* the open width was set with `@container cs (min-width: 761px) { .cs-root[data-drawer='open'] { --cs-rail-w: 380px } }`. A container query only styles descendants of its container, never the container itself (`.cs-root` is the `cs` container), so that rule never applied. A saved `wheel-collapsed` left `--cs-rail-w` at 64px, while another rule forced the drawer body visible and a third let the drawer span `grid-column: 1 / -1`. The wheel, its title and its card were squeezed into 64px under the picture. The rail rules were spread over five stylesheets.
+- **The curved Movies/Scenes wheel is back** in place of the Optic: NAVIGATE heading, Movies/Scenes switch, the curved filmstrip of rectangular frames, hub readout, viewfinder gate, turning tick dial and the NOW PLAYING / You are in card. Its motion is now a spring engine that writes CSS custom properties every animation frame. Drag and trackpad scroll follow the pointer, a flick coasts and decelerates, and the wheel snaps to the nearest frame. Frames gain subtle depth, the frame in the gate enlarges and catches the film's light, and Movies/Scenes switching folds one face into the hub. React renders only when a different frame reaches the gate. Under reduced motion, selection is immediate. Nothing plays or seeks until the card's **Play** or **Jump**; Enter on a frame moves focus to that action.
+- **XENON Precision Playback Pod.** One capsule: Rewind 10 s | a 64px Play/Pause disc | Forward 10 s. Every part is a real Video.js `SeekButton` / `PlayButton`, so seeking (clamped to the start and end), labels ("Rewind 10 seconds", "Forward 10 seconds", Play/Pause), hotkeys and the status announcer stay Video.js's own; the pod only adds feedback after the original handler runs. Play sends one sweep of light round a hairline ring (no dial) and the icon cross-fades. Pause leaves a restrained outline in the film's colour. A seek nudges the arrow and confirms "−10 s" / "+10 s", or "Start" / "End" when clamped. Its colours come from the film's palette: plum and ember for Sintel, blue and cyan for Tears of Steel, forest green and gold for Big Buck Bunny. It fades while playing and never blocks a click when idle.
+
 ## Signature Optical Cinema (design/optical-cinema)
 
 One instrument, three ideas that work together: **look** through the Optic, **leave** a Time Tether behind you, **keep** what matters as a Memory Capsule.
 
-- **XENON Optic** replaces the Movies wheel, the Scenes wheel, the Scene Dial and the Time Portal with a single lens. The outer ring carries the films, the inner ring the scenes of the film that is playing (laid out by real time), and the centre is the lens: a real still of whatever the rings point at, read out below with one action. Turning the films ring never switches films; **Play** does, and an **Optical Iris** closes and opens over the picture as it happens. Both rings are ARIA sliders (arrows, Home/End, Enter), respond to drag, click and scroll, and **Show as list** gives a plain list of the same choices. It appears as a glass column in Explore (the film's blurred light shows through), as a drawer from the reel handle or **W** elsewhere, and as a bottom sheet under the picture on small players.
+- **XENON Optic** (since replaced by the restored Navigation Wheel, see above) replaced the Movies wheel, the Scenes wheel, the Scene Dial and the Time Portal with a single lens. The outer ring carries the films, the inner ring the scenes of the film that is playing (laid out by real time), and the centre is the lens: a real still of whatever the rings point at, read out below with one action. Turning the films ring never switches films; **Play** does, and an **Optical Iris** closes and opens over the picture as it happens. Both rings are ARIA sliders (arrows, Home/End, Enter), respond to drag, click and scroll, and **Show as list** gives a plain list of the same choices. It appears as a glass column in Explore (the film's blurred light shows through), as a drawer from the reel handle or **W** elsewhere, and as a bottom sheet under the picture on small players.
 - **Filmprint timeline.** 24 stills are sampled once per film from the permitted frame service, averaged to colours and cached; the strip carries the film's colour fingerprint and opens up when you explore it. Hover shows the still and the scene; **T** or the lens button opens the full filmstrip (Time Lens). If stills cannot be read, it is a plain timeline. The seek slider underneath is the real Video.js TimeSlider.
 - **Time Tether and Journey.** Every exploration remembers where you were: a diamond and a dashed band on the timeline, a diamond on the Optic, and a chip beside the time that takes you back in one action (or **B**). The Journey button replays the session's recent stops; it is history, not bookmarks.
 - **Pause Canvas, refined.** One small strip low on the left (under 4% of the frame), with the transport as the clear way back. Scene neighbours and Scene Insight appear only when asked for, the strip dismisses instantly, and captions stay on top.
@@ -156,7 +163,7 @@ One instrument, three ideas that work together: **look** through the Optic, **le
 XENON is drawn as one instrument rather than a toolbar:
 
 - **Reel handle and wheel drawer.** In Watch mode the edge of a film reel sits at the left of the picture, with a sliver of the current film in its window and a lit index. Click it, or press **W**, and it unrolls into the full Movies/Scenes wheel over the left of the picture; Escape or a click outside closes it and focus returns to the reel. Choosing a film opens a **film preview**; nothing changes until you press **Play**. On phones the wheel is a swipe carousel under the video.
-- **Transport.** Rewind and forward are the wings of one machined plate; play/pause is a lens with an engraved bezel that turns a notch on every state change and spins while buffering. It is rendered once: over the picture in Floating, inside the dock in Compact and Expanded.
+- **Transport.** Now the Precision Playback Pod (see above). It is rendered once: over the picture in Floating, inside the dock in Compact and Expanded.
 - **Precision filmstrip timeline.** A real Video.js TimeSlider with one graduation per minute, scene boundaries as cuts, saved moments as lavender bars and the Return Anchor as a diamond. Hovering shows a real still near that second.
 - **Time Lens** (**T** or the lens button). The timeline opens into a filmstrip: a magnified still at the target, nine stills across a 2 min / 40 s / 12 s span, timestamps, scene cuts, moments and the playhead. Arrows, drag or the ±1/±5 s buttons aim it; it never seeks until **Jump**, which leaves a Return Anchor. Without thumbnails it still works as a timecode ruler.
 - **Precision Scene Dial.** A radial ARIA slider whose graduations sit only where scenes really begin, with the playhead, the Return Anchor, a preview and Jump. A plain **List** view offers the same choices. It is hidden when a video has no scene data.
@@ -174,7 +181,7 @@ With the dev server running:
 npm run e2e -- http://localhost:5173 ./e2e-shots
 ```
 
-`scripts/e2e.mjs` drives an installed Chrome or Edge through playwright-core (no browser download): every dock layout at Desktop, Tablet, Phone and Tiny, film switching and theming, the Pause Canvas, the status announcer, the Time Lens, the Scene Dial, the wheel drawer, Explore and My Atlas, keyboard focus, Escape and focus return, reduced motion and high contrast.
+`scripts/e2e.mjs` drives an installed Chrome or Edge through playwright-core (no browser download): every dock layout at Desktop, Tablet, Phone and Tiny, film switching and theming, the Pause Canvas, the status announcer, the Time Lens, the navigation drawer at every size with a saved collapsed rail, Explore collapsed/expanded/reopened, repeated mode switching, reload with saved preferences, wheel scroll/drag/snap, the Playback Pod (exact ±10 s on the real video, clamping, keyboard, touch, palettes), My Atlas, keyboard focus, Escape and focus return, reduced motion and high contrast.
 
 ### Public CSS custom properties
 
@@ -195,4 +202,4 @@ npm run e2e -- http://localhost:5173 ./e2e-shots
 npm test
 ```
 
-Vitest + Testing Library (jsdom): the wheel's keyboard model and Movies/Scenes transform, the Time Portal, film palettes and contrast, moment storage, layout tiers, and the real Video.js skin (mode switching, status announcer, settings Escape and focus return).
+Vitest + Testing Library (jsdom): the wheel's keyboard, scroll and spring motion, external targets and Movies/Scenes fold, the rail's explicit Play/Jump card, the Playback Pod against a real Video.js store (labels, exact ±10 s, clamping, one seek per Enter/Space), film palettes and contrast, moment storage, layout tiers, and the real Video.js skin (mode switching, status announcer, settings Escape and focus return).

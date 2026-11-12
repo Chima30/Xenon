@@ -11,7 +11,7 @@ import {
   useProgress,
 } from '../data/stores';
 import { MomentAtlas } from '../features/MomentAtlas';
-import { CinemaSkin, clamp, formatTime, type DiagRow, type Journey, type OpticFilm, type ResolvedAtmosphere, type SkinScene, type ThumbnailAt, type TimelineMarker } from '../skin';
+import { CinemaSkin, clamp, formatTime, type DiagRow, type Journey, type NavFilm, type ResolvedAtmosphere, type SkinScene, type ThumbnailAt, type TimelineMarker } from '../skin';
 import { ShareIcon } from '../skin/icons';
 
 const MuxVideo = lazy(() => import('@videojs/react/media/mux-video').then((m) => ({ default: m.MuxVideo })));
@@ -161,7 +161,7 @@ function PlayerBody({ initialId, initialTime, initialEnd, bench }: { initialId?:
 
   const now = () => media?.currentTime ?? 0;
 
-  /** Explicit film switch (the Optic's Play, or opening a capsule from another film). Optionally lands on a time. */
+  /** Explicit film switch (the wheel's Play, or opening a capsule from another film). Optionally lands on a time. */
   const selectFilm = (id: string, at?: number) => {
     const next = findFilm(id);
     if (!next || next.id === film.id) return;
@@ -262,8 +262,8 @@ function PlayerBody({ initialId, initialTime, initialEnd, bench }: { initialId?:
     [film],
   );
 
-  /** The Optic's outer ring: every film, with its real still, facts and how far the viewer got. */
-  const films = useMemo<OpticFilm[]>(
+  /** The wheel's Movies face: every film, with its real still, facts and how far the viewer got. */
+  const films = useMemo<NavFilm[]>(
     () =>
       CATALOG.map((f) => {
         const p = progress[f.id];

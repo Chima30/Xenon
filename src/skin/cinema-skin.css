@@ -7,7 +7,6 @@
   /* Colours live in tokens.css (one base + one accent); nothing here may redefine them. */
   --cs-target: 44px;
   --cs-radius: 14px;
-  --cs-rail-w: 360px;
 
   position: relative;
   display: block;
@@ -49,16 +48,7 @@
 }
 
 /* ---------- Layout ---------- */
-
-.cs-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  min-width: 0;
-}
-
-.cs-root[data-mode='explore'] .cs-layout {
-  grid-template-columns: var(--cs-rail-w) minmax(0, 1fr);
-}
+/* The grid itself (stage, rail, atlas) is placed in rail.css only. */
 
 .cs-stagewrap {
   container: csstage / inline-size;
@@ -98,30 +88,8 @@
   display: none;
 }
 
-.cs-rail {
-  min-width: 0;
-  background:
-    radial-gradient(120% 80% at 0% 50%, rgb(173 160 248 / 0.12), transparent 60%),
-    var(--cs-obsidian);
-  border-right: 1px solid var(--cs-line);
-  overflow: hidden;
-}
-
 .cs-root[data-mode='explore'] .cs-stage {
   aspect-ratio: auto;
-}
-
-/* The rail never sets the row height: it fills the video's height and scrolls inside if needed. */
-.cs-rail {
-  position: relative;
-  /* Tall enough for the wheel; the video letterboxes if the row grows past 16:9. */
-  min-height: 600px;
-}
-.cs-rail > .cs-rail-inner {
-  position: absolute;
-  inset: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
 }
 
 .cs-atlas {
@@ -135,13 +103,6 @@
   width: 100vw;
   height: 100vh;
 }
-.cs-root:fullscreen .cs-layout {
-  height: 100%;
-  grid-template-rows: minmax(0, 1fr);
-}
-.cs-root:fullscreen[data-mode='remember'] .cs-layout {
-  grid-template-rows: minmax(0, 1fr) auto;
-}
 .cs-root:fullscreen .cs-stagewrap {
   height: 100%;
 }
@@ -151,26 +112,8 @@
 
 /* Narrow players: the rail becomes a panel under the video. */
 @container cs (max-width: 760px) {
-  .cs-root[data-mode='explore'] .cs-layout {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .cs-rail {
-    order: 2;
-    border-right: 0;
-    border-top: 1px solid var(--cs-line);
-  }
-  .cs-rail {
-    min-height: 0;
-  }
   .cs-root[data-mode='explore'] .cs-stage {
     aspect-ratio: 16 / 9;
-  }
-  .cs-rail > .cs-rail-inner {
-    position: static;
-    overflow: visible;
-  }
-  .cs-root:fullscreen[data-mode='explore'] .cs-layout {
-    grid-template-rows: minmax(0, 1fr) auto;
   }
   /* Text collapses to icon-only visually, but stays in the accessibility tree as the button's name. */
   .cs-seg-btn span,

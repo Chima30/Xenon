@@ -31,13 +31,15 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
     ],
   },
   {
-    title: 'XENON Optic',
+    title: 'Navigation wheel',
     items: [
-      { keys: ['W'], action: 'Open or close the Optic (films and scenes); focus it in Explore' },
-      { keys: ['Tab'], action: 'Move between the films ring, the scenes ring and the actions' },
-      { keys: ['←', '→', '↑', '↓'], action: 'Turn the focused ring: preview a film or scene, never switches or seeks' },
+      { keys: ['W'], action: 'Open or close the navigation wheel (films and scenes); focus it in Explore' },
+      { keys: ['Tab'], action: 'Move between the Movies / Scenes switch, the wheel and the card’s actions' },
+      { keys: ['←', '→', '↑', '↓'], action: 'Turn the wheel: the frame in the gate is described, nothing switches or seeks' },
+      { keys: ['PgUp', 'PgDn'], action: 'Turn three frames at a time' },
       { keys: ['Home', 'End'], action: 'First or last film or scene' },
-      { keys: ['Enter'], action: 'Play the previewed film, or jump to the previewed scene' },
+      { keys: ['Enter'], action: 'Go to the card’s action; Enter again plays the film or jumps to the scene' },
+      { keys: ['Esc'], action: 'Close the navigation drawer' },
     ],
   },
   {
