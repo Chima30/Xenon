@@ -1461,6 +1461,65 @@ await page.locator('.seg-btn', { hasText: 'Default' }).click();
 await page.evaluate(() => localStorage.removeItem('cinema-skin:v1:appearance'));
 await axeAudit(page, 'spectral surfaces');
 
+
+/* ---------- 25. The movable pause console ---------- */
+await open('tears-of-steel');
+await page.waitForFunction(() => (document.querySelector('video')?.readyState ?? 0) >= 2, null, { timeout: 30000 });
+await seekTo(174);
+await page.waitForSelector('.cs-slate');
+await page.waitForTimeout(500);
+const slateAt = () =>
+  page.evaluate(() => {
+    const st = document.querySelector('.cs-stage').getBoundingClientRect();
+    const s = document.querySelector('.cs-slate').getBoundingClientRect();
+    const pod = document.querySelector('.cs-pod').getBoundingClientRect();
+    const top = document.querySelector('.cs-top').getBoundingClientRect();
+    const row = document.querySelector('.cs-row').getBoundingClientRect();
+    return {
+      x: Math.round(s.left - st.left),
+      y: Math.round(s.top - st.top),
+      clear: !(s.left < pod.right && s.right > pod.left && s.top < pod.bottom && s.bottom > pod.top) && s.top >= top.bottom && s.bottom <= row.top,
+      t: document.querySelector('video').currentTime,
+      saved: localStorage.getItem('cinema-skin:v1:slate-pos'),
+    };
+  });
+const s0 = await slateAt();
+const grip = await page.locator('.cs-slate-grip').boundingBox();
+await page.mouse.move(grip.x + 10, grip.y + 10);
+await page.mouse.down();
+for (let i = 1; i <= 8; i++) await page.mouse.move(grip.x + 10 + i * 80, grip.y + 10 - i * 30);
+await page.mouse.up();
+await page.waitForTimeout(200);
+const s1 = await slateAt();
+const podBox = await page.locator('.cs-pod').boundingBox();
+const grip2 = await page.locator('.cs-slate-grip').boundingBox();
+await page.mouse.move(grip2.x + 10, grip2.y + 10);
+await page.mouse.down();
+await page.mouse.move(podBox.x + 10, podBox.y + 10, { steps: 8 });
+await page.mouse.up();
+await page.waitForTimeout(200);
+const s2 = await slateAt();
+check('Pause console: drag moves it, it settles clear of the pod, top bar and dock, and the place is saved', s1.x > s0.x + 300 && s1.clear && s2.clear && !!s2.saved, JSON.stringify({ s0, s1, s2 }));
+await page.locator('.cs-slate-grip').focus();
+await page.keyboard.press('ArrowLeft');
+await page.keyboard.press('Shift+ArrowUp');
+await page.waitForTimeout(150);
+const s3 = await slateAt();
+check('Arrow keys on the grip move the console without seeking the film', s3.x < s2.x && s3.y < s2.y && Math.abs(s3.t - s2.t) < 0.01, JSON.stringify(s3));
+await page.reload();
+await page.waitForSelector('.cs-root');
+await page.waitForFunction(() => (document.querySelector('video')?.readyState ?? 0) >= 2, null, { timeout: 30000 });
+await seekTo(174);
+await page.waitForSelector('.cs-slate');
+await page.waitForTimeout(500);
+const s4 = await slateAt();
+await page.locator('.cs-slate-grip').focus();
+await page.keyboard.press('Home');
+await page.waitForTimeout(150);
+const s5 = await slateAt();
+check('The place survives a reload; Home puts the console back and forgets the place', Math.abs(s4.x - s3.x) <= 1 && Math.abs(s4.y - s3.y) <= 1 && s5.x === s0.x && s5.y === s0.y && s5.saved === 'null', JSON.stringify({ s4, s5 }));
+await axeAudit(page, 'movable pause console');
+
 check('No uncaught page errors', errors.length === 0, errors.slice(0, 3).join(' | '));
 
 await browser.close();

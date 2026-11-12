@@ -90,7 +90,7 @@ Floating, non-modal panels (Escape closes, focus returns to the button, outside 
 
 ## Keyboard
 
-`Space`/`K` play, `←`/`J` and `→`/`L` ±10 s, `X` clear frame (when paused), `↑`/`↓` volume, `M` mute, `C` captions (when a track exists), `F` fullscreen, `I` picture-in-picture (when supported), `?` shortcuts, `Esc` closes things. In the wheel the arrows browse instead.
+`Space`/`K` play, `←`/`J` and `→`/`L` ±10 s, `X` clear frame (when paused; the pause slate's grip moves it with the arrow keys), `↑`/`↓` volume, `M` mute, `C` captions (when a track exists), `F` fullscreen, `I` picture-in-picture (when supported), `?` shortcuts, `Esc` closes things. In the wheel the arrows browse instead.
 
 ## Media and credits
 
@@ -138,6 +138,15 @@ See `ACCESSIBILITY_CHECKLIST.md` for what still needs automated and manual testi
 - **Timeline preview**: hovering the seek bar shows a real still near that second and the scene name. Scene boundaries are drawn as cuts on the bar.
 - **My Atlas**: a strip of frames with names, notes, Play and Preview actions, and a runtime map.
 - **Skin Studio** (`#/studio`, demo only): live presets, colours, radius, panel opacity and blur, font and control size, player width, and copyable CSS.
+
+## Movable pause console (feature/movable-slate)
+
+The Film Slate can be moved anywhere on the picture:
+- **Drag:** use the grip on its title row (mouse, pen or touch). Only the grip moves it, so the slate's buttons stay clickable.
+- **Keyboard:** with the grip focused, the arrow keys move it (Shift moves further), and they never reach the player's seek keys. Home, or a double-click on the grip, puts it back in the lower left.
+- **Stays clear:** it settles under the top bar and above the dock. If it is dropped on the Playback Pod, it slides to the nearest clear place.
+- **Remembered:** the position is saved in localStorage as a proportion of the free area, so it holds across reloads and player sizes.
+- **No re-renders while dragging:** the slate moves with a transform; React only renders when you let go.
 
 ## Spectral gradients (feature/spectral-gradients)
 

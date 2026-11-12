@@ -3,10 +3,11 @@ import { useEffect, useId, useRef, useState } from 'react';
 import type { ThumbnailAt } from './dock/Timeline';
 import { formatTime } from './format';
 import type { Tier } from './hooks';
-import { BookmarkIcon, FrameIcon, ReturnIcon } from './icons';
+import { BookmarkIcon, FrameIcon, GripIcon, ReturnIcon } from './icons';
 import { sceneIndexAt, sceneKind, type SkinScene } from './scenes';
 import { useFrameColours } from './slate/frameColours';
 import { SlateStick } from './slate/SlateStick';
+import { useMovableSlate } from './slate/movable';
 import './pause.css';
 
 interface Props {
@@ -37,6 +38,7 @@ interface Props {
  */
 export function PauseCanvas({ title, subtitle, scenes, thumbnailAt, onSaveMoment, returnAnchor, onPreviewScene, tier, suppressed, cleared, onClear }: Props) {
   const sectionRef = useRef<HTMLElement>(null);
+  const gripRef = useRef<HTMLButtonElement>(null);
   const paused = usePlayer((s) => s.paused);
   const ended = usePlayer((s) => s.ended);
   const canPlay = usePlayer((s) => s.canPlay);
@@ -65,6 +67,8 @@ export function PauseCanvas({ title, subtitle, scenes, thumbnailAt, onSaveMoment
 
   const visible = shown && !cleared;
   const colours = useFrameColours(visible, now, sectionRef, thumbnailAt);
+  // The pause console can be moved anywhere on the picture, clear of the controls; the place is remembered.
+  useMovableSlate(sectionRef, gripRef, visible);
   if (!visible) return null;
 
   const idx = sceneIndexAt(scenes, now);
@@ -98,6 +102,17 @@ export function PauseCanvas({ title, subtitle, scenes, thumbnailAt, onSaveMoment
         <SlateStick colours={colours} />
         <div className="cs-slate-board">
           <div className="cs-slate-head">
+            <button
+              ref={gripRef}
+              type="button"
+              className="cs-slate-grip"
+              aria-label="Move the pause slate. Drag, or use the arrow keys; Home puts it back"
+              aria-keyshortcuts="ArrowLeft ArrowRight ArrowUp ArrowDown Home"
+              data-tip="Drag to move · Home resets"
+              data-tip-pos="below"
+            >
+              <GripIcon />
+            </button>
             <span className="cs-pause-led" aria-hidden="true" />
             <span className="cs-slate-word">Paused</span>
             {title ? <span className="cs-slate-title">{title}</span> : null}

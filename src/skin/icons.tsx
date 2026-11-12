@@ -100,6 +100,17 @@ export const BookmarkIcon = (p: IconProps) => (
     <path d="M6.5 4h11a1 1 0 0 1 1 1v15l-6.5-4-6.5 4V5a1 1 0 0 1 1-1Z" />
   </Base>
 );
+/** A grip: six dots, the handle that moves the pause slate. */
+export const GripIcon = (p: IconProps) => (
+  <Base {...p} fill="currentColor" stroke="none">
+    <circle cx="9" cy="6" r="1.6" />
+    <circle cx="15" cy="6" r="1.6" />
+    <circle cx="9" cy="12" r="1.6" />
+    <circle cx="15" cy="12" r="1.6" />
+    <circle cx="9" cy="18" r="1.6" />
+    <circle cx="15" cy="18" r="1.6" />
+  </Base>
+);
 /** Clear Frame: four corner markers around an empty frame. */
 export const FrameIcon = (p: IconProps) => (
   <Base {...p}>

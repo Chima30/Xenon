@@ -516,3 +516,51 @@
     border: 1px solid CanvasText;
   }
 }
+
+/* ---------- The movable pause console ---------- */
+
+.cs-slate-grip {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 28px;
+  height: var(--h-ctl);
+  margin: -6px 0 -6px -8px;
+  padding: 0;
+  color: var(--cs-label);
+  cursor: grab;
+  touch-action: none;
+  background: transparent;
+  border: 0;
+  border-radius: var(--r-sm);
+  transition: color var(--t-fast) ease, background-color var(--t-fast) ease;
+}
+.cs-slate-grip svg {
+  width: 16px;
+  height: 16px;
+}
+@media (hover: hover) {
+  .cs-slate-grip:hover {
+    color: var(--cs-ice);
+    background: var(--cs-steel);
+  }
+}
+.cs-slate-grip:focus-visible {
+  outline: 3px solid var(--cs-focus);
+  outline-offset: 1px;
+}
+.cs-pause[data-dragging] {
+  z-index: 6;
+  animation: none;
+  cursor: grabbing;
+}
+.cs-pause[data-dragging] .cs-slate-grip {
+  cursor: grabbing;
+  color: var(--cs-citron);
+}
+.cs-pause[data-dragging] .cs-slate {
+  filter: drop-shadow(0 18px 36px rgb(0 0 0 / 0.55));
+}
+.cs-root[data-motion='reduce'] .cs-slate-grip {
+  transition: none;
+}
