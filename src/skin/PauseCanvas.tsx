@@ -3,7 +3,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import type { ThumbnailAt } from './dock/Timeline';
 import { formatTime } from './format';
 import type { Tier } from './hooks';
-import { BookmarkIcon, CloseIcon, ReturnIcon } from './icons';
+import { BookmarkIcon, FrameIcon, ReturnIcon } from './icons';
 import { sceneIndexAt, sceneKind, type SkinScene } from './scenes';
 import { useFrameColours } from './slate/frameColours';
 import { SlateStick } from './slate/SlateStick';
@@ -21,6 +21,9 @@ interface Props {
   tier: Tier;
   /** Something else (the lens, the navigation drawer, a panel) already has the viewer's attention. */
   suppressed: boolean;
+  /** Clear Frame: the viewer put the pause information away for this pause (X, or the slate's own button). */
+  cleared: boolean;
+  onClear: () => void;
 }
 
 /**
@@ -30,9 +33,9 @@ interface Props {
  * paused on. It closes with a small clap as it appears.
  *
  * It is not a dialog: it takes no focus, and Space/K or the pod resumes. Neighbouring scenes appear only when asked
- * for, and the slate can be put away at once.
+ * for, and Clear Frame (its own button, or X) puts it away for this pause while the playback controls stay.
  */
-export function PauseCanvas({ title, subtitle, scenes, thumbnailAt, onSaveMoment, returnAnchor, onPreviewScene, tier, suppressed }: Props) {
+export function PauseCanvas({ title, subtitle, scenes, thumbnailAt, onSaveMoment, returnAnchor, onPreviewScene, tier, suppressed, cleared, onClear }: Props) {
   const sectionRef = useRef<HTMLElement>(null);
   const paused = usePlayer((s) => s.paused);
   const ended = usePlayer((s) => s.ended);
@@ -45,7 +48,6 @@ export function PauseCanvas({ title, subtitle, scenes, thumbnailAt, onSaveMoment
 
   const eligible = paused && !ended && canPlay && !error && !seeking && now >= 1 && tier !== 'micro' && !suppressed;
   const [shown, setShown] = useState(false);
-  const [dismissed, setDismissed] = useState(false);
   const [more, setMore] = useState(false);
   // A short delay, so a pause that is only part of a seek or a quick toggle never flashes the slate.
   useEffect(() => {
@@ -56,15 +58,12 @@ export function PauseCanvas({ title, subtitle, scenes, thumbnailAt, onSaveMoment
     const t = window.setTimeout(() => setShown(true), 420);
     return () => window.clearTimeout(t);
   }, [eligible]);
-  // Every new pause starts fresh: dismissed and expanded states belong to one pause.
+  // Every new pause starts fresh: the expanded state belongs to one pause (Clear Frame is reset by the skin).
   useEffect(() => {
-    if (!paused) {
-      setDismissed(false);
-      setMore(false);
-    }
+    if (!paused) setMore(false);
   }, [paused]);
 
-  const visible = shown && !dismissed;
+  const visible = shown && !cleared;
   const colours = useFrameColours(visible, now, sectionRef, thumbnailAt);
   if (!visible) return null;
 
@@ -102,8 +101,8 @@ export function PauseCanvas({ title, subtitle, scenes, thumbnailAt, onSaveMoment
             <span className="cs-pause-led" aria-hidden="true" />
             <span className="cs-slate-word">Paused</span>
             {title ? <span className="cs-slate-title">{title}</span> : null}
-            <button type="button" className="cs-pause-btn cs-pause-close" onClick={() => setDismissed(true)} aria-label="Put the slate away" data-tip="Hide">
-              <CloseIcon />
+            <button type="button" className="cs-pause-btn cs-pause-close" onClick={onClear} aria-label="Clear frame: hide the pause information" aria-keyshortcuts="x" data-tip="Clear frame (X)" data-tip-align="end">
+              <FrameIcon />
             </button>
           </div>
           <div className="cs-slate-row">

@@ -542,6 +542,8 @@ export function NavigationWheel({ variant, sets, point, onPoint }: WheelProps) {
           </div>
           {/* The gate: a fixed viewfinder frame. Whatever sits inside it is what the detail card describes. */}
           <div key={fired} className="wheel-gate" data-fired={fired > 0 || undefined} aria-hidden="true" />
+          {/* Explore: a fine line from the gate to the seam with the picture, pulsing once per new frame in the gate. */}
+          <div key={`coupler-${shown}-${gate}`} className="wheel-coupler" aria-hidden="true" />
         </>
       ) : null}
       <ul className="wheel-list" aria-label={set.label}>

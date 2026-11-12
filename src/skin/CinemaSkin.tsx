@@ -33,6 +33,7 @@ import { TimeLens } from './dock/TimeLens';
 import { PlaybackPod } from './dock/PlaybackPod';
 import { SeekLens } from './dock/SeekLens';
 import { TailSlate } from './slate/TailSlate';
+import { PhotonFrame } from './frame/PhotonFrame';
 import { formatTime } from './format';
 import { useWidthTier, type Tier } from './hooks';
 import {
@@ -84,6 +85,7 @@ import './instrument.css';
 import './hardware.css';
 import './optical.css';
 import './rail.css';
+import './frame/frame.css';
 
 export type { ScenePreview, ThumbnailAt, TimelineMarker } from './dock/Timeline';
 export type { SkinScene } from './scenes';
@@ -489,7 +491,10 @@ function SkinInner({
   const onKeyDown = (e: ReactKeyboardEvent<HTMLDivElement>) => {
     if (isEditable(e.target) || e.ctrlKey || e.metaKey || e.altKey) return;
     const inPanel = (e.target as HTMLElement).closest('.cs-panel, .cs-atlas, .cs-lens');
-    if (e.key === 'Escape' && drawerOpen) {
+    if ((e.key === 'x' || e.key === 'X') && playbackPaused && !inPanel && !(e.target as HTMLElement).closest('.cs-rail')) {
+      e.preventDefault();
+      toggleClearFrame();
+    } else if (e.key === 'Escape' && drawerOpen) {
       e.preventDefault();
       setDrawer(false);
     } else if (e.key === '?') {
@@ -532,12 +537,49 @@ function SkinInner({
   const hasScenes = scenes.length > 0;
   const busy = Boolean(lens || drawerOpen || panel);
 
+  /* ---- Photon Frame: playback state, the save pulse, Clear Frame ---- */
+  const playbackPaused = usePlayer((s) => s.paused);
+  const playbackEnded = usePlayer((s) => s.ended);
+  const playback = playbackEnded ? 'ended' : playbackPaused ? 'paused' : 'playing';
+  // A save from anywhere (dock, slate, My Atlas) adds a moment marker for this film: that is the confirmation.
+  const momentCount = useMemo(() => (markers ?? []).filter((m) => m.kind === 'moment').length, [markers]);
+  const [savedFlash, setSavedFlash] = useState(0);
+  const lastMoments = useRef<{ key: string | undefined; n: number }>({ key: mediaKey, n: momentCount });
+  useEffect(() => {
+    const prev = lastMoments.current;
+    lastMoments.current = { key: mediaKey, n: momentCount };
+    if (prev.key === mediaKey && momentCount > prev.n) setSavedFlash((f) => f + 1);
+  }, [momentCount, mediaKey]);
+  useEffect(() => {
+    if (!savedFlash) return;
+    const t = window.setTimeout(() => setSavedFlash(0), 900);
+    return () => window.clearTimeout(t);
+  }, [savedFlash]);
+  // Clear Frame: put the optional pause information away for this pause; playback controls stay where they are.
+  const [frameCleared, setFrameCleared] = useState(false);
+  useEffect(() => {
+    if (!playbackPaused) setFrameCleared(false);
+  }, [playbackPaused]);
+  const toggleClearFrame = () => {
+    const next = !frameCleared;
+    setFrameCleared(next);
+    announce(next ? 'Frame cleared. Press X to show the pause information again.' : 'Pause information shown');
+    if (next) {
+      // Focus never falls to the page: it goes to the pod, the primary playback control.
+      requestAnimationFrame(() => {
+        const a = document.activeElement;
+        if (!a || a === document.body || !a.isConnected || a.closest('.cs-pause')) wrapRef.current?.querySelector<HTMLElement>('.cs-pod-play')?.focus({ preventScroll: true });
+      });
+    }
+  };
+
   return (
     <SkinContext.Provider value={ctx}>
       <Container
         className={`cs-root ${className ?? ''}`}
         data-scrim={scrim}
         data-mode={effectiveMode}
+        data-playback={playback}
         data-atm={look.derived.active ? 'on' : 'off'}
         data-has-rail={hasRail ? '' : undefined}
         data-rail={look.wheelCollapsed ? 'collapsed' : 'open'}
@@ -642,8 +684,12 @@ function SkinInner({
                 tier={tier}
                 // Below full size the floating pod holds the centre of a short picture and the strip would sit on it.
                 suppressed={!view.prefs.pauseCanvas || busy || (layout === 'floating' && tier !== 'full')}
+                cleared={frameCleared}
+                onClear={toggleClearFrame}
               />
               <TailSlate
+                cleared={frameCleared}
+                onClear={toggleClearFrame}
                 title={title}
                 films={films}
                 activeFilmId={activeFilmId}
@@ -801,6 +847,8 @@ function SkinInner({
             </section>
           ) : null}
         </div>
+
+        <PhotonFrame flash={savedFlash} />
 
         <KeymapDialog open={helpOpen} onClose={() => setHelpOpen(false)} />
         <DiagnosticsDialog open={diagOpen} onClose={() => setDiagOpen(false)} extraRows={diagnosticsRows} />

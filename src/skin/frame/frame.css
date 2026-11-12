@@ -1,0 +1,388 @@
+/* ==========================================================================
+   XENON Photon Frame. Loaded last.
+   The housing of the instrument: a 1px machined rim on the player's own radius and four optical corner markers.
+   Lightweight CSS on attributes the skin already sets; nothing animates continuously.
+   ========================================================================== */
+
+/* The frame's colours are registered, so a change of film glides instead of snapping. */
+@property --pf-accent {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #ffffff;
+}
+@property --pf-glow {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #ffffff;
+}
+@property --pf-tint {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #ffffff;
+}
+
+/* The shell: no thick border and no large glow any more; the rim and a modest shadow do that work. */
+.cs-root,
+.cs-root[data-atm] {
+  --pf-edge: linear-gradient(
+    170deg,
+    rgb(255 255 255 / 0.24),
+    rgb(255 255 255 / 0.07) 32%,
+    rgb(0 0 0 / 0.32) 72%,
+    rgb(255 255 255 / 0.12)
+  );
+  border: 0;
+  box-shadow: 0 18px 44px rgb(0 0 0 / 0.38);
+}
+
+.cs-photon {
+  --pf-accent: var(--cs-citron);
+  --pf-glow: var(--cs-glow);
+  --pf-tint: var(--cs-secondary);
+  --pf-corner: color-mix(in srgb, var(--cs-ice) 62%, var(--pf-accent));
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  border-radius: var(--r-xl);
+  pointer-events: none;
+  transition:
+    --pf-accent 0.9s ease,
+    --pf-glow 0.9s ease,
+    --pf-tint 0.9s ease;
+}
+
+/* ---------- Rim: a 1px machined edge, light from above, the film's second colour in its shade ---------- */
+
+.cs-photon-rim,
+.cs-photon::before {
+  position: absolute;
+  inset: 0;
+  padding: 1px;
+  border-radius: inherit;
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box exclude,
+    linear-gradient(#000 0 0);
+}
+.cs-photon-rim {
+  background:
+    var(--pf-edge),
+    linear-gradient(170deg, transparent 40%, color-mix(in srgb, var(--pf-tint) 30%, transparent) 70%, transparent);
+}
+/* The illuminated layer of the rim: off while playing, a trace when paused, lavender when a moment is saved. */
+.cs-photon::before {
+  content: '';
+  background: linear-gradient(
+    135deg,
+    var(--pf-accent),
+    transparent 22%,
+    transparent 78%,
+    var(--pf-accent)
+  );
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+
+/* ---------- Optical corner markers ---------- */
+
+.cs-photon-corner {
+  --arm: 46px;
+  --w: 2px;
+  position: absolute;
+  width: var(--arm);
+  height: var(--arm);
+  border: 0 solid var(--pf-corner);
+  opacity: 0.5;
+  transition:
+    opacity 0.35s ease,
+    border-color 0.35s ease;
+}
+.cs-photon-corner[data-corner='tl'] {
+  top: 0;
+  left: 0;
+  border-top-width: var(--w);
+  border-left-width: var(--w);
+  border-top-left-radius: var(--r-xl);
+  -webkit-mask: radial-gradient(circle at 0 0, #000 34%, transparent 82%);
+  mask: radial-gradient(circle at 0 0, #000 34%, transparent 82%);
+}
+.cs-photon-corner[data-corner='tr'] {
+  top: 0;
+  right: 0;
+  border-top-width: var(--w);
+  border-right-width: var(--w);
+  border-top-right-radius: var(--r-xl);
+  -webkit-mask: radial-gradient(circle at 100% 0, #000 34%, transparent 82%);
+  mask: radial-gradient(circle at 100% 0, #000 34%, transparent 82%);
+}
+.cs-photon-corner[data-corner='br'] {
+  right: 0;
+  bottom: 0;
+  border-right-width: var(--w);
+  border-bottom-width: var(--w);
+  border-bottom-right-radius: var(--r-xl);
+  -webkit-mask: radial-gradient(circle at 100% 100%, #000 34%, transparent 82%);
+  mask: radial-gradient(circle at 100% 100%, #000 34%, transparent 82%);
+}
+.cs-photon-corner[data-corner='bl'] {
+  bottom: 0;
+  left: 0;
+  border-bottom-width: var(--w);
+  border-left-width: var(--w);
+  border-bottom-left-radius: var(--r-xl);
+  -webkit-mask: radial-gradient(circle at 0 100%, #000 34%, transparent 82%);
+  mask: radial-gradient(circle at 0 100%, #000 34%, transparent 82%);
+}
+/* The lens index: a small ring with a lit centre on the corner's diagonal, just inside the curve. */
+.cs-photon-lens {
+  --off: calc(var(--r-xl) * 0.3 + 3px);
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  border: 1px solid var(--pf-corner);
+  border-radius: 50%;
+  transition: border-color 0.35s ease;
+}
+.cs-photon-lens::after {
+  content: '';
+  position: absolute;
+  inset: 1.5px;
+  background: var(--pf-corner);
+  border-radius: 50%;
+  transition: background-color 0.35s ease;
+}
+[data-corner='tl'] > .cs-photon-lens {
+  top: var(--off);
+  left: var(--off);
+}
+[data-corner='tr'] > .cs-photon-lens {
+  top: var(--off);
+  right: var(--off);
+}
+[data-corner='br'] > .cs-photon-lens {
+  right: var(--off);
+  bottom: var(--off);
+}
+[data-corner='bl'] > .cs-photon-lens {
+  bottom: var(--off);
+  left: var(--off);
+}
+
+/* ---------- Playing: minimal. While the controls rest, the corners all but withdraw. ---------- */
+
+.cs-root[data-playback='playing']:not(:has(.cs-controls[data-visible])) .cs-photon-corner {
+  opacity: 0.22;
+}
+
+/* ---------- Paused (and the end of the film): the corners light in turn, then stay softly lit ---------- */
+
+.cs-root:is([data-playback='paused'], [data-playback='ended']) .cs-photon {
+  --pf-corner: var(--pf-accent);
+}
+.cs-root:is([data-playback='paused'], [data-playback='ended']) .cs-photon-corner {
+  opacity: 0.95;
+  animation: pf-freeze 0.5s ease-out both;
+}
+.cs-root:is([data-playback='paused'], [data-playback='ended']) .cs-photon::before {
+  opacity: 0.32;
+  animation: pf-freeze-rim 0.55s ease-out both;
+}
+.cs-photon-corner[data-corner='tr'] {
+  animation-delay: 70ms;
+}
+.cs-photon-corner[data-corner='br'] {
+  animation-delay: 140ms;
+}
+.cs-photon-corner[data-corner='bl'] {
+  animation-delay: 210ms;
+}
+@keyframes pf-freeze {
+  0% {
+    opacity: 0.5;
+  }
+  35% {
+    opacity: 1;
+    filter: brightness(1.5);
+  }
+  100% {
+    opacity: 0.95;
+    filter: none;
+  }
+}
+@keyframes pf-freeze-rim {
+  0% {
+    opacity: 0;
+  }
+  30% {
+    opacity: 0.7;
+  }
+  100% {
+    opacity: 0.32;
+  }
+}
+
+/* ---------- Saved moment: a short lavender pulse, the Moment Atlas colour ---------- */
+
+.cs-root .cs-photon[data-flash] {
+  --pf-corner: var(--cs-lavender);
+}
+.cs-root .cs-photon[data-flash] .cs-photon-corner {
+  opacity: 1;
+}
+.cs-root .cs-photon[data-flash]::before {
+  background: linear-gradient(135deg, var(--cs-lavender), color-mix(in srgb, var(--cs-lavender) 35%, transparent) 40%, color-mix(in srgb, var(--cs-lavender) 35%, transparent) 60%, var(--cs-lavender));
+  animation: pf-saved-a 0.9s ease-out both;
+}
+.cs-root .cs-photon[data-flash='b']::before {
+  animation-name: pf-saved-b;
+}
+@keyframes pf-saved-a {
+  0% {
+    opacity: 0.2;
+  }
+  18% {
+    opacity: 1;
+  }
+  70% {
+    opacity: 0.85;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes pf-saved-b {
+  0% {
+    opacity: 0.2;
+  }
+  18% {
+    opacity: 1;
+  }
+  70% {
+    opacity: 0.85;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* ---------- Exploring: the seam between the wheel and the picture carries the frame's light ---------- */
+
+.cs-root[data-mode='explore'] .cs-rail {
+  box-shadow:
+    inset -1px 0 0 color-mix(in srgb, var(--cs-citron) 34%, transparent),
+    inset -2px 0 6px -4px color-mix(in srgb, var(--cs-citron) 40%, transparent);
+}
+
+/* ---------- Fullscreen: the picture comes first ---------- */
+
+.cs-root:fullscreen .cs-photon {
+  display: none;
+}
+.cs-root:fullscreen {
+  box-shadow: none;
+}
+
+/* ---------- The dock wears the same rim ---------- */
+
+.cs-root:not([data-hc]):not([data-scrim='high-contrast']) .cs-row {
+  border-color: transparent;
+}
+.cs-row::after {
+  content: '';
+  position: absolute;
+  inset: calc(var(--bw) * -1);
+  padding: 1px;
+  background:
+    var(--pf-edge),
+    linear-gradient(170deg, transparent 45%, color-mix(in srgb, var(--cs-secondary) 26%, transparent) 75%, transparent);
+  border-radius: inherit;
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box exclude,
+    linear-gradient(#000 0 0);
+  pointer-events: none;
+}
+.cs-root[data-dock='expanded'] .cs-row::after,
+.cs-root:is([data-hc], [data-scrim='high-contrast']) .cs-row::after {
+  content: none;
+}
+/* The Expanded console meets the picture along one machined line. */
+.cs-root[data-dock='expanded'] .cs-bottom {
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.14),
+    inset 0 2px 0 rgb(0 0 0 / 0.35);
+}
+.cs-pod::before {
+  border-color: color-mix(in srgb, var(--cs-ice) 18%, transparent);
+}
+
+/* ---------- Smaller players: simpler marks ---------- */
+
+@container cs (max-width: 760px) {
+  .cs-photon-corner {
+    --arm: 32px;
+  }
+}
+@container cs (max-width: 520px) {
+  .cs-photon-corner {
+    --arm: 24px;
+    animation: none !important;
+  }
+  .cs-photon-lens {
+    display: none;
+  }
+}
+@container cs (max-width: 339px) {
+  .cs-photon-corner {
+    --arm: 16px;
+    --w: 1.5px;
+  }
+  .cs-photon::before {
+    display: none;
+  }
+}
+
+/* ---------- Preferences ---------- */
+
+.cs-root[data-motion='reduce'] :is(.cs-photon, .cs-photon-corner, .cs-photon-lens, .cs-photon-lens::after),
+.cs-root[data-motion='reduce'] .cs-photon::before {
+  transition: none !important;
+  animation: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .cs-photon,
+  .cs-photon::before,
+  .cs-photon-corner,
+  .cs-photon-lens,
+  .cs-photon-lens::after {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+.cs-root[data-hc] .cs-photon-rim {
+  background: #fff;
+}
+.cs-root[data-hc] .cs-photon {
+  --pf-corner: #fff;
+}
+.cs-root[data-hc] :is(.cs-photon, .cs-photon-corner, .cs-photon-lens, .cs-photon-lens::after) {
+  transition: none;
+}
+.cs-root[data-hc] .cs-photon-corner {
+  opacity: 1;
+  animation: none;
+}
+.cs-root[data-hc] .cs-photon::before {
+  display: none;
+}
+@media (forced-colors: active) {
+  .cs-photon {
+    display: none;
+  }
+}

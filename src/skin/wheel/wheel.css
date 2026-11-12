@@ -200,6 +200,44 @@
   }
 }
 
+/* The coupler (Explore only): from the gate to the seam with the picture, where it meets the Photon Frame's lit
+   edge. It replays one short pulse whenever a different frame reaches the gate. */
+.wheel-coupler {
+  position: absolute;
+  top: 50%;
+  left: calc(var(--cx) + var(--R) + var(--card-w) * 0.55 + 9px);
+  right: 0;
+  z-index: 6;
+  display: none;
+  height: 1px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--cs-citron) 75%, transparent), color-mix(in srgb, var(--cs-citron) 30%, transparent));
+  opacity: calc(0.35 + var(--wheel-lock, 1) * 0.65);
+  pointer-events: none;
+  animation: wheel-couple 0.45s ease-out both;
+}
+.wheel-coupler::after {
+  content: '';
+  position: absolute;
+  top: -2px;
+  right: 0;
+  width: 5px;
+  height: 5px;
+  background: var(--cs-citron);
+  border-radius: 50%;
+  box-shadow: 0 0 6px color-mix(in srgb, var(--cs-citron) 70%, transparent);
+}
+.cs-root[data-mode='explore'] .wheel[data-layout='arc'] .wheel-coupler {
+  display: block;
+}
+@keyframes wheel-couple {
+  0% {
+    clip-path: inset(0 100% 0 0);
+  }
+  100% {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
 /* ---------- Frames on the circle ---------- */
 
 .wheel-list {
@@ -594,7 +632,7 @@
 
 /* ---------- Motion preferences ---------- */
 
-.cs-root[data-motion='reduce'] :is(.rail-tab, .wheel-item, .wheel-gate),
+.cs-root[data-motion='reduce'] :is(.rail-tab, .wheel-item, .wheel-gate, .wheel-coupler),
 .cs-root[data-motion='reduce'] .wheel-badge-dot {
   transition: none !important;
   animation: none !important;
@@ -606,7 +644,8 @@
 @media (prefers-reduced-motion: reduce) {
   .rail-tabs::before,
   .rail-tab,
-  .wheel-item {
+  .wheel-item,
+  .wheel-coupler {
     transition: none !important;
     animation: none !important;
   }
@@ -633,6 +672,10 @@
 }
 .cs-root[data-hc] .wheel-light {
   display: none;
+}
+.cs-root[data-hc] .wheel-coupler {
+  background: #fff;
+  opacity: 1;
 }
 @media (forced-colors: active) {
   .wheel-item {

@@ -90,7 +90,7 @@ Floating, non-modal panels (Escape closes, focus returns to the button, outside 
 
 ## Keyboard
 
-`Space`/`K` play, `←`/`J` and `→`/`L` ±10 s, `↑`/`↓` volume, `M` mute, `C` captions (when a track exists), `F` fullscreen, `I` picture-in-picture (when supported), `?` shortcuts, `Esc` closes things. In the wheel the arrows browse instead.
+`Space`/`K` play, `←`/`J` and `→`/`L` ±10 s, `X` clear frame (when paused), `↑`/`↓` volume, `M` mute, `C` captions (when a track exists), `F` fullscreen, `I` picture-in-picture (when supported), `?` shortcuts, `Esc` closes things. In the wheel the arrows browse instead.
 
 ## Media and credits
 
@@ -138,6 +138,21 @@ See `ACCESSIBILITY_CHECKLIST.md` for what still needs automated and manual testi
 - **Timeline preview**: hovering the seek bar shows a real still near that second and the scene name. Scene boundaries are drawn as cuts on the bar.
 - **My Atlas**: a strip of frames with names, notes, Play and Preview actions, and a runtime map.
 - **Skin Studio** (`#/studio`, demo only): live presets, colours, radius, panel opacity and blur, font and control size, player width, and copyable CSS.
+
+## Photon Frame (feature/photon-frame)
+
+XENON's signature housing: a 1px machined rim on the player's own radius and four **optical corner markers**. Each marker is a bracket that follows the rounded corner, fades along its arms, and has a small lens index inside the curve. It is CSS only (`src/skin/frame/`), aria-hidden, takes no clicks, and nothing animates continuously.
+
+- **Playing:** minimal. Neutral corners, softer still while the controls rest.
+- **Paused:** the corners light one after another (a short pause-to-freeze pass) in the film's accent and stay softly lit while the Film Slate appears.
+- **Saved moment:** from the dock, the slate or My Atlas, the frame pulses briefly in the Moment Atlas lavender. It is driven by the moment markers, so every way of saving confirms the same way.
+- **Exploring:** the seam between the wheel and the picture carries the frame's light. A fine coupler runs from the wheel's gate to it and pulses once for each new selection.
+- **Switching films:** the frame's colours are registered custom properties, so they glide to the new film's palette.
+- **Fullscreen:** the decoration steps aside.
+- **Dock:** the control dock wears the same machined rim. The large outer glow and the thick shell border are gone.
+- **Clear Frame:** **X**, or the slate's Clear frame button, puts the optional pause information away for that pause. Focus goes to the pod and every playback control stays reachable; X brings the information back.
+- **Smaller players:** corner arms shrink from 46px to 32, 24 and 16px; phone and tiny drop the lens and the light pass.
+- **Preferences:** reduced motion lights the corners without animation; high contrast draws the frame plain white; forced colours withdraws it. Focus rings and announcements are unchanged; the frame never stands in for them.
 
 ## Film Slate, tail slate, edge lens and the accessibility audit (feature/slate-seek-feedback-endcard)
 

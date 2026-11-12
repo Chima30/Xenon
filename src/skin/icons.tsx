@@ -100,6 +100,15 @@ export const BookmarkIcon = (p: IconProps) => (
     <path d="M6.5 4h11a1 1 0 0 1 1 1v15l-6.5-4-6.5 4V5a1 1 0 0 1 1-1Z" />
   </Base>
 );
+/** Clear Frame: four corner markers around an empty frame. */
+export const FrameIcon = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M4 9V6a2 2 0 0 1 2-2h3" />
+    <path d="M15 4h3a2 2 0 0 1 2 2v3" />
+    <path d="M20 15v3a2 2 0 0 1-2 2h-3" />
+    <path d="M9 20H6a2 2 0 0 1-2-2v-3" />
+  </Base>
+);
 export const ReturnIcon = (p: IconProps) => (
   <Base {...p}>
     <path d="M9 14 4 9l5-5" />

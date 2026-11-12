@@ -6,7 +6,8 @@
  *
  * It exercises every dock layout at every bench size, film switching and the film-reactive theme, the Pause Canvas,
  * the Time Lens, the navigation wheel (drawer, Explore column, sheet), the Precision Playback Pod, the edge lens,
- * the Film Slate and tail slate, keyboard focus, Escape handling, the status announcer and an axe-core WCAG audit.
+ * the Film Slate and tail slate, the Photon Frame, keyboard focus, Escape handling, the status announcer and an
+ * axe-core WCAG audit.
  * Exit code 1 when any check fails.
  */
 import { chromium } from 'playwright-core';
@@ -1098,6 +1099,192 @@ const dbl = await tp2.evaluate(() => ({
 check('Double tap on the left of the picture: the lens says "−10 s" and the video moved back exactly 10 s', dbl.dir === 'backward' && dbl.text === '−10 s' && Math.abs(dbl.t - 110) < 0.05, JSON.stringify(dbl));
 if (SHOTS) await tp2.screenshot({ path: join(SHOTS, 'edge-lens-doubletap.png') });
 await tapCtx.close();
+
+
+/* ---------- 22. Photon Frame: playing, paused, saved, Clear Frame, exploring, switching, fullscreen, sizes ---------- */
+const frame = () =>
+  page.evaluate(() => {
+    const root = document.querySelector('.cs-root');
+    const f = document.querySelector('.cs-photon');
+    const c = f.querySelector('.cs-photon-corner');
+    const cs = getComputedStyle(c);
+    return {
+      playback: root.dataset.playback,
+      hidden: f.getAttribute('aria-hidden') === 'true' && getComputedStyle(f).pointerEvents === 'none',
+      display: getComputedStyle(f).display,
+      opacity: Number(cs.opacity),
+      colour: cs.borderTopColor,
+      animation: cs.animationName,
+      flash: f.dataset.flash ?? null,
+      accent: getComputedStyle(f).getPropertyValue('--pf-accent').trim(),
+      transition: getComputedStyle(f).transitionProperty,
+      arm: Math.round(c.getBoundingClientRect().width),
+      lens: getComputedStyle(c.querySelector('.cs-photon-lens')).display,
+    };
+  });
+await open('tears-of-steel');
+await page.waitForFunction(() => (document.querySelector('video')?.readyState ?? 0) >= 2, null, { timeout: 30000 });
+await page.evaluate(() => {
+  const v = document.querySelector('video');
+  v.currentTime = 150;
+  return v.play();
+});
+await page.waitForTimeout(1200);
+await wake();
+const fPlay = await frame();
+await page.mouse.move(5, 5);
+await page.waitForTimeout(4300);
+const fIdle = await frame();
+check(
+  'Photon Frame while playing: minimal corners (softer still when the controls rest), decorative only, no animation',
+  fPlay.playback === 'playing' && fPlay.hidden && fPlay.opacity <= 0.5 && fIdle.opacity < 0.3 && fPlay.animation === 'none',
+  JSON.stringify({ play: fPlay.opacity, idle: fIdle.opacity, hidden: fPlay.hidden }),
+);
+await page.evaluate(() => document.querySelector('video').pause());
+await page.waitForTimeout(1600);
+const fPause = await frame();
+check(
+  'Paused: the optical corners light in turn (pause-to-freeze) in the film’s accent and stay lit; the Film Slate appears',
+  fPause.playback === 'paused' && fPause.animation === 'pf-freeze' && fPause.opacity > 0.9 && fPause.colour === 'rgb(92, 211, 255)' && (await page.locator('.cs-slate').count()) === 1,
+  JSON.stringify(fPause),
+);
+await shot(page, 'photon-paused');
+await wake();
+await page.locator('.cs-slate button[aria-label="Save this moment"]').click();
+await page.waitForTimeout(420);
+const fSaved = await frame();
+await page.waitForTimeout(1000);
+const fAfter = await frame();
+check(
+  'Saving a moment pulses the frame in the Moment Atlas lavender, then returns to the film’s colour',
+  fSaved.flash !== null && fSaved.colour === 'rgb(173, 160, 248)' && fAfter.flash === null && fAfter.colour === 'rgb(92, 211, 255)',
+  `${fSaved.colour} → ${fAfter.colour}`,
+);
+await page.locator('.cs-pod-play').focus();
+await page.keyboard.press('x');
+await page.waitForTimeout(300);
+const cleared = await page.evaluate(() => ({
+  slate: !!document.querySelector('.cs-slate'),
+  focus: document.activeElement?.classList.contains('cs-pod-play'),
+  controls: ['Play', 'Rewind 10 seconds', 'Forward 10 seconds', 'Settings'].every((n) => document.querySelector(`button[aria-label="${n}"]`)),
+  toast: document.querySelector('.cs-toast')?.textContent,
+  corners: Number(getComputedStyle(document.querySelector('.cs-photon-corner')).opacity),
+}));
+await page.keyboard.press('x');
+await page.waitForTimeout(300);
+const restored = await page.locator('.cs-slate').count();
+check(
+  'Clear Frame (X): the pause information goes, playback controls stay reachable with focus on the pod; X brings it back',
+  !cleared.slate && cleared.focus && cleared.controls && /Frame cleared/.test(cleared.toast ?? '') && cleared.corners > 0.9 && restored === 1,
+  JSON.stringify(cleared),
+);
+await wake();
+await page.locator('.cs-slate .cs-pause-close').click();
+await page.waitForTimeout(250);
+check(
+  'The slate’s own "Clear frame" button does the same',
+  (await page.locator('.cs-slate').count()) === 0 && (await page.locator('button[aria-label="Clear frame: hide the pause information"]').count()) === 0,
+);
+await page.keyboard.press('x');
+await wake();
+await page.locator('.cs-seg-btn', { hasText: 'Explore' }).click();
+await page.waitForTimeout(900);
+const couple = await page.evaluate(() => {
+  const c = document.querySelector('.wheel-coupler');
+  const r = c.getBoundingClientRect();
+  const rail = document.querySelector('.cs-rail').getBoundingClientRect();
+  const gate = document.querySelector('.wheel-gate').getBoundingClientRect();
+  return { shown: getComputedStyle(c).display, toSeam: Math.abs(r.right - rail.right) <= 1, fromGate: r.left >= gate.right - 1, atGate: Math.abs(r.top - (gate.top + gate.height / 2)) <= 2, seam: getComputedStyle(document.querySelector('.cs-rail')).boxShadow };
+});
+await page.locator('.wheel-item[tabindex="0"]').focus();
+// Mark the current coupler; a new selection mounts a fresh one whose pulse is running.
+const couplerBefore = await page.evaluate(() => {
+  const c = document.querySelector('.wheel-coupler');
+  c.dataset.old = '1';
+  return c.getAnimations().length;
+});
+await page.keyboard.press('ArrowDown');
+const replayed = await page
+  .waitForFunction(() => {
+    const c = document.querySelector('.wheel-coupler');
+    return !!c && !c.dataset.old && c.getAnimations().some((a) => a.animationName === 'wheel-couple');
+  }, null, { timeout: 2000, polling: 16 })
+  .then(() => true)
+  .catch(() => false);
+check(
+  'Exploring: a coupler runs from the wheel’s gate to the lit seam with the picture, and pulses once per new selection',
+  couple.shown === 'block' && couple.toSeam && couple.fromGate && couple.atGate && /rgb|color/.test(couple.seam) && replayed,
+  JSON.stringify({ ...couple, couplerBefore, replayed }),
+);
+await shot(page, 'photon-explore');
+await page.locator('.cs-seg-btn', { hasText: 'Watch' }).click();
+await page.waitForTimeout(600);
+await wake();
+await page.locator('.cs-reel').click();
+await page.waitForTimeout(500);
+await page.keyboard.press('End');
+await page.waitForTimeout(500);
+await page.keyboard.press('Enter');
+await page.waitForTimeout(150);
+await page.keyboard.press('Enter');
+await page.waitForFunction(() => location.hash === '#/watch/big-buck-bunny', null, { timeout: 10000 });
+await page.waitForTimeout(250);
+const fMid = await frame();
+await page.waitForTimeout(1500);
+const fDone = await frame();
+check(
+  'Switching films glides the frame’s colours to the new palette instead of snapping',
+  /--pf-accent/.test(fDone.transition) && fDone.accent === 'rgb(232, 197, 111)' && fMid.accent !== fDone.accent,
+  `${fMid.accent} → ${fDone.accent}`,
+);
+await page.locator('.cs-pod-play').focus().catch(() => {});
+await page.keyboard.press('f');
+await page.waitForTimeout(700);
+const fFull = { fs: await page.evaluate(() => !!document.fullscreenElement), ...(await frame()) };
+await page.keyboard.press('f');
+await page.waitForTimeout(500);
+check('Fullscreen: the decorative frame steps aside for the picture', fFull.fs && fFull.display === 'none', JSON.stringify({ fs: fFull.fs, display: fFull.display }));
+for (const [size, arm, lens] of [
+  ['Desktop', 46, 'block'],
+  ['Tablet', 46, 'block'],
+  ['Phone', 24, 'none'],
+  ['Tiny', 16, 'none'],
+]) {
+  await setSize(size);
+  await wake();
+  const f = await frame();
+  const clicks = await page.evaluate(() => {
+    const r = document.querySelector('.cs-root').getBoundingClientRect();
+    const hit = document.elementFromPoint(r.left + 6, r.top + 6);
+    return !hit?.closest('.cs-photon');
+  });
+  const ox = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  check(`Photon Frame @ ${size}: ${arm}px corners${lens === 'none' ? ', simplified (no lens)' : ' with lens markers'}; never takes a click; no overflow`, f.arm === arm && f.lens === lens && clicks && ox <= 0, JSON.stringify({ arm: f.arm, lens: f.lens, clicks, ox }));
+  await shot(page, `photon-${size.toLowerCase()}`);
+}
+await setSize('Desktop');
+await openLab();
+await page.locator('.seg-btn', { hasText: 'High Contrast Test' }).click();
+await page.waitForTimeout(300);
+const fHc = await page.evaluate(() => ({ corner: getComputedStyle(document.querySelector('.cs-photon-corner')).borderTopColor, rim: getComputedStyle(document.querySelector('.cs-photon-rim')).backgroundColor }));
+check('High contrast: the frame is plain white, no glow', fHc.corner === 'rgb(255, 255, 255)' && fHc.rim === 'rgb(255, 255, 255)', JSON.stringify(fHc));
+await page.locator('.seg-btn', { hasText: 'Default' }).click();
+await page.emulateMedia({ reducedMotion: 'reduce' });
+await page.evaluate(() => document.querySelector('video').play());
+await page.waitForTimeout(800);
+await page.evaluate(() => document.querySelector('video').pause());
+await page.waitForTimeout(300);
+const fStill = await frame();
+check('Reduced motion: no pause-to-freeze animation, the corners simply light', fStill.playback === 'paused' && fStill.animation === 'none' && fStill.opacity > 0.9, JSON.stringify(fStill));
+await page.emulateMedia({ reducedMotion: 'no-preference' });
+await page.emulateMedia({ forcedColors: 'active' });
+await page.waitForTimeout(200);
+check('Forced colours: the decorative frame is withdrawn', (await frame()).display === 'none');
+await page.emulateMedia({ forcedColors: 'none' });
+const fontOk = await page.evaluate(() =>
+  [...document.querySelectorAll('.cs-root button, .cs-root .cs-slate *, .cs-root .rail *, .cs-root .cs-time')].every((el) => /Space Grotesk/.test(getComputedStyle(el).fontFamily)),
+);
+check('Space Grotesk throughout the player chrome', fontOk);
 
 check('No uncaught page errors', errors.length === 0, errors.slice(0, 3).join(' | '));
 

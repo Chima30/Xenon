@@ -2,7 +2,7 @@ import { usePlayer } from '@videojs/react/video';
 import { useEffect, useRef, useState } from 'react';
 import type { ThumbnailAt } from '../dock/Timeline';
 import type { Tier } from '../hooks';
-import { CloseIcon, PlayIcon, ReelIcon } from '../icons';
+import { FrameIcon, PlayIcon, ReelIcon } from '../icons';
 import type { NavFilm } from '../wheel/NavigationRail';
 import { useFrameColours } from './frameColours';
 import { SlateStick } from './SlateStick';
@@ -19,6 +19,9 @@ interface Props {
   onAnnounce: (message: string) => void;
   tier: Tier;
   suppressed: boolean;
+  /** Clear Frame: put the slate away (its own button, or X). */
+  cleared: boolean;
+  onClear: () => void;
 }
 
 /** The film after this one on the wheel that the viewer has not finished; else simply the next one. */
@@ -35,12 +38,11 @@ export function nextFilm(films: NavFilm[], activeId?: string): NavFilm | null {
  * the wheel for any other choice; Replay stays where it already is, on the pod. It takes no focus; its arrival is
  * announced.
  */
-export function TailSlate({ title, films, activeFilmId, onPlayFilm, onOpenWheel, thumbnailAt, onAnnounce, tier, suppressed }: Props) {
+export function TailSlate({ title, films, activeFilmId, onPlayFilm, onOpenWheel, thumbnailAt, onAnnounce, tier, suppressed, cleared, onClear }: Props) {
   const sectionRef = useRef<HTMLElement>(null);
   const ended = usePlayer((s) => s.ended);
   const duration = usePlayer((s) => s.duration);
   const [shown, setShown] = useState(false);
-  const [dismissed, setDismissed] = useState(false);
   const next = nextFilm(films, activeFilmId);
   // A single-video embed has nothing to offer here; the pod's Replay is enough.
   const eligible = ended && tier !== 'micro' && !suppressed && Boolean((next && onPlayFilm) || onOpenWheel);
@@ -53,10 +55,7 @@ export function TailSlate({ title, films, activeFilmId, onPlayFilm, onOpenWheel,
     const t = window.setTimeout(() => setShown(true), 300);
     return () => window.clearTimeout(t);
   }, [eligible]);
-  useEffect(() => {
-    if (!ended) setDismissed(false);
-  }, [ended]);
-  const visible = shown && !dismissed;
+  const visible = shown && !cleared;
   useEffect(() => {
     if (visible) onAnnounce(`End of ${title ?? 'the film'}.${next ? ` Next on the wheel: ${next.title}.` : ''}`);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -74,8 +73,8 @@ export function TailSlate({ title, films, activeFilmId, onPlayFilm, onOpenWheel,
             <span className="cs-pause-led" aria-hidden="true" />
             <span className="cs-slate-word">End of reel</span>
             {title ? <span className="cs-slate-title">{title}</span> : null}
-            <button type="button" className="cs-pause-btn cs-pause-close" onClick={() => setDismissed(true)} aria-label="Put the slate away" data-tip="Hide">
-              <CloseIcon />
+            <button type="button" className="cs-pause-btn cs-pause-close" onClick={onClear} aria-label="Clear frame: hide the end-of-film information" aria-keyshortcuts="x" data-tip="Clear frame (X)" data-tip-align="end">
+              <FrameIcon />
             </button>
           </div>
           {next && onPlayFilm ? (

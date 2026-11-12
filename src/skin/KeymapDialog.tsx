@@ -20,6 +20,7 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
       { keys: ['→', 'L'], action: 'Forward 10 seconds' },
       { keys: ['F'], action: 'Fullscreen' },
       { keys: ['I'], action: 'Picture-in-picture (when supported)' },
+      { keys: ['X'], action: 'Clear frame: hide or show the pause information (when paused)' },
     ],
   },
   {
