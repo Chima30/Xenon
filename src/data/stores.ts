@@ -38,6 +38,8 @@ export interface Moment {
   videoId: string;
   time: number;
   label: string;
+  /** Free-form note. Optional, so moments saved by earlier versions stay valid. */
+  note?: string;
   createdAt: number;
 }
 
@@ -50,7 +52,8 @@ const isMoment = (m: unknown): m is Moment =>
   Number.isFinite(m.time) &&
   m.time >= 0 &&
   typeof m.createdAt === 'number' &&
-  Number.isFinite(m.createdAt);
+  Number.isFinite(m.createdAt) &&
+  (m.note === undefined || typeof m.note === 'string');
 
 export const parseMoments = (v: unknown): Moment[] | null => (Array.isArray(v) ? v.filter(isMoment) : null);
 
@@ -75,6 +78,17 @@ export function addMoment(videoId: string, time: number, label: string): Moment 
 }
 export function updateMomentLabel(id: string, label: string) {
   momentStore.set(momentStore.get().map((m) => (m.id === id ? { ...m, label } : m)));
+}
+export function updateMomentNote(id: string, note: string) {
+  const clean = note.trim().slice(0, 400);
+  momentStore.set(
+    momentStore.get().map((m) => {
+      if (m.id !== id) return m;
+      const { note: _old, ...rest } = m;
+      void _old;
+      return clean ? { ...rest, note: clean } : rest;
+    }),
+  );
 }
 export function removeMoment(id: string) {
   momentStore.set(momentStore.get().filter((m) => m.id !== id));

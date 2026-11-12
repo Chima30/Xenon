@@ -1,15 +1,78 @@
 /* ==========================================================================
-   XENON design tokens. One typeface (Space Grotesk), one spacing scale, one radius scale.
-   Component CSS should use these tokens rather than raw values.
+   XENON design tokens. One typeface, one colour model, one spacing scale, one radius scale.
+   Component CSS uses these tokens rather than raw values.
+
+   Public customisation (set on any ancestor of the player, or on the player itself):
+     --media-accent-color        accent for selection, progress and focus
+     --media-accent-text-color   text/icon colour placed on the accent
+     --media-border-radius       outer corner radius; inner radii scale from it
+     --media-font-family         typeface (defaults to Space Grotesk)
+     --xenon-surface-color       base colour that every surface is mixed from
+     --xenon-panel-opacity       0 to 1, opacity of floating panels and the dock
+     --xenon-panel-blur          backdrop blur behind panels
+     --xenon-control-size        minimum control size (44px or more)
    ========================================================================== */
+
+/* Registered as colours so a film change cross-fades the whole instrument instead of snapping. */
+@property --cs-citron {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #d8ff57;
+}
+@property --cs-ink-on-citron {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #0a0e17;
+}
+@property --cs-base {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #0a0e17;
+}
+@property --cs-glow {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #5a78c8;
+}
 
 .cs-root {
   /* ---- Typeface: Space Grotesk only, self-hosted by @fontsource-variable; robust system fallback ---- */
-  --cs-font: 'Space Grotesk Variable', 'Space Grotesk', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto,
-    'Helvetica Neue', Arial, sans-serif;
+  --cs-font-brand: 'Space Grotesk Variable', 'Space Grotesk', ui-sans-serif, system-ui, -apple-system, 'Segoe UI',
+    Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --cs-font: var(--media-font-family, var(--cs-font-brand));
   --cs-font-ui: var(--cs-font);
   --cs-font-display: var(--cs-font);
-  --cs-font-mono: var(--cs-font); /* kept as an alias: timecodes use tabular numerals, not a second family */
+  --cs-font-mono: var(--cs-font); /* alias: timecodes use tabular numerals, not a second family */
+
+  /* ---- Colour model: one base, one accent. Films override both; everything else is mixed from them. ---- */
+  --cs-base: var(--xenon-surface-color, #0a0e17);
+  --cs-citron: var(--media-accent-color, #d8ff57);
+  --cs-ink-on-citron: var(--media-accent-text-color, #0a0e17);
+  --cs-glow: #5a78c8;
+
+  --cs-obsidian: var(--cs-base);
+  --cs-glass: color-mix(in oklab, var(--cs-base) 92%, white);
+  --cs-steel: color-mix(in oklab, var(--cs-base) 84%, white);
+  --cs-line: color-mix(in oklab, var(--cs-base) 74%, white);
+  --cs-hairline: rgb(255 255 255 / 0.09);
+  --cs-ice: #f4f6f2;
+  --cs-ice-dim: #b9c1cd;
+  --cs-lavender: #ada0f8; /* memory colour: saved moments, in every film theme */
+  --cs-teal: #8dd3cf;
+  --cs-danger: #ff8a8a;
+
+  --cs-accent-soft: color-mix(in srgb, var(--cs-citron) 15%, transparent);
+  --cs-accent-line: color-mix(in srgb, var(--cs-citron) 46%, transparent);
+  --cs-label: color-mix(in oklab, var(--cs-citron) 58%, var(--cs-ice));
+
+  /* ---- Materials ---- */
+  --cs-panel-alpha: var(--xenon-panel-opacity, 0.9);
+  --cs-panel-blur: var(--xenon-panel-blur, 20px);
+  --cs-panel-bg: color-mix(in srgb, var(--cs-glass) calc(var(--cs-panel-alpha) * 100%), transparent);
+  --cs-dock-bg: color-mix(in srgb, var(--cs-base) calc(var(--cs-panel-alpha) * 78%), transparent);
+  --cs-card-bg: color-mix(in srgb, var(--cs-base) 70%, transparent);
+  --cs-shadow-1: 0 1px 0 rgb(255 255 255 / 0.06) inset, 0 8px 24px rgb(0 0 0 / 0.35);
+  --cs-shadow-2: 0 1px 0 rgb(255 255 255 / 0.07) inset, 0 24px 64px rgb(0 0 0 / 0.55);
 
   /* ---- Type scale (rem). Nothing below 0.75rem (12px). ---- */
   --fs-xs: 0.75rem; /* labels, metadata */
@@ -28,8 +91,8 @@
   --lh-snug: 1.3;
   --lh-body: 1.5;
 
-  --ls-display: 0.01em; /* cinematic titles: slightly open */
-  --ls-label: 0.09em; /* small uppercase section labels */
+  --ls-display: -0.01em; /* titles: slightly tight, as Space Grotesk is wide */
+  --ls-label: 0.1em; /* small uppercase section labels */
   --ls-ui: 0; /* buttons, tabs, tooltips: no decorative tracking */
 
   /* ---- Spacing scale (4px base) ---- */
@@ -41,21 +104,28 @@
   --sp-6: 1.5rem;
   --sp-8: 2rem;
 
-  /* ---- Radii ---- */
-  --r-sm: 8px;
-  --r-md: 12px;
-  --r-lg: 16px;
-  --r-xl: 20px;
+  /* ---- Radii: one public value, the rest scale from it ---- */
+  --r-xl: var(--media-border-radius, 20px);
+  --r-lg: calc(var(--r-xl) * 0.8);
+  --r-md: calc(var(--r-xl) * 0.6);
+  --r-sm: calc(var(--r-xl) * 0.4);
   --r-pill: 9999px;
 
   /* ---- Sizes ---- */
-  --h-ctl: 44px; /* every button, tab and chip is at least this tall */
-  --h-row: 48px; /* list and menu rows */
+  --h-ctl: max(44px, var(--xenon-control-size, 44px)); /* every button, tab and chip is at least this tall */
+  --h-row: calc(var(--h-ctl) + 4px); /* list and menu rows */
   --icon: 20px;
   --w-panel: 400px;
   --w-panel-wide: 520px;
   --w-modal: 640px;
   --bw: 1px; /* border width; thickens in high contrast */
+
+  /* ---- Motion ---- */
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-spring: cubic-bezier(0.25, 1.15, 0.35, 1);
+  --t-fast: 0.14s;
+  --t-med: 0.28s;
+  --t-slow: 0.5s;
 
   /* ---- Semantic colour tokens (values shift with theme; meanings never do) ---- */
   --cs-selected-bg: var(--cs-citron);
@@ -70,12 +140,21 @@
   font-size: var(--fs-md);
   line-height: var(--lh-body);
   font-optical-sizing: auto;
+  transition:
+    --cs-citron 0.7s ease,
+    --cs-ink-on-citron 0.7s ease,
+    --cs-base 0.7s ease,
+    --cs-glow 0.7s ease;
+}
+
+/* Form controls do not inherit the typeface by default; make every one of them use the brand face. */
+.cs-root :is(input, textarea, select, button, output, kbd, code) {
+  font-family: var(--cs-font);
 }
 
 /* Accessibility: large controls */
 .cs-root[data-large] {
   --h-ctl: 52px;
-  --h-row: 56px;
   --icon: 24px;
   --fs-md: 1.0625rem;
   --fs-sm: 0.9375rem;
@@ -87,20 +166,25 @@
 .cs-root[data-hc] {
   --bw: 2px;
   --cs-line: #8b95b0;
+  --cs-hairline: #fff;
   --cs-ice: #ffffff;
   --cs-ice-dim: #e6eaf2;
+  --cs-panel-bg: #000;
+  --cs-dock-bg: #000;
+  --cs-card-bg: #000;
+}
+
+.cs-root[data-motion='reduce'] {
+  transition: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .cs-root {
+    transition: none;
+  }
 }
 
 /* Numerals that must not jiggle: timecodes, offsets, counters, shortcuts */
-.cs-time,
-.cs-line-time,
-.cs-offset-val,
-.atlas-time,
-.wheel-meta,
-.cs-tag,
-.cs-diag-status,
-.cs-range strong,
-kbd {
+.cs-root :is(.cs-time, .cs-line-time, .cs-offset-val, .atlas-time, .wheel-meta, .wheel-readout, .cs-tag, .cs-diag-status, .cs-range strong, .tp-time, .tp-facts, .cs-tl-time, kbd) {
   font-variant-numeric: tabular-nums;
   font-feature-settings: 'tnum' 1;
 }

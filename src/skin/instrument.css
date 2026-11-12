@@ -1,0 +1,762 @@
+/* ==========================================================================
+   XENON instrument layer. Loaded last. It gives every control the same material, shape and state language,
+   and makes Watch, Explore and My Atlas three positions of one machine rather than three pages.
+   Colours come only from tokens.css, so a film palette or a host theme re-colours all of it.
+   ========================================================================== */
+
+/* ---------- Materials (override the fixed values of the older layers) ---------- */
+
+.cs-root,
+.cs-root[data-atm='on'] {
+  --cs-rail-w: 380px;
+  --cs-panel-bg: color-mix(in srgb, var(--cs-glass) calc(var(--cs-panel-alpha) * 100%), transparent);
+  --cs-card-bg: color-mix(in srgb, var(--cs-base) 70%, transparent);
+  background: var(--cs-base);
+  border-radius: var(--r-xl);
+}
+.cs-root[data-atm='on'] {
+  border: 1px solid var(--cs-hairline);
+}
+.cs-root[data-hc] {
+  --cs-panel-bg: #000;
+  --cs-card-bg: #000;
+}
+.cs-root[data-rail='collapsed'] {
+  --cs-rail-w: 64px;
+}
+
+/* The announcer is positioned at the root's corner so it can never add height or show as stray text. */
+.cs-root .cs-announcer {
+  top: 0;
+  left: 0;
+  pointer-events: none;
+}
+
+/* ---------- Spatial layout: the rail slides in from the left, the atlas rises from below ---------- */
+
+.cs-layout {
+  grid-template-columns: 0px minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  transition: grid-template-columns var(--t-slow) var(--ease-out);
+}
+.cs-root[data-mode='explore'] .cs-layout {
+  grid-template-columns: var(--cs-rail-w) minmax(0, 1fr);
+}
+.cs-stagewrap {
+  grid-column: 2;
+  grid-row: 1;
+}
+.cs-rail {
+  grid-column: 1;
+  grid-row: 1;
+  min-height: 0;
+  border-right: 0;
+  visibility: hidden;
+  background: linear-gradient(180deg, color-mix(in oklab, var(--cs-base) 93%, white), var(--cs-base) 70%);
+  transition: visibility 0s linear var(--t-slow);
+}
+.cs-root[data-mode='explore'] .cs-rail {
+  visibility: visible;
+  box-shadow: inset -1px 0 0 var(--cs-hairline);
+  transition-delay: 0s;
+}
+.cs-rail > .cs-rail-inner {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--cs-rail-w);
+  transition: width var(--t-slow) var(--ease-out);
+}
+.cs-atlas {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  display: grid;
+  grid-template-rows: 0fr;
+  visibility: hidden;
+  background: var(--cs-base);
+  border-top: 0;
+  transition:
+    grid-template-rows var(--t-slow) var(--ease-out),
+    visibility 0s linear var(--t-slow);
+}
+.cs-root[data-mode='remember'] .cs-atlas {
+  grid-template-rows: 1fr;
+  visibility: visible;
+  transition-delay: 0s;
+}
+.cs-atlas-inner {
+  min-height: 0;
+  overflow: hidden;
+  box-shadow: inset 0 1px 0 var(--cs-hairline);
+}
+
+/* Wide players keep one stage height in every mode, so switching modes never makes the page jump:
+   in Explore the video simply gives the rail its room. */
+@container cs (min-width: 761px) {
+  .cs-stagewrap {
+    height: 56.25cqi;
+  }
+  .cs-root[data-mode='explore'] .cs-stagewrap {
+    height: max(56.25cqi, 580px);
+  }
+  .cs-stage,
+  .cs-root[data-mode='explore'] .cs-stage {
+    aspect-ratio: auto;
+  }
+}
+
+/* Narrow players: one column. The rail is a panel under the video and exists only in Explore. */
+@container cs (max-width: 760px) {
+  .cs-layout,
+  .cs-root[data-mode='explore'] .cs-layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto;
+  }
+  .cs-stagewrap {
+    grid-column: 1;
+  }
+  .cs-rail {
+    grid-column: 1;
+    grid-row: 2;
+    display: none;
+    box-shadow: inset 0 1px 0 var(--cs-hairline);
+  }
+  .cs-root[data-mode='explore'] .cs-rail {
+    display: block;
+    box-shadow: inset 0 1px 0 var(--cs-hairline);
+  }
+  .cs-rail > .cs-rail-inner {
+    position: static;
+    width: auto;
+  }
+  .cs-atlas {
+    grid-row: 3;
+  }
+}
+
+.cs-root:fullscreen[data-mode] .cs-stagewrap {
+  height: 100%;
+}
+.cs-root:fullscreen .cs-layout {
+  grid-template-rows: minmax(0, 1fr) auto;
+}
+.cs-root:fullscreen .cs-atlas-inner {
+  max-height: 46vh;
+  overflow-y: auto;
+}
+
+/* ---------- Top bar ---------- */
+
+.cs-top {
+  gap: var(--sp-3);
+  padding: var(--sp-4) var(--sp-4) var(--sp-8);
+  background: linear-gradient(to bottom, color-mix(in srgb, var(--cs-base) 80%, transparent), transparent);
+}
+.cs-root[data-atm='on'] .cs-top {
+  background: linear-gradient(to bottom, color-mix(in srgb, var(--cs-base) 80%, transparent), transparent);
+}
+.cs-titleblock,
+.cs-root[data-atm='on'] .cs-titleblock {
+  position: relative;
+  max-width: 46%;
+  padding: var(--sp-2) var(--sp-4) var(--sp-2) calc(var(--sp-4) + 7px);
+  background: var(--cs-dock-bg);
+  border: var(--bw) solid var(--cs-hairline);
+  border-radius: var(--r-md);
+  -webkit-backdrop-filter: blur(var(--cs-panel-blur));
+  backdrop-filter: blur(var(--cs-panel-blur));
+}
+/* The film's signature: a single bar of its accent beside the title. */
+.cs-titleblock::before {
+  content: '';
+  position: absolute;
+  left: 10px;
+  top: 10px;
+  bottom: 10px;
+  width: 3px;
+  background: var(--cs-citron);
+  border-radius: 2px;
+}
+.cs-title {
+  font: var(--fw-bold) var(--fs-lg) / var(--lh-tight) var(--cs-font);
+  letter-spacing: var(--ls-display);
+}
+.cs-subtitle {
+  margin-top: 3px;
+  font: var(--fw-semibold) var(--fs-xs) / var(--lh-snug) var(--cs-font);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--cs-label);
+}
+.cs-toolbar {
+  gap: var(--sp-2);
+}
+
+/* ---------- Keys: every button shares one material and one state language ---------- */
+
+.cs-btn,
+.cs-icon-btn {
+  color: var(--cs-ice);
+  background: var(--cs-dock-bg);
+  border: var(--bw) solid var(--cs-hairline);
+  border-radius: var(--r-md);
+  -webkit-backdrop-filter: blur(var(--cs-panel-blur));
+  backdrop-filter: blur(var(--cs-panel-blur));
+  transition:
+    background-color var(--t-fast) ease,
+    border-color var(--t-fast) ease,
+    color var(--t-fast) ease,
+    transform var(--t-fast) ease;
+}
+.cs-btn-label {
+  padding: 0 var(--sp-4) 0 var(--sp-3);
+  font-size: var(--fs-sm);
+}
+/* On: accent ink and a short index bar under the icon. Shape as well as colour. */
+.cs-btn[data-on],
+.cs-btn[aria-expanded='true'],
+.cs-icon-btn[aria-expanded='true'] {
+  color: var(--cs-citron);
+  background: var(--cs-accent-soft);
+  border-color: var(--cs-accent-line);
+}
+.cs-btn[data-on]::before,
+.cs-btn[aria-expanded='true']::before,
+.cs-icon-btn[aria-expanded='true']::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 5px;
+  width: 14px;
+  height: 2px;
+  background: currentColor;
+  border-radius: 1px;
+  translate: -50% 0;
+}
+.cs-btn,
+.cs-icon-btn {
+  position: relative;
+}
+@media (hover: hover) {
+  .cs-btn:hover,
+  .cs-icon-btn:hover {
+    background: var(--cs-steel);
+    border-color: var(--cs-accent-line);
+  }
+  .cs-seg-btn:hover:not([aria-pressed='true']) {
+    background: var(--cs-steel);
+    border-color: transparent;
+  }
+}
+.cs-btn:active,
+.cs-icon-btn:active,
+.cs-seg-btn:active {
+  transform: scale(0.95);
+}
+
+/* Segmented switch (view modes, journey trail) */
+.cs-seg {
+  padding: 3px;
+  gap: 2px;
+  background: var(--cs-dock-bg);
+  border: var(--bw) solid var(--cs-hairline);
+  border-radius: var(--r-md);
+  -webkit-backdrop-filter: blur(var(--cs-panel-blur));
+  backdrop-filter: blur(var(--cs-panel-blur));
+}
+.cs-seg-btn {
+  height: calc(var(--h-ctl) - 8px);
+  padding: 0 var(--sp-3);
+  border-radius: calc(var(--r-md) - 3px);
+  border-color: transparent;
+  color: var(--cs-ice);
+  transition:
+    background-color var(--t-med) var(--ease-out),
+    color var(--t-med) var(--ease-out),
+    transform var(--t-fast) ease;
+}
+.cs-seg-btn[aria-pressed='true'] {
+  color: var(--cs-ink-on-citron);
+  background: var(--cs-citron);
+  box-shadow: none;
+}
+
+/* ---------- Centre cluster ---------- */
+
+.cs-center {
+  gap: var(--sp-6);
+}
+.cs-btn.cs-btn-round {
+  width: 52px;
+  height: 52px;
+  padding: 0;
+  border-radius: 50%;
+}
+.cs-btn.cs-btn-round svg {
+  width: 24px;
+  height: 24px;
+}
+.cs-seek-num {
+  font-size: 0.5625rem; /* sits inside the arrow; the button's accessible name carries the meaning */
+  transform: translate(-50%, -40%);
+}
+.cs-btn.cs-btn-play {
+  width: 76px;
+  height: 76px;
+  padding: 0;
+  color: var(--cs-ink-on-citron);
+  background: var(--cs-citron);
+  border-color: transparent;
+  border-radius: 50%;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  /* A lens: solid disc, hairline rim, soft halo. */
+  box-shadow:
+    0 0 0 1px var(--cs-accent-line),
+    0 0 0 9px color-mix(in srgb, var(--cs-citron) 14%, transparent),
+    0 14px 34px rgb(0 0 0 / 0.5);
+}
+.cs-btn.cs-btn-play svg {
+  width: 30px;
+  height: 30px;
+}
+@media (hover: hover) {
+  .cs-btn.cs-btn-play:hover {
+    background: color-mix(in oklab, var(--cs-citron) 86%, white);
+    border-color: transparent;
+  }
+}
+
+/* ---------- Dock: one floating console ---------- */
+
+.cs-bottom,
+.cs-root[data-atm='on'] .cs-bottom {
+  gap: var(--sp-2);
+  padding: var(--sp-8) var(--sp-4) var(--sp-4);
+  background: linear-gradient(
+    to top,
+    color-mix(in srgb, var(--cs-base) 90%, transparent),
+    color-mix(in srgb, var(--cs-base) 45%, transparent) 55%,
+    transparent
+  );
+}
+.cs-row {
+  gap: 2px;
+  padding: 5px;
+  background: var(--cs-dock-bg);
+  border: var(--bw) solid var(--cs-hairline);
+  border-radius: calc(var(--r-md) + 5px);
+  -webkit-backdrop-filter: blur(var(--cs-panel-blur)) saturate(1.3);
+  backdrop-filter: blur(var(--cs-panel-blur)) saturate(1.3);
+  box-shadow: var(--cs-shadow-1);
+}
+.cs-row .cs-btn:not([data-on]):not([aria-expanded='true']),
+.cs-root[data-atm='on'] .cs-row .cs-btn:not([data-on]):not([aria-expanded='true']) {
+  background: transparent;
+  border-color: transparent;
+}
+.cs-row .cs-btn {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+@media (hover: hover) {
+  .cs-row .cs-btn:hover:not([data-on]):not([aria-expanded='true']) {
+    background: var(--cs-steel);
+  }
+}
+.cs-time {
+  align-items: baseline;
+  gap: 5px;
+  padding: 0 var(--sp-3);
+  font: var(--fw-semibold) var(--fs-sm) / 1 var(--cs-font);
+  text-shadow: none;
+}
+.cs-time > :last-child,
+.cs-time > span[aria-hidden] {
+  color: var(--cs-ice-dim);
+  font-weight: var(--fw-medium);
+}
+.cs-volume {
+  gap: 2px;
+  padding-right: var(--sp-2);
+}
+.cs-volslider {
+  width: 76px;
+}
+
+/* ---------- Timeline ---------- */
+
+.cs-tl {
+  position: relative;
+  padding: 0 var(--sp-1);
+}
+.cs-timeslider {
+  height: 24px;
+}
+.cs-track {
+  height: 4px;
+  background: rgb(255 255 255 / 0.26);
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 0.35);
+  transition: height var(--t-fast) ease;
+}
+.cs-tl:hover .cs-track,
+.cs-timeslider:focus-within .cs-track {
+  height: 6px;
+}
+.cs-buffer {
+  background: rgb(255 255 255 / 0.3);
+}
+.cs-thumb {
+  width: 14px;
+  height: 14px;
+  background: var(--cs-citron);
+  border: 2px solid var(--cs-base);
+  box-shadow: 0 0 0 1px var(--cs-accent-line);
+  transition:
+    width var(--t-fast) ease,
+    height var(--t-fast) ease;
+}
+.cs-tl:hover .cs-thumb,
+.cs-timeslider:focus-within .cs-thumb {
+  width: 18px;
+  height: 18px;
+}
+/* Scene boundaries are cuts in the film strip; saved moments are bars; the return anchor is a diamond. */
+.cs-marker[data-kind='scene'] {
+  width: 2px;
+  height: 8px;
+  background: var(--cs-base);
+  border-radius: 0;
+  opacity: 0.85;
+}
+.cs-marker[data-kind='moment'] {
+  width: 3px;
+  height: 14px;
+  box-shadow: 0 0 0 1px var(--cs-base);
+}
+.cs-marker[data-kind='anchor'] {
+  box-shadow: 0 0 0 2px var(--cs-base);
+}
+
+.cs-tl-preview {
+  position: absolute;
+  left: clamp(52px, var(--x, 50%), calc(100% - 52px));
+  bottom: calc(100% + 4px);
+  z-index: 9;
+  display: grid;
+  padding: 4px;
+  color: var(--cs-ice);
+  background: var(--cs-glass);
+  border: var(--bw) solid var(--cs-hairline);
+  border-radius: var(--r-md);
+  box-shadow: var(--cs-shadow-2);
+  translate: -50% 0;
+  pointer-events: none;
+}
+.cs-tl-preview[data-image] {
+  left: clamp(96px, var(--x, 50%), calc(100% - 96px));
+}
+.cs-tl-preview img {
+  display: block;
+  width: 176px;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: calc(var(--r-md) - 4px);
+}
+.cs-tl-meta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: 4px 6px 2px;
+  font: var(--fw-semibold) var(--fs-xs) / var(--lh-snug) var(--cs-font);
+  white-space: nowrap;
+}
+.cs-tl-label {
+  color: var(--cs-ice-dim);
+}
+.cs-tl-meta > :only-child {
+  margin: 0 auto;
+}
+.cs-stagewrap:is([data-tier='tiny'], [data-tier='micro']) .cs-tl-preview img {
+  display: none;
+}
+.cs-stagewrap:is([data-tier='tiny'], [data-tier='micro']) .cs-tl-preview[data-image] {
+  left: clamp(52px, var(--x, 50%), calc(100% - 52px));
+}
+
+/* ---------- Panels, dialogs, settings ---------- */
+
+.cs-panel,
+.cs-root[data-atm='on'] .cs-panel,
+.cs-dialog,
+.cs-root[data-atm='on'] .cs-dialog {
+  background: var(--cs-panel-bg);
+  border: var(--bw) solid var(--cs-hairline);
+  border-radius: var(--r-xl);
+  box-shadow: var(--cs-shadow-2);
+  -webkit-backdrop-filter: blur(var(--cs-panel-blur)) saturate(1.2);
+  backdrop-filter: blur(var(--cs-panel-blur)) saturate(1.2);
+}
+.cs-panel {
+  bottom: 100px;
+  max-height: calc(100% - 116px);
+}
+.cs-dialog::backdrop {
+  background: color-mix(in srgb, var(--cs-base) 70%, transparent);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+.cs-panel-head h2,
+.cs-dialog-header h2 {
+  font: var(--fw-bold) var(--fs-lg) / var(--lh-tight) var(--cs-font);
+  letter-spacing: var(--ls-display);
+}
+.cs-dialog-header {
+  border-bottom-color: var(--cs-hairline);
+}
+.cs-sethead {
+  /* Solid, so cards scrolling underneath never show through the sticky header. */
+  background: var(--cs-glass);
+  margin: 0 calc(var(--sp-4) * -1);
+  padding: var(--sp-1) var(--sp-4) 0;
+}
+
+/* Small tabs: text with an accent index bar, not filled blocks. */
+.cs-tabs {
+  flex-wrap: nowrap;
+  gap: 0;
+  padding: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  background: transparent;
+  border: 0;
+  border-bottom: var(--bw) solid var(--cs-hairline);
+  border-radius: 0;
+}
+.cs-tab {
+  flex: 1 0 auto;
+  min-height: var(--h-ctl);
+  padding: 0 var(--sp-3);
+  font: var(--fw-semibold) var(--fs-sm) / 1 var(--cs-font);
+  letter-spacing: 0.01em;
+  color: var(--cs-ice-dim);
+  border-radius: var(--r-sm) var(--r-sm) 0 0;
+}
+.cs-tab[aria-selected='true'] {
+  color: var(--cs-ice);
+  background: transparent;
+  font-weight: var(--fw-bold);
+  box-shadow: inset 0 -2px 0 var(--cs-citron);
+}
+
+.cs-card {
+  background: var(--cs-card-bg);
+  border: var(--bw) solid var(--cs-hairline);
+  border-radius: var(--r-lg);
+  box-shadow: none;
+}
+.cs-card-title {
+  font: var(--fw-semibold) var(--fs-md) / var(--lh-snug) var(--cs-font);
+}
+.cs-root :is(.cs-label, .cs-rail-title, .rail-kicker, .cs-menu-heading, .cs-result-cat, .cs-keytable th),
+.cs-root .cs-fieldset legend {
+  color: var(--cs-label);
+}
+.cs-chip {
+  border-color: var(--cs-line);
+  border-radius: var(--r-pill);
+  font-size: var(--fs-sm);
+}
+.cs-chip,
+.cs-choice,
+.cs-row-btn,
+.cs-switch,
+.cs-root[data-atm='on'] :is(.cs-switch, .cs-choice, .cs-row-btn),
+.cs-root[data-atm='on'] .cs-chip:not([aria-pressed='true']) {
+  background: color-mix(in srgb, var(--cs-glass) 80%, transparent);
+}
+.cs-chip[aria-pressed='true'],
+.cs-choice[aria-pressed='true'] {
+  color: var(--cs-ink-on-citron);
+  background: var(--cs-citron);
+  border-color: var(--cs-citron);
+}
+.cs-choice,
+.cs-row-btn,
+.cs-switch {
+  border-color: var(--cs-hairline);
+}
+@media (hover: hover) {
+  .cs-choice:hover:not([aria-pressed='true']),
+  .cs-chip:hover:not([aria-pressed='true']):not(:disabled),
+  .cs-row-btn:hover,
+  .cs-switch:hover:not(:disabled) {
+    background: var(--cs-steel);
+    border-color: var(--cs-accent-line);
+  }
+}
+.cs-search input,
+.cs-form input:not([type='range']):not([type='file']),
+.cs-form textarea,
+.cs-timefield input {
+  background: color-mix(in srgb, var(--cs-base) 70%, transparent);
+  border-color: var(--cs-line);
+}
+.cs-line-time {
+  color: var(--cs-label);
+}
+
+/* ---------- Status toast and tooltips ---------- */
+
+.cs-toast {
+  bottom: 112px;
+  padding: 8px 16px;
+  font: var(--fw-semibold) var(--fs-sm) / var(--lh-snug) var(--cs-font);
+  background: var(--cs-glass);
+  border: var(--bw) solid var(--cs-accent-line);
+  box-shadow: var(--cs-shadow-1);
+}
+.cs-root [data-tip]::after {
+  background: color-mix(in oklab, var(--cs-base) 60%, black);
+  border-color: var(--cs-line);
+  letter-spacing: 0;
+}
+.cs-spinner {
+  border-width: 3px;
+}
+
+/* ---------- Rail chrome ---------- */
+
+.cs-rail-bar {
+  padding: var(--sp-3) var(--sp-3) 0 var(--sp-5);
+}
+.cs-rail-toggle {
+  background: transparent;
+  border-color: transparent;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+/* ---------- Small players ---------- */
+
+.cs-stagewrap:is([data-tier='tiny'], [data-tier='micro']) .cs-row {
+  padding: 3px;
+}
+.cs-stagewrap:is([data-tier='tiny'], [data-tier='micro']) .cs-time {
+  padding: 0 var(--sp-2);
+}
+.cs-stagewrap[data-tier='tiny'] .cs-btn.cs-btn-round,
+.cs-stagewrap[data-tier='micro'] .cs-btn.cs-btn-round {
+  width: 44px;
+  height: 44px;
+}
+.cs-stagewrap[data-tier='tiny'] .cs-btn.cs-btn-play {
+  width: 60px;
+  height: 60px;
+}
+.cs-stagewrap[data-tier='micro'] .cs-btn.cs-btn-play {
+  width: 52px;
+  height: 52px;
+}
+.cs-stagewrap:is([data-tier='tiny'], [data-tier='micro']) .cs-bottom {
+  padding: var(--sp-5) var(--sp-2) var(--sp-2);
+}
+.cs-root[data-large] .cs-btn.cs-btn-play {
+  width: 88px;
+  height: 88px;
+}
+.cs-root[data-large] .cs-btn.cs-btn-round {
+  width: 64px;
+  height: 64px;
+}
+/* Touch: a taller hit area for the seek bar. */
+@media (pointer: coarse) {
+  .cs-timeslider {
+    height: 32px;
+  }
+  .cs-track {
+    height: 6px;
+  }
+}
+
+/* ---------- High contrast, scrim modes ---------- */
+
+.cs-root[data-hc] :is(.cs-row, .cs-titleblock, .cs-tl-preview, .cs-toast),
+.cs-root[data-scrim='high-contrast'] :is(.cs-row, .cs-titleblock) {
+  background: #000;
+  border: 2px solid #fff;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+.cs-root[data-hc] .cs-row .cs-btn:not([data-on]):not([aria-expanded='true']),
+.cs-root[data-scrim='high-contrast'] .cs-row .cs-btn:not([data-on]):not([aria-expanded='true']) {
+  border-color: transparent !important;
+}
+.cs-root[data-hc] .cs-btn[data-on]::before,
+.cs-root[data-hc] .cs-btn[aria-expanded='true']::before {
+  background: var(--cs-ink-on-citron);
+}
+.cs-root[data-hc] .cs-tab[aria-selected='true'] {
+  color: var(--cs-ink-on-citron);
+  background: var(--cs-citron);
+  box-shadow: none;
+}
+.cs-root[data-hc] .cs-marker[data-kind='scene'] {
+  background: #000;
+  opacity: 1;
+}
+
+/* ---------- Motion preferences ---------- */
+
+.cs-root[data-motion='reduce'] :is(.cs-layout, .cs-rail, .cs-atlas, .cs-rail-inner) {
+  transition: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .cs-layout,
+  .cs-rail,
+  .cs-atlas,
+  .cs-rail > .cs-rail-inner {
+    transition: none !important;
+  }
+}
+
+@media (forced-colors: active) {
+  .cs-row,
+  .cs-titleblock,
+  .cs-tl-preview,
+  .cs-toast {
+    border: 1px solid CanvasText;
+    background: Canvas;
+    color: CanvasText;
+    forced-color-adjust: none;
+  }
+  .cs-titleblock::before,
+  .cs-btn[data-on]::before {
+    background: Highlight;
+  }
+  .cs-tab[aria-selected='true'] {
+    box-shadow: inset 0 -3px 0 Highlight;
+  }
+}
+
+/* The rail's collapse button is a disclosure, not a toggle that is "on": no accent state. */
+.cs-root .cs-rail-toggle[aria-expanded='true'] {
+  color: var(--cs-ice);
+  background: transparent;
+  border-color: transparent;
+}
+.cs-root .cs-rail-toggle[aria-expanded]::before {
+  content: none;
+}
+
+/* Tiny and micro players: the top bar, centre cluster and dock must all fit inside a 4:3 stage of ~225px. */
+.cs-stagewrap:is([data-tier='tiny'], [data-tier='micro']) .cs-top {
+  padding: var(--sp-2) var(--sp-2) var(--sp-1);
+}
+.cs-stagewrap:is([data-tier='tiny'], [data-tier='micro']) .cs-bottom {
+  gap: 2px;
+  padding: var(--sp-2) var(--sp-2) var(--sp-2);
+}
+.cs-stagewrap:is([data-tier='tiny'], [data-tier='micro']) .cs-timeslider {
+  height: 20px;
+}

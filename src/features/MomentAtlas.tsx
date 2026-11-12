@@ -5,12 +5,13 @@ import {
   removeMoment,
   replaceMoments,
   updateMomentLabel,
+  updateMomentNote,
   useMoments,
   type Moment,
 } from '../data/stores';
 import { formatTime, speakTime } from '../skin/format';
 import { useCinemaSkin } from '../skin';
-import { BookmarkIcon, ReturnIcon, ShareIcon, TrashIcon } from '../skin/icons';
+import { BookmarkIcon, CompassIcon, PlayIcon, ReturnIcon, ShareIcon, TrashIcon } from '../skin/icons';
 import './atlas.css';
 
 interface Props {
@@ -19,12 +20,15 @@ interface Props {
   onSaveNow: () => void;
   onSaveLast: () => void;
   onSeek: (time: number, label: string) => void;
+  /** Opens the Time Portal on a saved moment, so it can be inspected without leaving the current place. */
+  onPreview?: (id: string, opener: HTMLElement) => void;
 }
 
-export function MomentAtlas({ film, moments, onSaveNow, onSaveLast, onSeek }: Props) {
+export function MomentAtlas({ film, moments, onSaveNow, onSaveLast, onSeek, onPreview }: Props) {
   const { announce } = useCinemaSkin();
   const all = useMoments();
   const fileRef = useRef<HTMLInputElement>(null);
+  const duration = film.duration ?? 0;
 
   const exportJSON = () => {
     const blob = new Blob([JSON.stringify({ version: 1, moments: all }, null, 2)], { type: 'application/json' });
@@ -56,14 +60,17 @@ export function MomentAtlas({ film, moments, onSaveNow, onSaveLast, onSeek }: Pr
   return (
     <div className="atlas">
       <div className="atlas-bar">
-        <div>
+        <div className="atlas-heading">
           <span className="rail-kicker">My Atlas</span>
           <h2 className="atlas-title">
-            {film.title}: {moments.length} saved {moments.length === 1 ? 'moment' : 'moments'}
+            {film.title}
+            <span className="atlas-count">
+              {moments.length} {moments.length === 1 ? 'moment' : 'moments'}
+            </span>
           </h2>
         </div>
         <div className="atlas-actions">
-          <button type="button" className="cs-btn cs-btn-label" onClick={onSaveNow}>
+          <button type="button" className="cs-btn cs-btn-label atlas-primary" onClick={onSaveNow}>
             <BookmarkIcon />
             <span>Save this moment</span>
           </button>
@@ -94,41 +101,71 @@ export function MomentAtlas({ film, moments, onSaveNow, onSaveLast, onSeek }: Pr
         </div>
       </div>
 
-      {moments.length === 0 ? (
-        <p className="atlas-empty">
-          Nothing saved for this film yet. Use “Save this moment” to bookmark the current position, or “Save the last 10
-          s” to keep what you just watched. Moments stay in this browser only.
-        </p>
-      ) : (
-        <ul className="atlas-list">
+      {/* A map of the film: where each saved moment sits in the runtime. Decorative; the list below is the content. */}
+      {duration > 0 && moments.length > 0 ? (
+        <div className="atlas-map" aria-hidden="true">
           {moments.map((m) => (
-            <MomentCard key={m.id} film={film} moment={m} onSeek={onSeek} />
+            <span key={m.id} className="atlas-pin" style={{ left: `${Math.min(100, (m.time / duration) * 100)}%` }} />
           ))}
-        </ul>
+        </div>
+      ) : null}
+
+      {moments.length === 0 ? (
+        <div className="atlas-empty">
+          <BookmarkIcon aria-hidden="true" />
+          <p>
+            Nothing saved for {film.title} yet. <strong>Save this moment</strong> bookmarks where you are;{' '}
+            <strong>Save the last 10 s</strong> keeps what you just watched. Moments stay in this browser only.
+          </p>
+        </div>
+      ) : (
+        <ol className="atlas-list" aria-label={`Saved moments in ${film.title}, in time order`}>
+          {moments.map((m, i) => (
+            <MomentCard key={m.id} index={i} film={film} moment={m} onSeek={onSeek} onPreview={onPreview} />
+          ))}
+        </ol>
       )}
     </div>
   );
 }
 
-function MomentCard({ film, moment, onSeek }: { film: Film; moment: Moment; onSeek: Props['onSeek'] }) {
+function MomentCard({
+  index,
+  film,
+  moment,
+  onSeek,
+  onPreview,
+}: {
+  index: number;
+  film: Film;
+  moment: Moment;
+  onSeek: Props['onSeek'];
+  onPreview: Props['onPreview'];
+}) {
   const { announce } = useCinemaSkin();
   const [label, setLabel] = useState(moment.label);
+  const [note, setNote] = useState(moment.note ?? '');
   const [imgFailed, setImgFailed] = useState(false);
   const src = film.frameAt(moment.time, 330);
-  const commit = () => {
+  const spoken = speakTime(moment.time);
+
+  const commitLabel = () => {
     const next = label.trim() || `Moment at ${formatTime(moment.time)}`;
     setLabel(next);
     if (next !== moment.label) updateMomentLabel(moment.id, next);
   };
+  const commitNote = () => {
+    if (note.trim() !== (moment.note ?? '')) {
+      updateMomentNote(moment.id, note);
+      announce('Note saved');
+    }
+  };
+  // Typing must never trigger player hotkeys.
+  const shield = (e: React.KeyboardEvent) => e.stopPropagation();
 
   return (
     <li className="atlas-card">
-      <button
-        type="button"
-        className="atlas-jump"
-        onClick={() => onSeek(moment.time, moment.label)}
-        aria-label={`Jump to ${moment.label} at ${speakTime(moment.time)}`}
-      >
+      <div className="atlas-frame">
         {src && !imgFailed ? (
           <img src={src} alt="" loading="lazy" decoding="async" onError={() => setImgFailed(true)} />
         ) : (
@@ -136,11 +173,36 @@ function MomentCard({ film, moment, onSeek }: { film: Film; moment: Moment; onSe
             {formatTime(moment.time)}
           </span>
         )}
-        <span className="atlas-time">{formatTime(moment.time)}</span>
-      </button>
+        <span className="atlas-index" aria-hidden="true">
+          {String(index + 1).padStart(2, '0')}
+        </span>
+        <span className="atlas-time" aria-hidden="true">
+          {formatTime(moment.time)}
+        </span>
+        <div className="atlas-quick">
+          <button
+            type="button"
+            className="atlas-play"
+            onClick={() => onSeek(moment.time, moment.label)}
+            aria-label={`Play from ${moment.label}, ${spoken}`}
+          >
+            <PlayIcon />
+          </button>
+          {onPreview ? (
+            <button
+              type="button"
+              className="atlas-peek"
+              onClick={(e) => onPreview(moment.id, e.currentTarget)}
+              aria-label={`Preview ${moment.label} in the Time Portal`}
+            >
+              <CompassIcon />
+            </button>
+          ) : null}
+        </div>
+      </div>
       <div className="atlas-meta">
         <label className="cs-sr" htmlFor={`label-${moment.id}`}>
-          Label for the moment at {speakTime(moment.time)}
+          Name of the moment at {spoken}
         </label>
         <input
           id={`label-${moment.id}`}
@@ -148,12 +210,11 @@ function MomentCard({ film, moment, onSeek }: { film: Film; moment: Moment; onSe
           value={label}
           maxLength={80}
           onChange={(e) => setLabel(e.target.value)}
-          onBlur={commit}
+          onBlur={commitLabel}
           onKeyDown={(e) => {
-            // Typing must never trigger player hotkeys.
-            e.stopPropagation();
+            shield(e);
             if (e.key === 'Enter') {
-              commit();
+              commitLabel();
               (e.target as HTMLInputElement).blur();
             }
           }}
@@ -165,10 +226,24 @@ function MomentCard({ film, moment, onSeek }: { film: Film; moment: Moment; onSe
             removeMoment(moment.id);
             announce(`Removed ${moment.label}`);
           }}
-          aria-label={`Remove ${moment.label} at ${speakTime(moment.time)}`}
+          aria-label={`Remove ${moment.label} at ${spoken}`}
         >
           <TrashIcon />
         </button>
+        <label className="cs-sr" htmlFor={`note-${moment.id}`}>
+          Note for the moment at {spoken}
+        </label>
+        <textarea
+          id={`note-${moment.id}`}
+          className="atlas-note"
+          value={note}
+          rows={2}
+          maxLength={400}
+          placeholder="Add a note…"
+          onChange={(e) => setNote(e.target.value)}
+          onBlur={commitNote}
+          onKeyDown={shield}
+        />
       </div>
     </li>
   );

@@ -129,3 +129,33 @@ Not implemented: audio visualizer (reported as Unavailable in Player health), se
 5. Commons frame thumbnails can return HTTP 429 when generated in bursts.
 
 See `ACCESSIBILITY_CHECKLIST.md` for what still needs automated and manual testing.
+
+## Final refinement (design/xenon-final-refinement)
+
+- **Adaptive Movie Atmosphere** now starts from each film's signature palette (`Film.palette`), so the accent, surfaces, dock, wheel and focus colours change with the film even before artwork is read. Viewer choices in Appearance still win.
+- **Navigation Wheel**: frames ride a real circle around a hub lens with a position readout; a fixed viewfinder gate marks what Enter will select. Movies and Scenes are two faces of the same instrument: switching folds one face into the hub and unfolds the other. Phones get a swipe carousel with the same keyboard model.
+- **Time Portal**: selecting a scene (or previewing a saved moment) opens a preview with the film's own still, timing and notes. Playback keeps running; **Jump here** seeks and leaves a Return Anchor, **Keep watching** or Esc closes, and focus returns to where it came from.
+- **Timeline preview**: hovering the seek bar shows a real still near that second and the scene name. Scene boundaries are drawn as cuts on the bar.
+- **My Atlas**: a strip of frames with names, notes, Play and Preview actions, and a runtime map.
+- **Skin Studio** (`#/studio`, demo only): live presets, colours, radius, panel opacity and blur, font and control size, player width, and copyable CSS.
+
+### Public CSS custom properties
+
+| Property | Purpose |
+| --- | --- |
+| `--media-accent-color` | Accent for selection, progress and focus |
+| `--media-accent-text-color` | Text and icons placed on the accent |
+| `--media-border-radius` | Outer radius; inner radii scale from it |
+| `--media-font-family` | Typeface (Space Grotesk by default) |
+| `--xenon-surface-color` | Base colour every surface is mixed from |
+| `--xenon-panel-opacity` | 0 to 1, opacity of panels and the dock |
+| `--xenon-panel-blur` | Backdrop blur behind panels |
+| `--xenon-control-size` | Minimum control size (never below 44px) |
+
+### Tests
+
+```bash
+npm test
+```
+
+Vitest + Testing Library (jsdom): the wheel's keyboard model and Movies/Scenes transform, the Time Portal, film palettes and contrast, moment storage, layout tiers, and the real Video.js skin (mode switching, status announcer, settings Escape and focus return).

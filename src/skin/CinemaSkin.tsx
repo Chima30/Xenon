@@ -27,11 +27,11 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   type ReactNode,
 } from 'react';
-import { AppearanceProvider, useAppearance } from './appearance/AppearanceContext';
+import { AppearanceProvider, useAppearance, type SkinPalette } from './appearance/AppearanceContext';
 import { Atmosphere } from './appearance/Atmosphere';
 import { ClipPanel, EMPTY_CLIP, type Clip } from './ClipPanel';
 import { DiagnosticsDialog, type DiagRow } from './DiagnosticsDialog';
-import { clamp } from './format';
+import { clamp, formatTime } from './format';
 import { useWidthTier, type Tier } from './hooks';
 import {
   BookmarkIcon,
@@ -72,6 +72,7 @@ import './cinema-skin.css';
 import './panels.css';
 import './appearance/appearance.css';
 import './polish.css';
+import './instrument.css';
 
 export type SkinMode = 'watch' | 'explore' | 'remember';
 
@@ -79,6 +80,12 @@ export interface TimelineMarker {
   time: number;
   kind: 'moment' | 'anchor' | 'scene';
   label: string;
+}
+
+/** What the timeline shows while the pointer is over a position: a real still and a name, when the host has them. */
+export interface ScenePreview {
+  image?: string | null;
+  label?: string;
 }
 
 interface SkinContextValue {
@@ -144,6 +151,12 @@ export interface CinemaSkinProps {
   artwork?: string | null;
   /** Credit line shown in the Appearance settings, e.g. "Still frame from Sintel (CC BY 3.0)". */
   artworkLabel?: string;
+  /** The film's signature colours. Every surface, control and highlight is re-coloured from them. */
+  palette?: SkinPalette | null;
+  /** Content floated over the stage, above the controls (the host uses it for the Time Portal). */
+  stageSlot?: ReactNode;
+  /** Returns a still and a name for a timeline position. Omit it and the timeline shows the time alone. */
+  scenePreview?: (time: number) => ScenePreview | null;
 
   /**
    * Content drawn over the video but beneath captions and controls (hosts use it for footage simulation).
@@ -169,7 +182,7 @@ function isEditable(target: EventTarget | null): boolean {
 
 export function CinemaSkin(props: CinemaSkinProps) {
   return (
-    <AppearanceProvider artwork={props.artwork} artworkLabel={props.artworkLabel}>
+    <AppearanceProvider artwork={props.artwork} artworkLabel={props.artworkLabel} palette={props.palette}>
       <PrefsProvider forceHighContrast={props.forceHighContrast}>
         <SubtitleProvider mediaKey={props.mediaKey ?? 'default'}>
           <SkinInner {...props} />
@@ -201,6 +214,8 @@ function SkinInner({
   initialClip,
   onJump,
   videoOverlay,
+  stageSlot,
+  scenePreview,
 }: CinemaSkinProps) {
   const store = usePlayer();
   const media = useMedia() as HTMLMediaElement | null;
@@ -335,6 +350,7 @@ function SkinInner({
         data-scrim={scrim}
         data-mode={effectiveMode}
         data-atm={look.derived.active ? 'on' : 'off'}
+        data-has-rail={railSlot ? '' : undefined}
         data-rail={look.wheelCollapsed ? 'collapsed' : 'open'}
         data-tier={tier}
         data-large={view.prefs.largeControls || undefined}
@@ -347,8 +363,8 @@ function SkinInner({
       >
         <Atmosphere />
         <div className="cs-layout" onKeyDown={onKeyDown}>
-          {effectiveMode === 'explore' && railSlot ? (
-            <section className="cs-rail" aria-label="Navigate films and scenes">
+          {railSlot ? (
+            <section className="cs-rail" aria-label="Navigate films and scenes" inert={effectiveMode !== 'explore'}>
               <div className="cs-rail-inner">
                 <div className="cs-rail-bar">
                   <span className="cs-rail-title" aria-hidden="true">
@@ -410,6 +426,7 @@ function SkinInner({
                   <BottomBar
                     tier={tier}
                     markers={markers}
+                    scenePreview={scenePreview}
                     clip={clip}
                     onSaveMoment={onSaveMoment}
                     panel={panel}
@@ -477,11 +494,12 @@ function SkinInner({
               onHelp={() => setHelpOpen(true)}
               extra={topActions}
             />
+            {stageSlot}
           </div>
 
-          {effectiveMode === 'remember' && atlasSlot ? (
-            <section className="cs-atlas" aria-label="My Atlas: saved moments">
-              {atlasSlot}
+          {atlasSlot ? (
+            <section className="cs-atlas" aria-label="My Atlas: saved moments" inert={effectiveMode !== 'remember'}>
+              <div className="cs-atlas-inner">{atlasSlot}</div>
             </section>
           ) : null}
         </div>
@@ -506,7 +524,9 @@ function SkinInner({
         <Gesture type="tap" action="toggleControls" pointer="touch" />
         <Gesture type="doubletap" action="seekStep" value={-10} region="left" />
         <Gesture type="doubletap" action="seekStep" value={10} region="right" />
-        <StatusAnnouncer />
+        {/* Announces Playing, Paused, Muted and seeks to screen readers. The class keeps it in the accessibility
+            tree but off screen; it must never be hidden with display or visibility. */}
+        <StatusAnnouncer className="cs-sr cs-announcer" />
 
         <ErrorDialog.Root>
           <ErrorDialog.Popup className="cs-error">
@@ -697,9 +717,63 @@ function Markers({ markers, clip }: { markers: TimelineMarker[]; clip: Clip }) {
   );
 }
 
+/**
+ * The seek bar plus a pointer preview. The preview never claims to be a live frame: it shows the still and name
+ * the host supplies for that part of the film, with the exact time under the pointer. It is decorative for
+ * assistive technology, because the slider already speaks its own value.
+ */
+function Timeline({
+  markers,
+  clip,
+  scenePreview,
+}: {
+  markers: TimelineMarker[];
+  clip: Clip;
+  scenePreview?: (time: number) => ScenePreview | null;
+}) {
+  const duration = usePlayer((s) => s.duration);
+  const ref = useRef<HTMLDivElement>(null);
+  const [hover, setHover] = useState<number | null>(null);
+  const [badImage, setBadImage] = useState<string | null>(null);
+  const time = hover !== null ? hover * duration : 0;
+  const info = hover !== null && scenePreview ? scenePreview(time) : null;
+  const image = info?.image && info.image !== badImage ? info.image : null;
+  return (
+    <div
+      ref={ref}
+      className="cs-tl"
+      onPointerMove={(e) => {
+        const r = ref.current?.getBoundingClientRect();
+        if (r && r.width > 0 && duration > 0) setHover(clamp((e.clientX - r.left) / r.width, 0, 1));
+      }}
+      onPointerLeave={() => setHover(null)}
+      onPointerCancel={() => setHover(null)}
+    >
+      {hover !== null && duration > 0 ? (
+        <div className="cs-tl-preview" aria-hidden="true" data-image={image ? '' : undefined} style={{ ['--x' as string]: `${hover * 100}%` }}>
+          {image ? <img src={image} alt="" draggable={false} onError={() => setBadImage(image)} /> : null}
+          <span className="cs-tl-meta">
+            {info?.label ? <span className="cs-tl-label">{info.label}</span> : null}
+            <span className="cs-tl-time">{formatTime(time)}</span>
+          </span>
+        </div>
+      ) : null}
+      <TimeSlider.Root className="cs-timeslider">
+        <TimeSlider.Track className="cs-track">
+          <TimeSlider.Buffer className="cs-buffer" />
+          <TimeSlider.Fill className="cs-fill" />
+        </TimeSlider.Track>
+        <Markers markers={markers} clip={clip} />
+        <TimeSlider.Thumb className="cs-thumb" />
+      </TimeSlider.Root>
+    </div>
+  );
+}
+
 interface BottomProps {
   tier: Tier;
   markers?: TimelineMarker[];
+  scenePreview?: (time: number) => ScenePreview | null;
   clip: Clip;
   onSaveMoment?: () => void;
   panel: PanelName | null;
@@ -708,7 +782,7 @@ interface BottomProps {
   onSimple: (name: 'clip' | 'transcript' | 'more', opener: HTMLElement) => void;
 }
 
-function BottomBar({ tier, markers, clip, onSaveMoment, panel, settingsTab, onSettings, onSimple }: BottomProps) {
+function BottomBar({ tier, markers, scenePreview, clip, onSaveMoment, panel, settingsTab, onSettings, onSimple }: BottomProps) {
   const store = usePlayer();
   const pip = usePlayer((s) => s.pictureInPictureAvailability);
   const cast = usePlayer((s) => s.remotePlaybackAvailability);
@@ -721,14 +795,7 @@ function BottomBar({ tier, markers, clip, onSaveMoment, panel, settingsTab, onSe
 
   return (
     <div className="cs-bottom">
-      <TimeSlider.Root className="cs-timeslider">
-        <TimeSlider.Track className="cs-track">
-          <TimeSlider.Buffer className="cs-buffer" />
-          <TimeSlider.Fill className="cs-fill" />
-        </TimeSlider.Track>
-        <Markers markers={markers ?? []} clip={clip} />
-        <TimeSlider.Thumb className="cs-thumb" />
-      </TimeSlider.Root>
+      <Timeline markers={markers ?? []} clip={clip} scenePreview={scenePreview} />
 
       <Controls.Group className="cs-row" aria-label="Playback controls">
         <div className="cs-time">

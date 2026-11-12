@@ -1,7 +1,7 @@
 import { useMedia } from '@videojs/react';
 import { Video, VideoPlayer, usePlayer } from '@videojs/react/video';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { CATALOG, findFilm, SINTEL_MUX_PLAYBACK_ID, pickVariant, SERVER_LABELS, servers as serversOf, type Film, type Section, type Variant } from '../data/catalog';
+import { CATALOG, findFilm, SINTEL_MUX_PLAYBACK_ID, pickVariant, SERVER_LABELS, sectionsFor, servers as serversOf, type Film, type Section, type Variant } from '../data/catalog';
 import {
   addMoment,
   momentsFor,
@@ -11,8 +11,9 @@ import {
   useProgress,
 } from '../data/stores';
 import { MomentAtlas } from '../features/MomentAtlas';
-import { NavigationRail } from '../features/NavigationRail';
-import { CinemaSkin, clamp, formatTime, type DiagRow, type TimelineMarker } from '../skin';
+import { NavigationRail, sectionIndexAt } from '../features/NavigationRail';
+import { TimePortal, type PortalStop } from '../features/TimePortal';
+import { CinemaSkin, clamp, formatTime, type DiagRow, type ScenePreview, type TimelineMarker } from '../skin';
 import { ChevronLeftIcon, ChevronRightIcon, ReturnIcon, ShareIcon } from '../skin/icons';
 
 const MuxVideo = lazy(() => import('@videojs/react/media/mux-video').then((m) => ({ default: m.MuxVideo })));
@@ -74,6 +75,43 @@ interface TrailEntry {
 interface Anchor {
   time: number;
 }
+interface PortalState {
+  stops: PortalStop[];
+  index: number;
+  opener: HTMLElement | null;
+}
+
+/** Reads the playhead once a second, so the portal's "ahead / behind" text stays live without re-rendering the page. */
+function PortalHost({
+  portal,
+  anchorTime,
+  onIndex,
+  onJump,
+  onReturn,
+  onClose,
+}: {
+  portal: PortalState;
+  anchorTime: number | null;
+  onIndex: (i: number) => void;
+  onJump: (stop: PortalStop) => void;
+  onReturn: () => void;
+  onClose: () => void;
+}) {
+  const now = usePlayer((s) => Math.floor(s.currentTime));
+  return (
+    <TimePortal
+      stops={portal.stops}
+      index={portal.index}
+      onIndex={onIndex}
+      currentTime={now}
+      anchorTime={anchorTime}
+      onJump={onJump}
+      onReturn={onReturn}
+      onClose={onClose}
+      returnFocusTo={portal.opener}
+    />
+  );
+}
 
 /** Demo-only hooks used by the test bench. The skin itself knows nothing about footage simulation. */
 export interface BenchProps {
@@ -116,6 +154,7 @@ function PlayerBody({ initialId, initialTime, initialEnd, bench }: { initialId?:
   const [notice, setNotice] = useState<{ id: number; message: string } | null>(null);
   const noticeSeq = useRef(0);
   const say = useCallback((message: string) => setNotice({ id: ++noticeSeq.current, message }), []);
+  const [portal, setPortal] = useState<PortalState | null>(null);
 
   // A seek that must wait for the new film's metadata (deep link, resume).
   const pending = useRef<number | null>(initialTime ?? resumeTime(progress[film.id]));
@@ -147,6 +186,7 @@ function PlayerBody({ initialId, initialTime, initialEnd, bench }: { initialId?:
     setAnchor(null);
     setTrail([]);
     setTrailIdx(0);
+    setPortal(null);
     setFilm(next);
     window.history.replaceState(null, '', `#/watch/${next.id}`);
     say(`Loading ${next.title}`);
@@ -215,11 +255,47 @@ function PlayerBody({ initialId, initialTime, initialEnd, bench }: { initialId?:
     }
   };
 
+  // Scenes: verified chapters when the film has them, otherwise labelled equal sections.
+  const sceneDuration = duration > 0 ? duration : (film.duration ?? 0);
+  const sections = useMemo(() => sectionsFor(film, sceneDuration), [film, sceneDuration]);
+
+  /** Timeline hover: a real still from the film near that second (rounded so the host is not asked for every pixel). */
+  const scenePreview = useCallback(
+    (t: number): ScenePreview => {
+      const s = sections[sectionIndexAt(sections, t)];
+      return { image: film.frameAt(Math.floor(t / 5) * 5, 330), label: s?.title };
+    },
+    [film, sections],
+  );
+
+  const sectionStop = (s: Section): PortalStop => ({
+    time: s.start,
+    end: s.end,
+    title: s.title,
+    image: film.frameAt(s.start + 1, 500),
+    kind: s.isChapter ? 'Chapter' : 'Section',
+    note: s.isChapter ? film.chapters[s.index]?.description : undefined,
+  });
+  const openSectionPortal = (s: Section, all: Section[], opener: HTMLElement) =>
+    setPortal({ stops: all.map(sectionStop), index: Math.max(0, all.indexOf(s)), opener });
+  const openMomentPortal = (id: string, opener: HTMLElement) => {
+    const i = moments.findIndex((m) => m.id === id);
+    if (i < 0) return;
+    setPortal({
+      stops: moments.map((m) => ({ time: m.time, title: m.label, image: film.frameAt(m.time, 500), kind: 'Saved moment', note: m.note })),
+      index: i,
+      opener,
+    });
+  };
+
   const markers = useMemo<TimelineMarker[]>(() => {
-    const list: TimelineMarker[] = moments.map((m) => ({ time: m.time, kind: 'moment', label: m.label }));
+    const list: TimelineMarker[] = sections
+      .filter((s) => s.start > 0)
+      .map((s) => ({ time: s.start, kind: 'scene' as const, label: s.title }));
+    list.push(...moments.map((m) => ({ time: m.time, kind: 'moment' as const, label: m.label })));
     if (anchor) list.push({ time: anchor.time, kind: 'anchor', label: 'Return point' });
     return list;
-  }, [moments, anchor]);
+  }, [sections, moments, anchor]);
 
   const diagnosticsRows: DiagRow[] = [
     {
@@ -243,7 +319,6 @@ function PlayerBody({ initialId, initialTime, initialEnd, bench }: { initialId?:
     },
   ];
 
-  const onSection = (s: Section) => jumpTo(s.start, s.title);
 
   const shareClip = async (start: number, end: number) => {
     const url = `${window.location.origin}${window.location.pathname}#/watch/${film.id}?t=${Math.floor(start)}&e=${Math.ceil(end)}`;
@@ -327,6 +402,8 @@ function PlayerBody({ initialId, initialTime, initialEnd, bench }: { initialId?:
       subtitle={`${film.genre} · ${film.year}`}
       notice={notice}
       mediaKey={film.id}
+      palette={film.palette}
+      scenePreview={scenePreview}
       videoOverlay={bench?.overlay}
       forceHighContrast={bench?.forceHighContrast}
       artwork={film.frameAt(film.duration ? film.duration * 0.3 : 30, 960)}
@@ -341,17 +418,35 @@ function PlayerBody({ initialId, initialTime, initialEnd, bench }: { initialId?:
       onSaveMoment={saveNow}
       diagnosticsRows={diagnosticsRows}
       topActions={topActions}
+      stageSlot={
+        portal ? (
+          <PortalHost
+            portal={portal}
+            anchorTime={anchor?.time ?? null}
+            onIndex={(i) => setPortal((p) => (p ? { ...p, index: clamp(i, 0, p.stops.length - 1) } : p))}
+            onJump={(stop) => {
+              setPortal(null);
+              jumpTo(stop.time, stop.title);
+            }}
+            onReturn={() => {
+              setPortal(null);
+              returnToAnchor();
+            }}
+            onClose={() => setPortal(null)}
+          />
+        ) : null
+      }
       railSlot={
         <NavigationRail
           films={CATALOG}
           film={film}
           progress={progress}
           onSelectFilm={selectFilm}
-          onSelectSection={onSection}
+          onPreviewSection={openSectionPortal}
         />
       }
       atlasSlot={
-        <MomentAtlas film={film} moments={moments} onSaveNow={saveNow} onSaveLast={saveLast} onSeek={jumpTo} />
+        <MomentAtlas film={film} moments={moments} onSaveNow={saveNow} onSaveLast={saveLast} onSeek={jumpTo} onPreview={openMomentPortal} />
       }
     >
       <FilmMedia film={film} variant={variant} />

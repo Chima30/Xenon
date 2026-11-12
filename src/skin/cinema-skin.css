@@ -4,20 +4,7 @@
    ========================================================================== */
 
 .cs-root {
-  /* Palette: obsidian + electric citron + lavender memory accent */
-  --cs-obsidian: #0a0e17;
-  --cs-glass: #151b2c;
-  --cs-steel: #202639;
-  --cs-line: #2f3750;
-  --cs-ice: #f4f6f2;
-  --cs-ice-dim: #b6bfcd;
-  --cs-citron: #d8ff57;
-  --cs-lavender: #ada0f8;
-  --cs-teal: #8dd3cf;
-  --cs-danger: #ff8a8a;
-  --cs-ink-on-citron: #0a0e17;
-
-
+  /* Colours live in tokens.css (one base + one accent); nothing here may redefine them. */
   --cs-target: 44px;
   --cs-radius: 14px;
   --cs-rail-w: 360px;

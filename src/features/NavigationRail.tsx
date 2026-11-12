@@ -3,20 +3,20 @@ import { useMemo, useState } from 'react';
 import { sectionsFor, type Film, type Section } from '../data/catalog';
 import { resumeTime, type Progress } from '../data/stores';
 import { formatTime } from '../skin/format';
-import { NavigationWheel, type WheelItem } from './NavigationWheel';
+import { CompassIcon, PlayIcon } from '../skin/icons';
+import { NavigationWheel, type WheelItem, type WheelVariant } from './NavigationWheel';
 
 interface Props {
   films: Film[];
   film: Film;
   progress: Record<string, Progress>;
   onSelectFilm: (id: string) => void;
-  onSelectSection: (section: Section) => void;
+  /** Selecting a scene opens the Time Portal; it never seeks by itself. */
+  onPreviewSection: (section: Section, sections: Section[], opener: HTMLElement) => void;
 }
 
-type Sub = 'movies' | 'scenes';
-
 /** Index of the section containing `time`, or -1. */
-function sectionIndexAt(sections: Section[], time: number): number {
+export function sectionIndexAt(sections: Section[], time: number): number {
   for (let i = sections.length - 1; i >= 0; i--) {
     const s = sections[i];
     if (s && time >= s.start) return i;
@@ -24,8 +24,8 @@ function sectionIndexAt(sections: Section[], time: number): number {
   return -1;
 }
 
-export function NavigationRail({ films, film, progress, onSelectFilm, onSelectSection }: Props) {
-  const [sub, setSub] = useState<Sub>('movies');
+export function NavigationRail({ films, film, progress, onSelectFilm, onPreviewSection }: Props) {
+  const [face, setFace] = useState<WheelVariant>('movies');
   const playerDuration = usePlayer((s) => s.duration);
   // Trust the player's real duration once loaded; before that use the verified catalog value.
   const duration = playerDuration > 0 ? playerDuration : (film.duration ?? 0);
@@ -50,59 +50,70 @@ export function NavigationRail({ films, film, progress, onSelectFilm, onSelectSe
 
   const sectionItems: WheelItem[] = sections.map((s) => ({
     id: String(s.index),
-    label: s.title,
+    label: `${s.title} · ${formatTime(s.start)}`,
     meta: `${formatTime(s.start)}–${formatTime(s.end)}`,
     image: film.frameAt(s.start + 1, 330),
     fallbackText: formatTime(s.start),
   }));
 
   const current = sections[activeSection];
+  const filmStill = film.frameAt(film.duration ? film.duration * 0.3 : 30, 330);
 
   return (
     <div className="rail">
       <div className="rail-head">
-        <div className="rail-tabs" role="group" aria-label="Wheel contents">
-          <button type="button" className="rail-tab" aria-pressed={sub === 'movies'} onClick={() => setSub('movies')}>
-            Movies
+        <div className="rail-tabs" role="group" aria-label="Wheel shows" data-face={face}>
+          <button type="button" className="rail-tab" aria-pressed={face === 'movies'} onClick={() => setFace('movies')}>
+            <PlayIcon aria-hidden="true" width="14" height="14" />
+            Movies <span className="rail-tab-count">{films.length}</span>
           </button>
-          <button type="button" className="rail-tab" aria-pressed={sub === 'scenes'} onClick={() => setSub('scenes')}>
-            Scenes
+          <button type="button" className="rail-tab" aria-pressed={face === 'scenes'} onClick={() => setFace('scenes')}>
+            <CompassIcon aria-hidden="true" width="14" height="14" />
+            Scenes <span className="rail-tab-count">{sections.length || '–'}</span>
           </button>
         </div>
         <p className="rail-note">
-          {sub === 'movies'
-            ? 'Turn the wheel with arrow keys, scroll or drag. Enter or a click loads the film.'
+          {face === 'movies'
+            ? 'Turn with the arrow keys, the scroll wheel or a drag. Enter loads the film in the gate.'
             : film.chapters.length > 0
-              ? 'Chapters for this film. Enter or a click jumps there; you can return to where you were.'
-              : 'Timed sections: this file has no published chapters, so the runtime is split into equal parts.'}
+              ? 'Chapters of this film. Enter opens a preview; nothing changes until you choose Jump here.'
+              : 'This file has no published chapters, so its runtime is split into equal timed sections. Enter opens a preview.'}
         </p>
       </div>
 
-      {sub === 'movies' ? (
+      {face === 'movies' || sections.length > 0 ? (
         <NavigationWheel
-          items={filmItems}
-          activeId={film.id}
-          onSelect={onSelectFilm}
-          label="Films"
-          activeWord="Playing"
-        />
-      ) : sections.length > 0 ? (
-        <NavigationWheel
-          items={sectionItems}
-          activeId={activeSection >= 0 ? String(activeSection) : null}
-          onSelect={(id) => {
-            const s = sections[Number(id)];
-            if (s) onSelectSection(s);
+          variant={face}
+          sets={{
+            movies: {
+              items: filmItems,
+              activeId: film.id,
+              onSelect: (id) => onSelectFilm(id),
+              label: 'Films',
+              activeWord: 'Playing',
+              unit: 'Films',
+              hubImage: filmStill,
+            },
+            scenes: {
+              items: sectionItems,
+              activeId: activeSection >= 0 ? String(activeSection) : null,
+              onSelect: (id, opener) => {
+                const s = sections[Number(id)];
+                if (s) onPreviewSection(s, sections, opener);
+              },
+              label: `Scenes of ${film.title}`,
+              activeWord: 'Now',
+              unit: film.chapters.length > 0 ? 'Chapters' : 'Sections',
+              hubImage: current ? film.frameAt(current.start + 1, 330) : filmStill,
+            },
           }}
-          label={`Sections of ${film.title}`}
-          activeWord="Now"
         />
       ) : (
-        <p className="rail-detail rail-note">Waiting for the video duration before sections can be listed.</p>
+        <p className="rail-detail rail-note">Waiting for the video duration before scenes can be listed.</p>
       )}
 
-      <div className="rail-detail" aria-live="polite">
-        {sub === 'movies' ? (
+      <div className="rail-detail">
+        {face === 'movies' ? (
           <>
             <span className="rail-kicker">Now playing</span>
             <h2>{film.title}</h2>
@@ -115,11 +126,12 @@ export function NavigationRail({ films, film, progress, onSelectFilm, onSelectSe
           </>
         ) : (
           <>
-            <span className="rail-kicker">Scene insight</span>
-            <h2>{current ? `${current.title} · ${formatTime(current.start)}` : film.title}</h2>
+            <span className="rail-kicker">You are in</span>
+            <h2>{current ? `${current.title} · ${formatTime(current.start)}–${formatTime(current.end)}` : film.title}</h2>
             <p>
-              No authored notes exist for this film, so there is nothing to show beyond its position. Insight panels
-              only display data a person has written.
+              {current
+                ? `Part ${current.index + 1} of ${sections.length}. Previews use stills from the film itself; your place is kept until you jump.`
+                : 'Start playback to see where you are.'}
             </p>
           </>
         )}

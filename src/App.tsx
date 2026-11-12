@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { HomePage } from './pages/HomePage';
+import { StudioPage } from './pages/StudioPage';
 import { TestBench } from './pages/TestBench';
 import { WorkbenchPage } from './pages/WorkbenchPage';
 
 interface Route {
-  name: 'home' | 'watch' | 'skin';
+  name: 'home' | 'watch' | 'skin' | 'studio';
   filmId?: string;
   time?: number;
   end?: number;
@@ -15,6 +16,7 @@ function parse(hash: string): Route {
   const [path = '', query = ''] = hash.replace(/^#/, '').split('?');
   const parts = path.split('/').filter(Boolean);
   if (parts[0] === 'skin') return { name: 'skin' };
+  if (parts[0] === 'studio') return { name: 'studio' };
   if (parts[0] === 'watch') {
     const q = new URLSearchParams(query);
     const t = Number(q.get('t'));
@@ -45,9 +47,9 @@ export function App() {
         Skip to content
       </a>
       <header className="site-header">
-        <a className="brand" href="#/" aria-label="Untitled cinema interface, home">
+        <a className="brand" href="#/" aria-label="XENON cinema interface, home">
           <span className="brand-mark" aria-hidden="true" />
-          <span>UNTITLED / CINEMA INTERFACE</span>
+          <span>XENON / CINEMA INTERFACE</span>
         </a>
         <nav aria-label="Primary">
           <a href="#/" aria-current={route.name === 'home' ? 'page' : undefined}>
@@ -58,6 +60,9 @@ export function App() {
           </a>
           <a href="#/skin" aria-current={route.name === 'skin' ? 'page' : undefined}>
             Skin only
+          </a>
+          <a href="#/studio" aria-current={route.name === 'studio' ? 'page' : undefined}>
+            Skin Studio
           </a>
         </nav>
       </header>
@@ -74,6 +79,7 @@ export function App() {
           </>
         ) : null}
         {route.name === 'skin' ? <WorkbenchPage /> : null}
+        {route.name === 'studio' ? <StudioPage /> : null}
       </main>
     </>
   );

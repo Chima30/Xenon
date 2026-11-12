@@ -41,6 +41,11 @@ export interface Film {
   variants: Variant[];
   /** True only when the licence allows people to download the file. */
   downloadable: boolean;
+  /**
+   * Signature colours, chosen by hand from the film's own imagery. The skin re-colours itself from these,
+   * and passes the accent through its contrast guard, so a film change is felt across the whole player.
+   */
+  palette: { accent: string; base: string; glow: string };
 }
 
 export const SERVER_LABELS: Record<string, string> = {
@@ -96,6 +101,8 @@ export const FILMS: Film[] = [
     source: { label: 'Wikimedia Commons', url: 'https://commons.wikimedia.org/wiki/File:Sintel_movie_4K.webm' },
     chapters: [],
     downloadable: true,
+    // Ember and dragon fire over a cold night.
+    palette: { accent: '#ffb35c', base: '#170f12', glow: '#ff7a3c' },
     variants: [
       { server: 'mux', src: SINTEL_MUX_PLAYBACK_ID },
       ...commonsVariants('f/f1', SINTEL_FILE),
@@ -119,6 +126,8 @@ export const FILMS: Film[] = [
     },
     chapters: [],
     downloadable: true,
+    // Hologram cyan over Amsterdam steel.
+    palette: { accent: '#6fd6ff', base: '#0a121c', glow: '#2aa8ff' },
     variants: commonsVariants('1/10', TOS_FILE),
   },
   {
@@ -135,6 +144,8 @@ export const FILMS: Film[] = [
     source: { label: 'Wikimedia Commons', url: 'https://commons.wikimedia.org/wiki/File:Big_Buck_Bunny_4K.webm' },
     chapters: [],
     downloadable: true,
+    // Spring meadow.
+    palette: { accent: '#b9f27c', base: '#0d1710', glow: '#5fd068' },
     variants: [
       ...commonsVariants('c/c0', BBB_FILE),
       { server: 'archive', src: 'https://archive.org/download/BigBuckBunny_124/Content/big_buck_bunny_720p_surround.mp4' },

@@ -1,0 +1,323 @@
+/* ==========================================================================
+   Time Portal. Floats over the stage, above the controls, without covering the video entirely:
+   the film keeps playing visibly behind it.
+   ========================================================================== */
+
+.tp {
+  position: absolute;
+  inset: 0;
+  z-index: 22;
+  display: grid;
+  place-items: center;
+  padding: var(--sp-4);
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, color-mix(in srgb, var(--cs-base) 55%, transparent), transparent 75%);
+  animation: tp-fade var(--t-med) ease both;
+}
+.tp-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  width: min(720px, 100%);
+  max-height: 100%;
+  overflow: hidden;
+  pointer-events: auto;
+  color: var(--cs-ice);
+  background: var(--cs-panel-bg);
+  border: var(--bw) solid var(--cs-accent-line);
+  border-radius: var(--r-xl);
+  box-shadow:
+    var(--cs-shadow-2),
+    0 0 80px color-mix(in srgb, var(--cs-glow) 22%, transparent);
+  -webkit-backdrop-filter: blur(var(--cs-panel-blur)) saturate(1.2);
+  backdrop-filter: blur(var(--cs-panel-blur)) saturate(1.2);
+  animation: tp-open var(--t-slow) var(--ease-spring) both;
+}
+
+/* ---------- The frame: a film still in a gate ---------- */
+
+.tp-frame {
+  position: relative;
+  min-height: 0;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  background: var(--cs-steel);
+}
+.tp-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  animation: tp-develop var(--t-slow) ease both;
+}
+.tp-fallback {
+  display: grid;
+  height: 100%;
+  place-content: center;
+  justify-items: center;
+  gap: var(--sp-1);
+  font: var(--fw-medium) var(--fs-sm) / 1.3 var(--cs-font);
+  color: var(--cs-ice-dim);
+  background: repeating-linear-gradient(135deg, transparent 0 10px, rgb(255 255 255 / 0.04) 10px 11px), var(--cs-steel);
+}
+.tp-fallback-time {
+  font-size: var(--fs-2xl);
+  font-weight: var(--fw-bold);
+  color: var(--cs-label);
+}
+/* Sprocket holes down the edge mark it as film, not a screenshot. */
+.tp-sprockets {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 14px;
+  background:
+    radial-gradient(circle at 7px 50%, color-mix(in srgb, var(--cs-base) 85%, transparent) 0 3px, transparent 3.5px) 0 0 / 14px 16px repeat-y,
+    linear-gradient(to right, rgb(0 0 0 / 0.6), rgb(0 0 0 / 0.25));
+}
+.tp-time {
+  position: absolute;
+  left: 22px;
+  bottom: 12px;
+  padding: 4px 10px;
+  font: var(--fw-bold) var(--fs-sm) / 1 var(--cs-font);
+  color: var(--cs-ink-on-citron);
+  background: var(--cs-citron);
+  border-radius: var(--r-pill);
+}
+.tp-time span {
+  font-weight: var(--fw-medium);
+}
+.tp-step {
+  position: absolute;
+  top: 50%;
+  display: grid;
+  place-items: center;
+  width: var(--h-ctl);
+  height: var(--h-ctl);
+  padding: 0;
+  color: var(--cs-ice);
+  cursor: pointer;
+  background: color-mix(in srgb, var(--cs-base) 70%, transparent);
+  border: 1px solid var(--cs-hairline);
+  border-radius: 50%;
+  translate: 0 -50%;
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  transition: background-color var(--t-fast) ease, opacity var(--t-fast) ease;
+}
+.tp-step svg {
+  width: 20px;
+  height: 20px;
+}
+.tp-step[data-dir='prev'] {
+  left: 22px;
+}
+.tp-step[data-dir='next'] {
+  right: 10px;
+}
+.tp-step:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+@media (hover: hover) {
+  .tp-step:hover:not(:disabled) {
+    background: var(--cs-steel);
+  }
+}
+
+/* ---------- The body ---------- */
+
+.tp-body {
+  display: grid;
+  align-content: start;
+  gap: var(--sp-2);
+  min-width: 0;
+  padding: var(--sp-3) var(--sp-3) var(--sp-4) var(--sp-5);
+  overflow-y: auto;
+}
+.tp-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+}
+.tp-kicker {
+  font: var(--fw-semibold) var(--fs-xs) / var(--lh-snug) var(--cs-font);
+  letter-spacing: var(--ls-label);
+  text-transform: uppercase;
+  color: var(--cs-label);
+}
+.tp-close {
+  flex: none;
+}
+.tp-title {
+  margin: 0;
+  font: var(--fw-bold) var(--fs-xl) / var(--lh-tight) var(--cs-font);
+  letter-spacing: var(--ls-display);
+  overflow-wrap: anywhere;
+}
+.tp-facts {
+  margin: 0;
+  font: var(--fw-medium) var(--fs-sm) / var(--lh-body) var(--cs-font);
+  color: var(--cs-ice-dim);
+}
+.tp-note {
+  margin: 0;
+  padding-left: var(--sp-3);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-body);
+  border-left: 2px solid var(--cs-lavender);
+}
+.tp-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin-top: var(--sp-2);
+}
+.tp-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  min-height: var(--h-ctl);
+  padding: 0 var(--sp-4);
+  font: var(--fw-semibold) var(--fs-sm) / 1 var(--cs-font);
+  color: var(--cs-ice);
+  cursor: pointer;
+  background: color-mix(in srgb, var(--cs-glass) 80%, transparent);
+  border: var(--bw) solid var(--cs-line);
+  border-radius: var(--r-md);
+  transition: background-color var(--t-fast) ease, border-color var(--t-fast) ease, transform var(--t-fast) ease;
+}
+.tp-btn svg {
+  width: 18px;
+  height: 18px;
+}
+.tp-btn-primary {
+  color: var(--cs-ink-on-citron);
+  background: var(--cs-citron);
+  border-color: var(--cs-citron);
+  font-weight: var(--fw-bold);
+}
+.tp-btn-quiet {
+  background: transparent;
+  border-color: transparent;
+  color: var(--cs-label);
+}
+.tp-btn:active {
+  transform: scale(0.97);
+}
+@media (hover: hover) {
+  .tp-btn:hover:not(.tp-btn-primary) {
+    background: var(--cs-steel);
+    border-color: var(--cs-accent-line);
+  }
+  .tp-btn-primary:hover {
+    background: color-mix(in oklab, var(--cs-citron) 86%, white);
+  }
+}
+.tp button:focus-visible {
+  outline: 3px solid var(--cs-focus);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 6px rgb(5 7 12 / 0.9);
+}
+.tp-hint {
+  margin: 0;
+  font-size: var(--fs-xs);
+  color: var(--cs-ice-dim);
+}
+
+/* ---------- Sizes ---------- */
+
+@container csstage (max-width: 640px) {
+  .tp-card {
+    grid-template-columns: 1fr;
+    width: min(420px, 100%);
+  }
+  .tp-frame {
+    aspect-ratio: 16 / 8;
+  }
+  .tp-title {
+    font-size: var(--fs-lg);
+  }
+}
+/* Phones: the portal leaves the video alone and sits under it, like the settings panels. */
+@container csstage (max-width: 520px) {
+  .tp {
+    position: static;
+    padding: 0;
+    background: none;
+    animation: none;
+  }
+  .tp-card {
+    width: 100%;
+    border-radius: 0;
+    border-width: 1px 0 0;
+    box-shadow: none;
+  }
+  .tp-hint {
+    display: none;
+  }
+}
+.cs-root:fullscreen .tp {
+  position: absolute;
+  padding: var(--sp-3);
+}
+
+/* ---------- Motion ---------- */
+
+@keyframes tp-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes tp-open {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.96);
+  }
+}
+@keyframes tp-develop {
+  from {
+    opacity: 0;
+    filter: brightness(1.8) saturate(0.2);
+  }
+}
+.cs-root[data-motion='reduce'] :is(.tp, .tp-card, .tp-img) {
+  animation: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .tp,
+  .tp-card,
+  .tp-img {
+    animation: none;
+  }
+}
+
+/* ---------- Contrast ---------- */
+
+.cs-root[data-hc] .tp-card {
+  background: #000;
+  border: 2px solid #fff;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+.cs-root[data-hc] .tp-btn:not(.tp-btn-primary) {
+  background: #000;
+  border-color: #fff;
+}
+@media (forced-colors: active) {
+  .tp-card,
+  .tp-btn,
+  .tp-step {
+    border: 1px solid CanvasText;
+    background: Canvas;
+    color: CanvasText;
+    forced-color-adjust: none;
+  }
+  .tp-btn-primary,
+  .tp-time {
+    background: Highlight;
+    color: HighlightText;
+  }
+}

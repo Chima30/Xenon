@@ -19,11 +19,24 @@ import {
 
 export type BgSource = 'poster' | 'color' | 'custom';
 export type PanelStyle = 'glass' | 'solid' | 'clear';
-export type AccentChoice = 'default' | 'poster' | 'lavender' | 'teal' | 'rose' | 'custom';
+export type AccentChoice = 'default' | 'citron' | 'poster' | 'lavender' | 'teal' | 'rose' | 'custom';
+
+/**
+ * A film's signature colours, supplied by the host. The skin re-colours every surface, control and highlight from
+ * these two values, so each film feels distinct even before (or without) any artwork being read.
+ */
+export interface SkinPalette {
+  /** Accent for selection, progress and focus. Passed through the contrast guard before use. */
+  accent: string;
+  /** Dark base colour that panels, the dock and the rail are mixed from. */
+  base: string;
+  /** Ambient light colour behind the interface. Defaults to the accent. */
+  glow?: string;
+}
 export type PanelArea = 'header' | 'wheel' | 'controls';
 
 export interface Appearance {
-  /** Master switch. Off by default: the skin keeps its plain obsidian look until someone opts in. */
+  /** Artwork layer switch. The film palette (accent and base colour) applies either way. */
   enabled: boolean;
   source: BgSource;
   /** Artwork visibility, 0 to 100. */
@@ -41,7 +54,7 @@ export interface Appearance {
 }
 
 export const DEFAULT_APPEARANCE: Appearance = {
-  enabled: false,
+  enabled: true,
   source: 'poster',
   opacity: 55,
   blur: 28,
@@ -85,7 +98,7 @@ function parseAppearance(v: unknown): Appearance | null {
     blur: num(v.blur, 0, 60, d.blur),
     color: hex(v.color, d.color),
     customImage: typeof v.customImage === 'string' && v.customImage.startsWith('data:image/') ? v.customImage : null,
-    accent: pick(v.accent, ['default', 'poster', 'lavender', 'teal', 'rose', 'custom'] as const, d.accent),
+    accent: pick(v.accent, ['default', 'citron', 'poster', 'lavender', 'teal', 'rose', 'custom'] as const, d.accent),
     customAccent: hex(v.customAccent, d.customAccent),
     contrast: pick(v.contrast, ['normal', 'high'] as const, d.contrast),
     ambient: num(v.ambient, 0, 100, d.ambient),
@@ -114,8 +127,10 @@ function parsePresets(v: unknown): Preset[] | null {
 /* ---------- derived state ---------- */
 
 export interface Derived {
-  /** True when the atmosphere is on. */
+  /** True when the artwork atmosphere is on. */
   active: boolean;
+  /** True when the host supplied a signature palette for this film. */
+  hasFilmPalette: boolean;
   imageUrl: string | null;
   palette: Palette | null;
   paletteStatus: 'idle' | 'loading' | 'ready' | 'unavailable';
@@ -181,10 +196,12 @@ async function fileToDataUrl(file: File): Promise<string> {
 export function AppearanceProvider({
   artwork,
   artworkLabel,
+  palette: filmPalette,
   children,
 }: {
   artwork?: string | null;
   artworkLabel?: string;
+  palette?: SkinPalette | null;
   children: ReactNode;
 }) {
   const [appearance, setAppearance] = useState<Appearance>(() => readJSON('appearance', parseAppearance, DEFAULT_APPEARANCE));
@@ -323,16 +340,20 @@ export function AppearanceProvider({
       !a.enabled ? 'idle' : a.source === 'color' ? 'ready' : imageUrl ? (entry === undefined ? 'loading' : entry === 'unavailable' ? 'unavailable' : 'ready') : 'unavailable';
 
     const base = palette ?? fallbackPalette('');
+    const filmAccent = filmPalette ? parseHex(filmPalette.accent) : null;
     // Accent: every choice passes through safeAccent, so nothing can fall below 4.5:1.
     let accent: SafeAccent;
-    if (a.accent === 'poster') accent = palette ? palette.accent : safeAccent(DEFAULT_ACCENT);
-    else if (a.accent === 'default') accent = safeAccent(DEFAULT_ACCENT);
+    if (a.accent === 'poster') accent = palette && !palette.accent.fellBack ? palette.accent : safeAccent(filmAccent ?? DEFAULT_ACCENT);
+    else if (a.accent === 'default') accent = safeAccent(filmAccent ?? DEFAULT_ACCENT);
+    else if (a.accent === 'citron') accent = safeAccent(DEFAULT_ACCENT);
     else if (a.accent === 'custom') accent = safeAccent(parseHex(a.customAccent) ?? DEFAULT_ACCENT);
     else accent = safeAccent(parseHex(NAMED_ACCENTS[a.accent]) ?? DEFAULT_ACCENT);
 
-    const solved = solveScrim(base.tint, base.average, a.opacity / 100, ink, target);
+    const filmBase = a.source !== 'color' && filmPalette ? parseHex(filmPalette.base) : null;
+    const solved = solveScrim(filmBase ?? base.tint, base.average, a.opacity / 100, ink, target);
     return {
       active: a.enabled,
+      hasFilmPalette: Boolean(filmPalette),
       imageUrl,
       palette,
       paletteStatus: status,
@@ -341,43 +362,61 @@ export function AppearanceProvider({
       scrimAlpha: solved.alpha,
       note: base.note,
     };
-  }, [appearance, imageUrl, palettes]);
+  }, [appearance, imageUrl, palettes, filmPalette]);
 
-  /* ---- CSS custom properties ---- */
+  /* ---- CSS custom properties ----
+     Only what is actually known is written inline. With no film palette and the default accent nothing is set
+     here, so a host page can theme the player with --media-accent-color and --xenon-surface-color. */
   const cssVars = useMemo<CSSProperties>(() => {
-    if (!derived.active) return {};
     const a = appearance;
-    const base = derived.palette ?? fallbackPalette('');
-    const tint = base.tint;
-    const rgb = (c: RGB) => c.map((v) => Math.round(v)).join(' ');
-    const alpha = (s: PanelStyle) => (s === 'solid' ? 1 : s === 'glass' ? (a.contrast === 'high' ? 0.9 : 0.62) : a.contrast === 'high' ? 0.6 : 0.16);
-    const blur = (s: PanelStyle) => (s === 'glass' ? '16px' : '0px');
-    const [h] = rgbToHsl(base.dominant);
-    const glow = hslToRgb(h, 0.75, 0.5);
-    const vars: Record<string, string | number> = {
-      '--cs-atm-tint': rgb(tint),
-      '--cs-atm-opacity': a.opacity / 100,
-      '--cs-atm-blur': `${a.blur}px`,
-      '--cs-atm-scrim': derived.scrimAlpha,
-      '--cs-atm-glow': rgb(glow),
-      '--cs-atm-glow-a': (a.ambient / 100) * 0.55,
-      '--cs-citron': toHex(derived.accent.color),
-      '--cs-ink-on-citron': toHex(inkOn(derived.accent.color)),
-      '--cs-surf-header': `rgb(${rgb(tint)} / ${alpha(a.panels.header)})`,
-      '--cs-surf-wheel': `rgb(${rgb(tint)} / ${alpha(a.panels.wheel)})`,
-      '--cs-surf-controls': `rgb(${rgb(tint)} / ${alpha(a.panels.controls)})`,
-      '--cs-blur-header': blur(a.panels.header),
-      '--cs-blur-wheel': blur(a.panels.wheel),
-      '--cs-blur-controls': blur(a.panels.controls),
-    };
+    const vars: Record<string, string | number> = {};
+    const film = filmPalette ?? null;
+    const extracted = derived.palette;
+
+    // Base colour: solid-colour source > film signature > colours read from the artwork.
+    const filmBase = film ? parseHex(film.base) : null;
+    const baseColor: RGB | null =
+      a.enabled && a.source === 'color' && extracted ? extracted.tint : (filmBase ?? (a.enabled && extracted && derived.paletteStatus === 'ready' ? extracted.tint : null));
+    if (baseColor) vars['--cs-base'] = toHex(baseColor);
+
+    // Accent: written only when it is a deliberate choice (a film signature or a viewer setting).
+    if (a.accent !== 'default' || film) {
+      vars['--cs-citron'] = toHex(derived.accent.color);
+      vars['--cs-ink-on-citron'] = toHex(inkOn(derived.accent.color));
+    }
+
+    const filmGlow = film ? parseHex(film.glow ?? film.accent) : null;
+    if (filmGlow) vars['--cs-glow'] = toHex(filmGlow);
+    else if (a.enabled && extracted && derived.paletteStatus === 'ready') {
+      const [h] = rgbToHsl(extracted.dominant);
+      vars['--cs-glow'] = toHex(hslToRgb(h, 0.75, 0.5));
+    }
+
     if (a.contrast === 'high') {
       vars['--cs-ice'] = '#ffffff';
       vars['--cs-ice-dim'] = '#e6eaf2';
     }
+    if (!derived.active) return vars as CSSProperties;
+
+    const alpha = (s: PanelStyle) => (s === 'solid' ? 1 : s === 'glass' ? (a.contrast === 'high' ? 0.9 : 0.62) : a.contrast === 'high' ? 0.6 : 0.16);
+    const blur = (s: PanelStyle) => (s === 'glass' ? '18px' : '0px');
+    const surf = (s: PanelStyle) => `color-mix(in srgb, var(--cs-base) ${Math.round(alpha(s) * 100)}%, transparent)`;
+    Object.assign(vars, {
+      '--cs-atm-opacity': a.opacity / 100,
+      '--cs-atm-blur': `${a.blur}px`,
+      '--cs-atm-scrim': derived.scrimAlpha,
+      '--cs-atm-glow-a': (a.ambient / 100) * 0.55,
+      '--cs-surf-header': surf(a.panels.header),
+      '--cs-surf-wheel': surf(a.panels.wheel),
+      '--cs-surf-controls': surf(a.panels.controls),
+      '--cs-blur-header': blur(a.panels.header),
+      '--cs-blur-wheel': blur(a.panels.wheel),
+      '--cs-blur-controls': blur(a.panels.controls),
+    });
     if (a.source === 'color') vars['--cs-atm-color'] = toHex(parseHex(a.color) ?? [31, 59, 87]);
     if (derived.imageUrl) vars['--cs-atm-image'] = `url("${derived.imageUrl.replace(/"/g, '%22')}")`;
     return vars as CSSProperties;
-  }, [appearance, derived]);
+  }, [appearance, derived, filmPalette]);
 
   const value = useMemo<AppearanceApi>(
     () => ({

@@ -62,10 +62,10 @@
 
 /* ---------- Tooltips: solid, high contrast, readable over any footage ---------- */
 
-[data-tip] {
+.cs-root [data-tip] {
   position: relative;
 }
-[data-tip]::after {
+.cs-root [data-tip]::after {
   content: attr(data-tip);
   position: absolute;
   bottom: calc(100% + 10px);
@@ -84,37 +84,37 @@
   pointer-events: none;
   transition: opacity 0.12s ease, transform 0.12s ease;
 }
-[data-tip][data-tip-pos='below']::after {
+.cs-root [data-tip][data-tip-pos='below']::after {
   top: calc(100% + 10px);
   bottom: auto;
   transform: translate(-50%, -4px);
 }
-[data-tip][data-tip-align='end']::after {
+.cs-root [data-tip][data-tip-align='end']::after {
   left: auto;
   right: 0;
   transform: translate(0, 4px);
 }
-[data-tip][data-tip-pos='below'][data-tip-align='end']::after {
+.cs-root [data-tip][data-tip-pos='below'][data-tip-align='end']::after {
   transform: translate(0, -4px);
 }
-[data-tip]:focus-visible::after {
+.cs-root [data-tip]:focus-visible::after {
   opacity: 1;
   transform: translate(-50%, 0);
 }
-[data-tip][data-tip-align='end']:focus-visible::after {
+.cs-root [data-tip][data-tip-align='end']:focus-visible::after {
   transform: translate(0, 0);
 }
 @media (hover: hover) {
-  [data-tip]:hover::after {
+  .cs-root [data-tip]:hover::after {
     opacity: 1;
     transform: translate(-50%, 0);
   }
-  [data-tip][data-tip-align='end']:hover::after {
+  .cs-root [data-tip][data-tip-align='end']:hover::after {
     transform: translate(0, 0);
   }
 }
 /* A tooltip must never cover an open menu or panel trigger's own label. */
-[aria-expanded='true'][data-tip]::after {
+.cs-root [aria-expanded='true'][data-tip]::after {
   display: none;
 }
 
@@ -201,18 +201,7 @@
 
 /* ---------- Panels: surface, entrance, scrollbar ---------- */
 
-.cs-root {
-  --cs-panel-bg: rgb(21 27 44 / 0.97);
-  --cs-card-bg: var(--cs-obsidian);
-}
-.cs-root[data-atm='on'] {
-  --cs-panel-bg: rgb(var(--cs-atm-tint) / 0.96);
-  --cs-card-bg: rgb(var(--cs-atm-tint) / 0.55);
-}
-.cs-root[data-hc] {
-  --cs-panel-bg: #000;
-  --cs-card-bg: #000;
-}
+/* Panel and card surfaces are defined in tokens.css. */
 .cs-panel {
   background: var(--cs-panel-bg);
   border-radius: var(--r-xl);
@@ -573,7 +562,7 @@
 }
 .cs-keytable kbd,
 .cs-keyrow kbd,
-kbd {
+.cs-root kbd {
   display: inline-grid;
   place-items: center;
   min-width: 28px;
@@ -815,7 +804,7 @@ kbd {
 .cs-root[data-atm='on'] .cs-choice,
 .cs-root[data-atm='on'] .cs-row-btn,
 .cs-root[data-atm='on'] .cs-chip:not([aria-pressed='true']) {
-  background: rgb(var(--cs-atm-tint) / 0.7);
+  background: color-mix(in srgb, var(--cs-base) 70%, transparent);
 }
 .cs-root[data-atm='on'] {
   border: 1px solid color-mix(in srgb, var(--cs-citron) 25%, transparent);
@@ -835,7 +824,7 @@ kbd {
   .cs-panel {
     animation: none;
   }
-  [data-tip]::after,
+  .cs-root [data-tip]::after,
   .cs-switch-knob,
   .cs-switch-track {
     transition: none;
@@ -881,7 +870,7 @@ kbd {
   max-width: 55%;
 }
 .cs-root[data-atm='on'] .cs-titleblock {
-  background: rgb(var(--cs-atm-tint) / 0.85);
+  background: color-mix(in srgb, var(--cs-base) 85%, transparent);
 }
 .cs-root[data-hc] .cs-titleblock {
   background: #000;

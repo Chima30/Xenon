@@ -11,7 +11,7 @@
   z-index: 0;
   overflow: hidden;
   pointer-events: none;
-  background: rgb(var(--cs-atm-tint, 10 14 23));
+  background: var(--cs-base);
 }
 .cs-atm-art,
 .cs-atm-color,
@@ -44,12 +44,12 @@
 }
 .cs-atm-glow {
   inset: 0;
-  background: radial-gradient(70% 75% at 68% 45%, rgb(var(--cs-atm-glow, 80 120 200) / var(--cs-atm-glow-a, 0.2)), transparent 72%);
+  background: radial-gradient(70% 75% at 68% 45%, color-mix(in srgb, var(--cs-glow) calc(var(--cs-atm-glow-a, 0.2) * 100%), transparent), transparent 72%);
 }
 /* Sized by solveScrim() so body text always reaches its contrast target, whatever the artwork. */
 .cs-atm-scrim {
   inset: 0;
-  background: rgb(var(--cs-atm-tint, 10 14 23) / var(--cs-atm-scrim, 0.6));
+  background: color-mix(in srgb, var(--cs-base) calc(var(--cs-atm-scrim, 0.6) * 100%), transparent);
 }
 
 .cs-root[data-atm='on'] .cs-layout {
@@ -64,7 +64,7 @@
   background: transparent;
 }
 
-/* ---------- Panel styles ---------- */
+/* ---------- Panel styles (Glass / Solid / Clear per area) ---------- */
 
 .cs-root[data-atm='on'] .cs-rail,
 .cs-root[data-atm='on'] .cs-atlas {
@@ -72,29 +72,16 @@
   -webkit-backdrop-filter: blur(var(--cs-blur-wheel));
   backdrop-filter: blur(var(--cs-blur-wheel));
 }
-.cs-root[data-atm='on'] .cs-top .cs-seg,
-.cs-root[data-atm='on'] .cs-top .cs-icon-btn {
+.cs-root[data-atm='on'] .cs-top :is(.cs-seg, .cs-icon-btn, .cs-titleblock, .cs-btn):not([aria-expanded='true']) {
   background: var(--cs-surf-header);
   -webkit-backdrop-filter: blur(var(--cs-blur-header));
   backdrop-filter: blur(var(--cs-blur-header));
 }
-.cs-root[data-atm='on'] .cs-bottom .cs-btn:not([data-on]):not([aria-expanded='true']),
+.cs-root[data-atm='on'] .cs-row,
 .cs-root[data-atm='on'] .cs-center .cs-btn-round {
   background: var(--cs-surf-controls);
   -webkit-backdrop-filter: blur(var(--cs-blur-controls));
   backdrop-filter: blur(var(--cs-blur-controls));
-}
-/* The bars over the video borrow the poster tint instead of flat black. */
-.cs-root[data-atm='on'] .cs-top {
-  background: linear-gradient(to bottom, rgb(var(--cs-atm-tint) / 0.8), transparent);
-}
-.cs-root[data-atm='on'] .cs-bottom {
-  background: linear-gradient(to top, rgb(var(--cs-atm-tint) / 0.9), transparent);
-}
-.cs-root[data-atm='on'] .cs-btn,
-.cs-root[data-atm='on'] .cs-icon-btn,
-.cs-root[data-atm='on'] .cs-seg-btn:not([aria-pressed='true']) {
-  color: var(--cs-ice);
 }
 
 /* ---------- Collapsible wheel ---------- */
