@@ -26,6 +26,7 @@ import {
 } from 'react';
 import { AppearanceProvider, useAppearance, type ResolvedAtmosphere, type SkinPalette } from './appearance/AppearanceContext';
 import { Atmosphere } from './appearance/Atmosphere';
+import { inertProps } from './inert';
 import { ClipPanel, EMPTY_CLIP, type Clip } from './ClipPanel';
 import { DiagnosticsDialog, type DiagRow } from './DiagnosticsDialog';
 import { Timeline, type ScenePreview, type ThumbnailAt, type TimelineMarker } from './dock/Timeline';
@@ -642,7 +643,7 @@ function SkinInner({
               id="cs-rail"
               className="cs-rail"
               aria-label="Navigate films and scenes"
-              inert={!(effectiveMode === 'explore' || drawerOpen)}
+              {...inertProps(!(effectiveMode === 'explore' || drawerOpen))}
               data-interactive
             >
               <div className="cs-rail-inner">
@@ -680,7 +681,7 @@ function SkinInner({
                   )}
                 </div>
                 {/* inert removes the hidden wheel from the tab order and the accessibility tree while collapsed. */}
-                <div id="cs-rail-body" className="cs-rail-body" inert={look.wheelCollapsed && !drawerOpen}>
+                <div id="cs-rail-body" className="cs-rail-body" {...inertProps(look.wheelCollapsed && !drawerOpen)}>
                   {hasNav ? (
                     <NavigationRail
                       films={films}
@@ -883,7 +884,7 @@ function SkinInner({
           </div>
 
           {atlasSlot ? (
-            <section className="cs-atlas" aria-label="My Atlas: saved moments" inert={effectiveMode !== 'remember'}>
+            <section className="cs-atlas" aria-label="My Atlas: saved moments" {...inertProps(effectiveMode !== 'remember')}>
               <div className="cs-atlas-inner">{atlasSlot}</div>
             </section>
           ) : null}
